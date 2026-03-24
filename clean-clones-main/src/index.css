@@ -1,0 +1,139 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300;1,9..40,400&family=Cormorant+Garamond:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 20% 97%;
+    --foreground: 30 10% 12%;
+
+    --card: 40 15% 95%;
+    --card-foreground: 30 10% 12%;
+
+    --popover: 40 20% 97%;
+    --popover-foreground: 30 10% 12%;
+
+    --primary: 30 10% 12%;
+    --primary-foreground: 40 20% 97%;
+
+    --secondary: 35 12% 90%;
+    --secondary-foreground: 30 10% 12%;
+
+    --muted: 35 10% 92%;
+    --muted-foreground: 30 8% 45%;
+
+    --accent: 25 30% 50%;
+    --accent-foreground: 40 20% 97%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 40 20% 97%;
+
+    --border: 35 15% 88%;
+    --input: 35 15% 88%;
+    --ring: 30 10% 12%;
+
+    --radius: 0px;
+
+    --sidebar-background: 40 15% 95%;
+    --sidebar-foreground: 30 10% 12%;
+    --sidebar-primary: 30 10% 12%;
+    --sidebar-primary-foreground: 40 20% 97%;
+    --sidebar-accent: 35 12% 90%;
+    --sidebar-accent-foreground: 30 10% 12%;
+    --sidebar-border: 35 15% 88%;
+    --sidebar-ring: 30 10% 12%;
+
+    --font-heading: 'Cormorant Garamond', Georgia, serif;
+    --font-body: 'DM Sans', system-ui, sans-serif;
+
+    --sale: 0 72% 51%;
+  }
+
+  .dark {
+    --background: 30 10% 8%;
+    --foreground: 40 15% 90%;
+    --card: 30 10% 10%;
+    --card-foreground: 40 15% 90%;
+    --popover: 30 10% 8%;
+    --popover-foreground: 40 15% 90%;
+    --primary: 40 15% 90%;
+    --primary-foreground: 30 10% 8%;
+    --secondary: 30 8% 15%;
+    --secondary-foreground: 40 15% 90%;
+    --muted: 30 8% 18%;
+    --muted-foreground: 35 10% 55%;
+    --accent: 25 30% 50%;
+    --accent-foreground: 40 20% 97%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 40 20% 97%;
+    --border: 30 8% 18%;
+    --input: 30 8% 18%;
+    --ring: 40 15% 90%;
+    --sidebar-background: 30 10% 10%;
+    --sidebar-foreground: 40 15% 90%;
+    --sidebar-primary: 40 15% 90%;
+    --sidebar-primary-foreground: 30 10% 8%;
+    --sidebar-accent: 30 8% 15%;
+    --sidebar-accent-foreground: 40 15% 90%;
+    --sidebar-border: 30 8% 18%;
+    --sidebar-ring: 40 15% 90%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+  }
+}
+
+@layer components {
+  .nav-link {
+    @apply text-sm tracking-wide uppercase text-foreground/70 hover:text-foreground transition-colors duration-200;
+    font-family: var(--font-body);
+    font-weight: 400;
+    letter-spacing: 0.08em;
+  }
+
+  .nav-link-active {
+    @apply text-foreground;
+  }
+
+  .product-card {
+    @apply cursor-pointer;
+  }
+
+  .product-card-image {
+    @apply w-full aspect-[4/5] object-cover bg-secondary transition-transform duration-500 group-hover:scale-[1.02];
+  }
+
+  .product-card-title {
+    @apply text-sm font-normal mt-3 text-foreground;
+    font-family: var(--font-body);
+  }
+
+  .product-card-price {
+    @apply text-sm text-muted-foreground mt-1;
+  }
+
+  .section-title {
+    font-family: var(--font-heading);
+    @apply text-2xl font-normal tracking-normal;
+  }
+
+  .badge-sale {
+    @apply absolute top-2 right-2 text-xs px-2 py-1 font-medium tracking-wide;
+    background: hsl(var(--sale));
+    color: hsl(var(--primary-foreground));
+  }
+}
