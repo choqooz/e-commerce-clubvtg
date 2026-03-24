@@ -7,9 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  --font-sans: 'DM Sans', system-ui, sans-serif;
+  --font-heading: 'Cormorant Garamond', Georgia, serif;
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -39,6 +39,7 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-sale: var(--sale);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -48,83 +49,134 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ── Light Mode (Vintage warm neutrals) ── */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --background: hsl(40, 20%, 97%);
+  --foreground: hsl(30, 10%, 12%);
+  --card: hsl(40, 15%, 95%);
+  --card-foreground: hsl(30, 10%, 12%);
+  --popover: hsl(40, 20%, 97%);
+  --popover-foreground: hsl(30, 10%, 12%);
+  --primary: hsl(30, 10%, 12%);
+  --primary-foreground: hsl(40, 20%, 97%);
+  --secondary: hsl(35, 12%, 90%);
+  --secondary-foreground: hsl(30, 10%, 12%);
+  --muted: hsl(35, 10%, 92%);
+  --muted-foreground: hsl(30, 8%, 45%);
+  --accent: hsl(25, 30%, 50%);
+  --accent-foreground: hsl(40, 20%, 97%);
+  --destructive: hsl(0, 72%, 51%);
+  --border: hsl(35, 15%, 88%);
+  --input: hsl(35, 15%, 88%);
+  --ring: hsl(30, 10%, 12%);
+  --radius: 0px;
+  --sale: hsl(0, 72%, 51%);
+  --chart-1: hsl(35, 20%, 85%);
+  --chart-2: hsl(30, 10%, 55%);
+  --chart-3: hsl(25, 15%, 45%);
+  --chart-4: hsl(20, 12%, 35%);
+  --chart-5: hsl(30, 10%, 25%);
+  --sidebar: hsl(40, 15%, 95%);
+  --sidebar-foreground: hsl(30, 10%, 12%);
+  --sidebar-primary: hsl(30, 10%, 12%);
+  --sidebar-primary-foreground: hsl(40, 20%, 97%);
+  --sidebar-accent: hsl(35, 12%, 90%);
+  --sidebar-accent-foreground: hsl(30, 10%, 12%);
+  --sidebar-border: hsl(35, 15%, 88%);
+  --sidebar-ring: hsl(30, 10%, 12%);
 }
 
+/* ── Dark Mode (Warm dark vintage) ── */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: hsl(30, 10%, 8%);
+  --foreground: hsl(40, 15%, 90%);
+  --card: hsl(30, 10%, 10%);
+  --card-foreground: hsl(40, 15%, 90%);
+  --popover: hsl(30, 10%, 8%);
+  --popover-foreground: hsl(40, 15%, 90%);
+  --primary: hsl(40, 15%, 90%);
+  --primary-foreground: hsl(30, 10%, 8%);
+  --secondary: hsl(30, 8%, 15%);
+  --secondary-foreground: hsl(40, 15%, 90%);
+  --muted: hsl(30, 8%, 18%);
+  --muted-foreground: hsl(35, 10%, 55%);
+  --accent: hsl(25, 30%, 50%);
+  --accent-foreground: hsl(40, 20%, 97%);
+  --destructive: hsl(0, 63%, 31%);
+  --border: hsl(30, 8%, 18%);
+  --input: hsl(30, 8%, 18%);
+  --ring: hsl(40, 15%, 90%);
+  --sale: hsl(0, 72%, 51%);
+  --chart-1: hsl(35, 20%, 85%);
+  --chart-2: hsl(30, 10%, 55%);
+  --chart-3: hsl(25, 15%, 45%);
+  --chart-4: hsl(20, 12%, 35%);
+  --chart-5: hsl(30, 10%, 25%);
+  --sidebar: hsl(30, 10%, 10%);
+  --sidebar-foreground: hsl(40, 15%, 90%);
+  --sidebar-primary: hsl(40, 15%, 90%);
+  --sidebar-primary-foreground: hsl(30, 10%, 8%);
+  --sidebar-accent: hsl(30, 8%, 15%);
+  --sidebar-accent-foreground: hsl(40, 15%, 90%);
+  --sidebar-border: hsl(30, 8%, 18%);
+  --sidebar-ring: hsl(40, 15%, 90%);
 }
 
+/* ── Base styles ── */
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-sans);
   }
   html {
     @apply font-sans;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+  }
+}
+
+/* ── Component classes (migrated from template) ── */
+@layer components {
+  .nav-link {
+    @apply text-sm tracking-wide uppercase text-foreground/70 hover:text-foreground transition-colors duration-200;
+    font-family: var(--font-sans);
+    font-weight: 400;
+    letter-spacing: 0.08em;
+  }
+
+  .nav-link-active {
+    @apply text-foreground;
+  }
+
+  .product-card {
+    @apply cursor-pointer block;
+  }
+
+  .product-card-image {
+    @apply w-full aspect-[4/5] object-cover bg-secondary transition-transform duration-500 group-hover:scale-[1.02];
+  }
+
+  .product-card-title {
+    @apply text-sm font-normal mt-3 text-foreground;
+    font-family: var(--font-sans);
+  }
+
+  .product-card-price {
+    @apply text-sm text-muted-foreground mt-1;
+  }
+
+  .section-title {
+    font-family: var(--font-heading);
+    @apply text-2xl font-normal tracking-normal;
+  }
+
+  .badge-sale {
+    @apply absolute top-2 right-2 text-xs px-2 py-1 font-medium tracking-wide;
+    background: var(--sale);
+    color: var(--primary-foreground);
   }
 }
