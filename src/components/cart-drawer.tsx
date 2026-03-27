@@ -30,7 +30,7 @@ export default function CartDrawer() {
           <>
             <div className="flex-1 overflow-y-auto py-4 space-y-4">
               {items.map((item) => (
-                <div key={item.product.id} className="flex gap-4">
+                <div key={item.product.id} className="flex gap-4 animate-in fade-in slide-in-from-right-2 duration-200">
                   {/* Product image */}
                   <div className="relative w-20 h-24 bg-secondary shrink-0 flex items-center justify-center overflow-hidden">
                     {item.product.image_urls && item.product.image_urls.length > 0 ? (
@@ -60,7 +60,8 @@ export default function CartDrawer() {
                   </div>
                   <button
                     onClick={() => removeItem(item.product.id)}
-                    className="text-muted-foreground hover:text-foreground transition-colors self-start"
+                    className="text-muted-foreground hover:text-destructive transition-colors duration-200 self-start p-1 hover:bg-destructive/10"
+                    aria-label="Quitar producto"
                   >
                     <X size={14} />
                   </button>
@@ -76,7 +77,7 @@ export default function CartDrawer() {
               <Link
                 href="/checkout"
                 onClick={() => setIsOpen(false)}
-                className="w-full bg-primary text-primary-foreground py-3.5 text-sm uppercase tracking-widest font-sans font-medium hover:opacity-90 transition-opacity text-center block"
+                className="w-full bg-primary text-primary-foreground py-3.5 text-sm uppercase tracking-widest font-sans font-medium hover:opacity-90 transition-all duration-200 text-center block"
               >
                 Ir al Checkout
               </Link>

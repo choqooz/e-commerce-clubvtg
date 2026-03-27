@@ -5,7 +5,7 @@ import type { Product } from "@/lib/types";
 
 export default function ProductCard({ product }: { product: Product }) {
   return (
-    <Link href={`/product/${product.slug}`} className="product-card group">
+    <Link href={`/product/${product.slug}`} className="product-card group transition-shadow duration-200 hover:shadow-md">
       <div className="relative overflow-hidden">
         {/* Product image */}
         <div className="product-card-image bg-secondary flex items-center justify-center relative">
@@ -15,7 +15,7 @@ export default function ProductCard({ product }: { product: Product }) {
               alt={product.title}
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              className="object-cover"
+              className="object-cover transition-transform duration-300 group-hover:scale-105"
             />
           ) : (
             <span className="text-muted-foreground/40 text-xs uppercase tracking-widest font-sans">

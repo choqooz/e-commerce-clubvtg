@@ -7,6 +7,7 @@ import {
 } from "@/lib/validations/checkout";
 import { MercadoPagoConfig, Preference } from "mercadopago";
 import { SHIPPING_FEE } from "@/lib/config";
+import { resolvePaymentUrls } from "@/lib/urls";
 import { auth } from "@clerk/nextjs/server";
 import type { CartItem } from "@/lib/types";
 
@@ -114,23 +115,8 @@ export async function createCheckoutPreference(
 
     const preference = new Preference(client);
     
-    // Webhook and Back URLs
-    // Limpiamos los espacios en blanco que a veces quedan copiando y pegando en el .env
-    const ngrokUrl = (process.env.NEXT_PUBLIC_NGROK_URL || "").trim();
-    const envUrl = (process.env.NEXT_PUBLIC_APP_URL || "").trim();
-    
-    // Para la experiencia del usuario (back_urls), DEBE volver a localhost donde tiene su sesión de Clerk (u otra cookie)
-    let rawSiteUrl = envUrl || "http://localhost:3000";
-    const siteUrl = rawSiteUrl.endsWith("/") ? rawSiteUrl.slice(0, -1) : rawSiteUrl;
-    
-    // Para que MercadoPago nos envíe el webhook desde internet, SÍ O SÍ necesitamos el túnel público de Ngrok
-    let rawWebhookUrl = ngrokUrl || siteUrl;
-    const webhookBaseUrl = rawWebhookUrl.endsWith("/") ? rawWebhookUrl.slice(0, -1) : rawWebhookUrl;
-
-    // Validamos que sea una URL de http/https real, de lo contrario MP rechaza la preferencia
-    if (!siteUrl.startsWith("http")) {
-      throw new Error(`La URL configurada en el .env no es válida: "${siteUrl}"`);
-    }
+    // Resolve payment URLs from environment
+    const { webhookBaseUrl } = resolvePaymentUrls();
 
     const response = await preference.create({
       body: {

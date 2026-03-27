@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { MercadoPagoConfig, Payment } from "mercadopago";
 import { Resend } from "resend";
 import { ReceiptEmail } from "@/components/emails/receipt-email";
+import { CREDIT_PACKS } from "@/lib/config";
 
 /**
  * Verify MercadoPago webhook HMAC-SHA256 signature.
@@ -73,12 +74,66 @@ export async function POST(req: Request) {
       const paymentData = await payment.get({ id: paymentId });
       
       if (paymentData.status === "approved") {
-        const orderId = paymentData.external_reference;
-        
-        if (orderId) {
+        const externalReference = paymentData.external_reference as string;
+        const supabase = supabaseAdmin;
+
+        if (externalReference?.startsWith("credits:")) {
+          // ── Credit pack payment flow ──
+          const [, userId, packId] = externalReference.split(":");
+
+          const pack = CREDIT_PACKS.find((p) => p.id === packId);
+          if (!pack) {
+            console.error("MP Webhook: Unknown credit pack:", packId);
+            return NextResponse.json({ error: "Unknown pack" }, { status: 400 });
+          }
+
+          // Idempotency — skip if this payment was already processed
+          const { data: existing } = await supabase
+            .from("credit_transactions")
+            .select("id")
+            .eq("mp_payment_id", String(paymentId))
+            .maybeSingle();
+
+          if (existing) {
+            console.log("MP Webhook: Credit payment already processed:", paymentId);
+            return NextResponse.json({ success: true });
+          }
+
+          // Atomic credit addition (requires DB function `increment_credits`)
+          // CREATE FUNCTION increment_credits(row_id uuid, amount int)
+          // RETURNS void AS $$ UPDATE profiles SET credits = credits + amount WHERE id = row_id; $$ LANGUAGE sql;
+          const { error: updateErr } = await supabase.rpc("increment_credits", {
+            row_id: userId,
+            amount: pack.credits,
+          });
+
+          if (updateErr) {
+            console.error("MP Webhook: Failed to add credits for user:", userId, updateErr);
+            return NextResponse.json({ error: "Credit update failed" }, { status: 500 });
+          }
+
+          // Record the transaction
+          const { error: txErr } = await supabase
+            .from("credit_transactions")
+            .insert({
+              user_id: userId,
+              amount: pack.credits,
+              reason: `Compra pack ${pack.name}`,
+              mp_payment_id: String(paymentId),
+            });
+
+          if (txErr) {
+            console.error("MP Webhook: Failed to insert credit_transaction:", txErr);
+          }
+
+          console.log(`MP Webhook: Added ${pack.credits} credits to user ${userId} (pack: ${packId})`);
+
+        } else if (externalReference) {
+          // ── Existing product order flow ──
+          const orderId = externalReference;
+
           // Usamos el cliente Admin porque los webhooks no tienen cookies de sesión
           // y las políticas RLS bloquearían cualquier intento de UPDATE por parte de "public"
-          const supabase = supabaseAdmin;
           
           // 1. Update order status
           const { data: order, error: orderErr } = await supabase
@@ -136,7 +191,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("MP Webhook Error:", error);
     return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
   }

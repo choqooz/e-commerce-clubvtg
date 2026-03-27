@@ -22,9 +22,7 @@ import {
 import { productSchema, type ProductFormValues } from "@/lib/validations/product";
 import { createProduct } from "@/lib/actions/product";
 import { MultiImageUpload } from "@/components/admin/image-upload";
-import { CATEGORIES } from "@/lib/config"; // Need to import or define categories
 
-// Use a simple fallback if CATEGORIES is not exported perfectly
 const adminCats = [
   { id: "Tops", name: "Tops" },
   { id: "Bottoms", name: "Bottoms" },

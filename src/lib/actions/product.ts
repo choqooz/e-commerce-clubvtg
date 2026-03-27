@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth, currentUser } from "@clerk/nextjs/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { productSchema, type ProductFormValues } from "@/lib/validations/product";
+import { requireAdmin } from "@/lib/actions/auth";
 
 // Utility to generate a slug from the title
 function generateSlug(title: string): string {
@@ -13,34 +13,6 @@ function generateSlug(title: string): string {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)+/g, "");
-}
-
-/**
- * Verify the current user is authenticated AND is an admin.
- * Returns an error object if unauthorized, or null if authorized.
- */
-async function requireAdmin(): Promise<{ error: string } | null> {
-  const { userId } = await auth();
-  if (!userId) {
-    return { error: "No autenticado. Iniciá sesión para continuar." };
-  }
-
-  const adminEmail = process.env.ADMIN_EMAIL;
-  if (!adminEmail) {
-    console.error("ADMIN_EMAIL env var is not configured");
-    return { error: "Error de configuración del servidor." };
-  }
-
-  const user = await currentUser();
-  const primaryEmail = user?.emailAddresses.find(
-    (e) => e.id === user.primaryEmailAddressId
-  )?.emailAddress;
-
-  if (!primaryEmail || primaryEmail !== adminEmail) {
-    return { error: "No tenés permisos de administrador." };
-  }
-
-  return null;
 }
 
 export async function createProduct(data: ProductFormValues) {

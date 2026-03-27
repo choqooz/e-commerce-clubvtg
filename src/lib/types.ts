@@ -1,7 +1,7 @@
 // ── Canonical Domain Types ──
 // Single source of truth for all domain types.
 // Field names match the Supabase DB schema (snake_case).
-// Last synced with: migrations 001 + 004 + 005 + 006
+// Last synced with: migrations 001 + 004 + 005 + 006 + 007
 
 // ── Product ──
 
@@ -73,16 +73,21 @@ export interface Profile {
   updated_at: string;
 }
 
+// ── AI Try-On ──
+
+export type TryOnStatus = "processing" | "completed" | "failed";
+
 export interface AiTryonLog {
   id: string;
   user_id: string;
   product_id: string;
-  user_image_url: string;
+  source_image_url: string;
   result_image_url: string | null;
-  status: "processing" | "success" | "failed";
-  error_message: string | null;
+  status: TryOnStatus;
   credits_charged: number;
+  error_message: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export interface CreditTransaction {
@@ -93,3 +98,47 @@ export interface CreditTransaction {
   mp_payment_id: string | null;
   created_at: string;
 }
+
+// SSE event types for try-on generation
+export type TryOnStep =
+  | "validating"
+  | "uploading"
+  | "processing"
+  | "content_check"
+  | "generating"
+  | "finalizing";
+
+export interface TryOnProgressEvent {
+  type: "progress";
+  step: TryOnStep;
+  message: string;
+}
+
+export interface TryOnCompleteEvent {
+  type: "complete";
+  resultUrl: string;
+  logId: string;
+  creditsRemaining: number;
+}
+
+export interface TryOnErrorEvent {
+  type: "error";
+  message: string;
+  code:
+    | "insufficient_credits"
+    | "rate_limited"
+    | "generation_failed"
+    | "invalid_image"
+    | "not_verified"
+    | "server_error"
+    | "nsfw_content"
+    | "no_person_detected"
+    | "inappropriate_image";
+}
+
+export type TryOnSSEEvent =
+  | TryOnProgressEvent
+  | TryOnCompleteEvent
+  | TryOnErrorEvent;
+
+export type CreditPackId = "basic" | "popular" | "pro";

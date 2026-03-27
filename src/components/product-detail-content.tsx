@@ -11,7 +11,7 @@ import ProductCard from "@/components/product-card";
 import TryOnSection from "@/components/try-on-section";
 import CartDrawer from "@/components/cart-drawer";
 import { useCart } from "@/contexts/cart-context";
-import { formatPrice, SHIPPING_FEE } from "@/lib/config";
+import { formatPrice } from "@/lib/config";
 import { COLOR_MAP } from "@/lib/constants";
 import type { Product } from "@/lib/types";
 
@@ -75,7 +75,7 @@ export function ProductDetailContent({
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
             {/* Product Images Gallery */}
             <div className="relative space-y-4">
-              <div className="relative w-full aspect-4/5 bg-secondary flex items-center justify-center overflow-hidden">
+              <div className="relative w-full aspect-4/5 max-h-[600px] lg:max-h-[700px] bg-secondary flex items-center justify-center overflow-hidden">
                 {activeImage ? (
                   <Image
                     src={activeImage}
@@ -83,7 +83,7 @@ export function ProductDetailContent({
                     fill
                     priority
                     sizes="(max-width: 1024px) 100vw, 50vw"
-                    className="object-cover"
+                    className="object-contain"
                   />
                 ) : (
                   <span className="text-muted-foreground/30 text-lg uppercase tracking-widest font-sans">
@@ -108,7 +108,7 @@ export function ProductDetailContent({
                         alt={`Vista ${i+1}`}
                         fill
                         sizes="10vw"
-                        className="object-cover"
+                        className="object-contain"
                       />
                     </button>
                   ))}
@@ -229,7 +229,7 @@ export function ProductDetailContent({
               )}
 
               {/* Virtual Try-On */}
-              <TryOnSection productName={product.title} />
+              <TryOnSection productSlug={product.slug} />
             </div>
           </div>
         </div>

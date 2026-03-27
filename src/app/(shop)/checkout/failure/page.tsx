@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import { XCircle } from "lucide-react";
 import SiteHeader from "@/components/site-header";

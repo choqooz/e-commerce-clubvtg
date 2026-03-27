@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 export function CheckoutForm() {
-  const { items, totalPrice } = useCart();
+  const { items } = useCart();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<CheckoutFormValues>({
@@ -57,8 +57,7 @@ export function CheckoutForm() {
         toast.error("No se pudo obtener el link de pago");
         setIsSubmitting(false);
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
       toast.error("Ocurrió un error inesperado al conectar con MercadoPago");
       setIsSubmitting(false);
     }
@@ -74,7 +73,7 @@ export function CheckoutForm() {
             <label className="text-xs uppercase font-sans font-medium tracking-widest">Nombre Completo</label>
             <input 
               {...form.register("fullName")}
-              className="w-full border border-border bg-transparent p-3 text-sm focus:outline-none focus:border-primary disabled:opacity-50"
+               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="Juan Pérez"
               disabled={isSubmitting}
             />
@@ -86,7 +85,7 @@ export function CheckoutForm() {
             <input 
               {...form.register("email")}
               type="email"
-              className="w-full border border-border bg-transparent p-3 text-sm focus:outline-none focus:border-primary disabled:opacity-50"
+               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="juan@ejemplo.com"
               disabled={isSubmitting}
             />
@@ -97,7 +96,7 @@ export function CheckoutForm() {
             <label className="text-xs uppercase font-sans font-medium tracking-widest">DNI</label>
             <input 
               {...form.register("dni")}
-              className="w-full border border-border bg-transparent p-3 text-sm focus:outline-none focus:border-primary disabled:opacity-50"
+               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="12345678"
               disabled={isSubmitting}
             />
@@ -108,7 +107,7 @@ export function CheckoutForm() {
             <label className="text-xs uppercase font-sans font-medium tracking-widest">Teléfono</label>
             <input 
               {...form.register("phone")}
-              className="w-full border border-border bg-transparent p-3 text-sm focus:outline-none focus:border-primary disabled:opacity-50"
+               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="11 1234 5678"
               disabled={isSubmitting}
             />
@@ -125,7 +124,7 @@ export function CheckoutForm() {
             <label className="text-xs uppercase font-sans font-medium tracking-widest">Calle</label>
             <input 
               {...form.register("street")}
-              className="w-full border border-border bg-transparent p-3 text-sm focus:outline-none focus:border-primary disabled:opacity-50"
+               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="Av. Rivadavia"
               disabled={isSubmitting}
             />
@@ -136,7 +135,7 @@ export function CheckoutForm() {
             <label className="text-xs uppercase font-sans font-medium tracking-widest">Número</label>
             <input 
               {...form.register("number")}
-              className="w-full border border-border bg-transparent p-3 text-sm focus:outline-none focus:border-primary disabled:opacity-50"
+               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="1234"
               disabled={isSubmitting}
             />
@@ -147,7 +146,7 @@ export function CheckoutForm() {
             <label className="text-xs uppercase font-sans font-medium tracking-widest">Piso/Dpto</label>
             <input 
               {...form.register("floorOrApt")}
-              className="w-full border border-border bg-transparent p-3 text-sm focus:outline-none focus:border-primary disabled:opacity-50"
+               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="4B (Opcional)"
               disabled={isSubmitting}
             />
@@ -157,7 +156,7 @@ export function CheckoutForm() {
             <label className="text-xs uppercase font-sans font-medium tracking-widest">Ciudad</label>
             <input 
               {...form.register("city")}
-              className="w-full border border-border bg-transparent p-3 text-sm focus:outline-none focus:border-primary disabled:opacity-50"
+               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="CABA"
               disabled={isSubmitting}
             />
@@ -168,7 +167,7 @@ export function CheckoutForm() {
             <label className="text-xs uppercase font-sans font-medium tracking-widest">Provincia</label>
             <input 
               {...form.register("province")}
-              className="w-full border border-border bg-transparent p-3 text-sm focus:outline-none focus:border-primary disabled:opacity-50"
+               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="Buenos Aires"
               disabled={isSubmitting}
             />
@@ -179,7 +178,7 @@ export function CheckoutForm() {
             <label className="text-xs uppercase font-sans font-medium tracking-widest">CP</label>
             <input 
               {...form.register("zipCode")}
-              className="w-full border border-border bg-transparent p-3 text-sm focus:outline-none focus:border-primary disabled:opacity-50"
+               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="1000"
               disabled={isSubmitting}
             />
@@ -191,7 +190,7 @@ export function CheckoutForm() {
       <button
         type="submit"
         disabled={isSubmitting || items.length === 0}
-        className="w-full py-4 mt-8 bg-primary text-primary-foreground font-sans font-medium uppercase tracking-widest flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 transition-opacity"
+        className="w-full py-4 mt-8 bg-primary text-primary-foreground font-sans font-medium uppercase tracking-widest flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
       >
         {isSubmitting ? (
           <>

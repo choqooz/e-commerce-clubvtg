@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import { Clock } from "lucide-react";
 import SiteHeader from "@/components/site-header";

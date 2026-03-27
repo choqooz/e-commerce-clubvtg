@@ -241,12 +241,12 @@ export function CatalogFilters({
                     aria-label={color.name}
                   >
                     <span
-                      className={`relative w-7 h-7 rounded-full border-2 transition-all ${
+                      className={`relative w-7 h-7 rounded-full border-2 transition-all duration-200 ${
                         isSelected
-                          ? "border-foreground scale-110"
+                          ? "border-foreground scale-110 ring-2 ring-foreground ring-offset-2"
                           : color.key === "blanco"
-                            ? "border-border hover:border-foreground/50"
-                            : "border-transparent hover:scale-105"
+                            ? "border-border hover:border-foreground/50 hover:ring-2 hover:ring-offset-2 hover:ring-foreground/30"
+                            : "border-transparent hover:scale-105 hover:ring-2 hover:ring-offset-2 hover:ring-foreground/30"
                       }`}
                       style={
                         isGradient
@@ -424,10 +424,10 @@ function ChipToggle({
   return (
     <button
       onClick={onClick}
-      className={`px-3 py-1.5 text-xs font-sans tracking-wide border transition-colors ${
+      className={`px-3 py-1.5 text-xs font-sans tracking-wide border transition-all duration-200 ${
         active
           ? "border-foreground bg-foreground text-background"
-          : "border-border text-muted-foreground hover:border-foreground hover:text-foreground"
+          : "border-border text-muted-foreground hover:border-foreground hover:text-foreground hover:bg-foreground/5"
       } ${className}`}
     >
       {children}

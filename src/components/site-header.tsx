@@ -1,10 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { Search, ShoppingBag } from "lucide-react";
-import { useState } from "react";
+import { Search, ShoppingBag, Sparkles } from "lucide-react";
+import { useState, useEffect } from "react";
 import { useCart } from "@/contexts/cart-context";
 import { useAuth, SignInButton, UserButton } from "@clerk/nextjs";
+import { getUserCredits } from "@/lib/actions/credits";
+
+function CreditBadge() {
+  const [credits, setCredits] = useState<number | null>(null);
+
+  useEffect(() => {
+    getUserCredits().then((result) => {
+      if (result) setCredits(result.credits);
+    });
+  }, []);
+
+  if (credits === null) return null;
+
+  return (
+    <Link
+      href="/credits"
+      className="flex items-center gap-1 text-xs font-sans text-foreground/70 hover:text-foreground transition-colors duration-200 hover:scale-105"
+    >
+      <Sparkles size={14} strokeWidth={1.5} />
+      <span>{credits}</span>
+    </Link>
+  );
+}
 
 export default function SiteHeader() {
   const [searchOpen, setSearchOpen] = useState(false);
@@ -22,10 +45,10 @@ export default function SiteHeader() {
         <div className="flex items-center justify-between h-16">
           {/* Nav links (desktop) */}
           <nav className="hidden md:flex items-center gap-8">
-            <Link href="/" className="nav-link nav-link-active">
+            <Link href="/" className="nav-link nav-link-active transition-colors duration-200">
               Catálogo
             </Link>
-            <Link href="/" className="nav-link">
+            <Link href="/" className="nav-link transition-colors duration-200">
               Novedades
             </Link>
           </nav>
@@ -49,13 +72,16 @@ export default function SiteHeader() {
 
             {/* Clerk Auth */}
             {isSignedIn ? (
-              <UserButton
-                appearance={{
-                  elements: {
-                    avatarBox: "w-7 h-7",
-                  },
-                }}
-              />
+              <>
+                <CreditBadge />
+                <UserButton
+                  appearance={{
+                    elements: {
+                      avatarBox: "w-7 h-7",
+                    },
+                  }}
+                />
+              </>
             ) : (
               <SignInButton mode="modal">
                 <button
