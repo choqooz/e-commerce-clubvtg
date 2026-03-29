@@ -1,12 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { ChevronRight, SlidersHorizontal, X } from "lucide-react";
-import SiteHeader from "@/components/site-header";
-import SiteFooter from "@/components/site-footer";
-import CategoryBanner from "@/components/category-banner";
-import ProductCard from "@/components/product-card";
-import CartDrawer from "@/components/cart-drawer";
+import { useState } from "react";
+import { CartDrawer } from "@/components/cart-drawer";
 import {
   CatalogFilters,
   EMPTY_FILTERS,
@@ -14,6 +10,10 @@ import {
   applyFilters,
   type FilterState,
 } from "@/components/catalog-filters";
+import { CategoryBanner } from "@/components/category-banner";
+import { ProductCard } from "@/components/product-card";
+import { SiteFooter } from "@/components/site-footer";
+import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -27,11 +27,7 @@ import {
 import { CATEGORIES, type Category } from "@/lib/config";
 import type { Product } from "@/lib/types";
 
-export function CatalogContent({
-  initialProducts,
-}: {
-  initialProducts: Product[];
-}) {
+export function CatalogContent({ initialProducts }: { initialProducts: Product[] }) {
   const [activeCategory, setActiveCategory] = useState<Category>("all");
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
 
@@ -77,13 +73,11 @@ export function CatalogContent({
 
         {/* Title & Description */}
         <section className="container mx-auto px-6 pb-8">
-          <h1 className="font-heading text-4xl md:text-5xl font-light mb-4">
-            Catálogo
-          </h1>
+          <h1 className="font-heading text-4xl md:text-5xl font-light mb-4">Catálogo</h1>
           <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed font-sans">
-            Prendas vintage únicas seleccionadas por su calidad, carácter y
-            estilo atemporal. Materiales naturales, siluetas relajadas, estilo
-            sin esfuerzo. Cada pieza es única — una unidad, un talle.
+            Prendas vintage únicas seleccionadas por su calidad, carácter y estilo atemporal.
+            Materiales naturales, siluetas relajadas, estilo sin esfuerzo. Cada pieza es única — una
+            unidad, un talle.
           </p>
         </section>
 
@@ -138,11 +132,7 @@ export function CatalogContent({
                   </div>
                   <SheetFooter className="border-t border-border pt-3">
                     {activeFilterCount > 0 && (
-                      <Button
-                        variant="outline"
-                        onClick={clearFilters}
-                        className="w-full"
-                      >
+                      <Button variant="outline" onClick={clearFilters} className="w-full">
                         <X size={14} />
                         Limpiar filtros
                       </Button>
@@ -172,9 +162,7 @@ export function CatalogContent({
             {/* Results count */}
             <span className="text-xs text-muted-foreground font-sans whitespace-nowrap">
               {finalProducts.length}{" "}
-              {finalProducts.length === 1
-                ? "prenda encontrada"
-                : "prendas encontradas"}
+              {finalProducts.length === 1 ? "prenda encontrada" : "prendas encontradas"}
             </span>
           </div>
 
@@ -214,11 +202,7 @@ export function CatalogContent({
                     No encontramos prendas con estos filtros.
                   </p>
                   {activeFilterCount > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={clearFilters}
-                    >
+                    <Button variant="outline" size="sm" onClick={clearFilters}>
                       Limpiar filtros
                     </Button>
                   )}

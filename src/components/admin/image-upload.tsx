@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
 import { Upload, X, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import Image from "next/image";
+import { useState } from "react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 interface MultiImageUploadProps {
   value: string[];
@@ -18,7 +18,7 @@ export function MultiImageUpload({ value, onChange, disabled }: MultiImageUpload
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     try {
       if (!e.target.files || e.target.files.length === 0) return;
-      
+
       const file = e.target.files[0];
       const formData = new FormData();
       formData.append("file", file);
@@ -39,8 +39,7 @@ export function MultiImageUpload({ value, onChange, disabled }: MultiImageUpload
       // Add new url to the array
       onChange([...value, data.publicUrl]);
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Ocurrió un problema inesperado";
+      const message = err instanceof Error ? err.message : "Ocurrió un problema inesperado";
       toast.error("Error al subir", { description: message });
     } finally {
       setIsUploading(false);
@@ -57,7 +56,10 @@ export function MultiImageUpload({ value, onChange, disabled }: MultiImageUpload
       {value.length > 0 && (
         <div className="grid grid-cols-2 gap-4">
           {value.map((url, i) => (
-            <div key={url} className="relative w-full aspect-[4/5] bg-muted rounded-md overflow-hidden border group">
+            <div
+              key={url}
+              className="relative w-full aspect-[4/5] bg-muted rounded-md overflow-hidden border group"
+            >
               <Image
                 src={url}
                 alt={`Preview ${i}`}

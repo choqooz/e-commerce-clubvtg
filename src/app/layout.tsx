@@ -1,7 +1,7 @@
+import { esES } from "@clerk/localizations";
+import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { DM_Sans, Cormorant_Garamond } from "next/font/google";
-import { ClerkProvider } from "@clerk/nextjs";
-import { esES } from "@clerk/localizations";
 import { Toaster } from "sonner";
 import { Providers } from "@/app/providers";
 import "./globals.css";
@@ -27,8 +27,7 @@ export const metadata: Metadata = {
   keywords: ["vintage", "ropa", "moda", "segunda mano", "curado", "try-on"],
   openGraph: {
     title: "ClubVTG — Vintage Curado",
-    description:
-      "Prendas vintage únicas. Probá antes de comprar con nuestro probador virtual.",
+    description: "Prendas vintage únicas. Probá antes de comprar con nuestro probador virtual.",
     type: "website",
     locale: "es_AR",
     url: "https://clubvtg.com",
@@ -42,10 +41,7 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider localization={esES} afterSignOutUrl="/">
-      <html
-        lang="es"
-        className={`${dmSans.variable} ${cormorant.variable} h-full antialiased`}
-      >
+      <html lang="es" className={`${dmSans.variable} ${cormorant.variable} h-full antialiased`}>
         <body className="min-h-full flex flex-col font-sans">
           <Providers>
             {children}

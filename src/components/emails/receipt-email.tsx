@@ -16,11 +16,7 @@ interface ReceiptEmailProps {
   totalAmount: number;
 }
 
-export const ReceiptEmail = ({
-  customerName,
-  orderId,
-  totalAmount,
-}: ReceiptEmailProps) => {
+export const ReceiptEmail = ({ customerName, orderId, totalAmount }: ReceiptEmailProps) => {
   return (
     <Html>
       <Head />
@@ -28,23 +24,24 @@ export const ReceiptEmail = ({
       <Body style={main}>
         <Container style={container}>
           <Heading style={h1}>¡Gracias por tu compra, {customerName}!</Heading>
-          
+
           <Section style={bodySection}>
             <Text style={text}>
               Tu pago ha sido procesado exitosamente y ya comenzamos a preparar tu pedido.
             </Text>
-            
+
             <Section style={detailsContainer}>
               <Text style={detailItem}>
                 <strong>Nº de Orden:</strong> {orderId}
               </Text>
               <Text style={detailItem}>
-                <strong>Total Pagado:</strong> ${totalAmount.toLocaleString('es-AR')}
+                <strong>Total Pagado:</strong> ${totalAmount.toLocaleString("es-AR")}
               </Text>
             </Section>
 
             <Text style={text}>
-              Te enviaremos otro correo cuando tu pedido sea despachado a través de Correo Argentino.
+              Te enviaremos otro correo cuando tu pedido sea despachado a través de Correo
+              Argentino.
             </Text>
 
             <Text style={footer}>
@@ -59,8 +56,6 @@ export const ReceiptEmail = ({
     </Html>
   );
 };
-
-export default ReceiptEmail;
 
 const main = {
   backgroundColor: "#f6f9fc",

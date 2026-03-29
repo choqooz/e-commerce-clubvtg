@@ -2,11 +2,7 @@ import { notFound } from "next/navigation";
 import { ProductForm } from "@/components/admin/product-form";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
-export default async function EditProductPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
+export default async function EditProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
 
   // Fetch the product

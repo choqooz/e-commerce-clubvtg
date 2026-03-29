@@ -1,17 +1,17 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { Sparkles, ChevronRight, HelpCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Sparkles, ChevronRight, HelpCircle } from "lucide-react";
+import { useState, useCallback } from "react";
 import { toast } from "sonner";
-import SiteHeader from "@/components/site-header";
-import SiteFooter from "@/components/site-footer";
-import CartDrawer from "@/components/cart-drawer";
+import { CartDrawer } from "@/components/cart-drawer";
 import { CreditBalance } from "@/components/credits/credit-balance";
 import { CreditPackCard } from "@/components/credits/credit-pack-card";
-import { CREDIT_PACKS } from "@/lib/config";
+import { SiteFooter } from "@/components/site-footer";
+import { SiteHeader } from "@/components/site-header";
 import { createCreditPackPreference } from "@/lib/actions/credits";
+import { CREDIT_PACKS } from "@/lib/config";
 import type { CreditPackId } from "@/lib/types";
 
 interface CreditsPageContentProps {
@@ -54,10 +54,7 @@ export function CreditsPageContent({ initialCredits }: CreditsPageContentProps) 
         {/* Breadcrumb */}
         <div className="container mx-auto px-6 py-4">
           <nav className="flex items-center gap-1.5 text-xs text-muted-foreground font-sans">
-            <Link
-              href="/"
-              className="hover:text-foreground transition-colors"
-            >
+            <Link href="/" className="hover:text-foreground transition-colors">
               Inicio
             </Link>
             <ChevronRight size={12} />
@@ -72,9 +69,7 @@ export function CreditsPageContent({ initialCredits }: CreditsPageContentProps) 
               <div className="inline-flex items-center justify-center size-14 rounded-full bg-primary/10">
                 <Sparkles className="size-7 text-primary" />
               </div>
-              <h1 className="text-3xl font-heading font-medium tracking-wide">
-                Tu balance
-              </h1>
+              <h1 className="text-3xl font-heading font-medium tracking-wide">Tu balance</h1>
               <div className="flex justify-center">
                 <CreditBalance credits={initialCredits} />
               </div>
@@ -86,8 +81,7 @@ export function CreditsPageContent({ initialCredits }: CreditsPageContentProps) 
                 Comprá créditos
               </h2>
               <p className="text-sm text-muted-foreground text-center">
-                Cada crédito te permite generar una prueba virtual de cualquier
-                prenda.
+                Cada crédito te permite generar una prueba virtual de cualquier prenda.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
@@ -110,9 +104,7 @@ export function CreditsPageContent({ initialCredits }: CreditsPageContentProps) 
             <div className="rounded-lg border bg-muted/30 p-6 space-y-3">
               <div className="flex items-center gap-2">
                 <HelpCircle className="size-4 text-muted-foreground" />
-                <h3 className="text-sm font-medium">
-                  ¿Cómo funcionan los créditos?
-                </h3>
+                <h3 className="text-sm font-medium">¿Cómo funcionan los créditos?</h3>
               </div>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-start gap-2">

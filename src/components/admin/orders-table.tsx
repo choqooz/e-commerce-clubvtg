@@ -2,23 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -27,9 +12,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { updateOrderStatus, shipOrder } from "@/lib/actions/orders";
 import { formatPrice } from "@/lib/config";
 import type { Order, OrderItem, OrderStatus } from "@/lib/types";
@@ -134,9 +132,7 @@ function OrderRow({ order }: { order: Order & { order_items: OrderItem[] } }) {
   return (
     <>
       <TableRow className={isPending ? "opacity-50" : ""}>
-        <TableCell className="px-4 font-mono text-sm">
-          #{order.id.slice(0, 8)}
-        </TableCell>
+        <TableCell className="px-4 font-mono text-sm">#{order.id.slice(0, 8)}</TableCell>
         <TableCell className="px-4">
           <div>
             <p className="font-medium">{order.customer_name}</p>
@@ -145,10 +141,7 @@ function OrderRow({ order }: { order: Order & { order_items: OrderItem[] } }) {
         </TableCell>
         <TableCell className="px-4">{formatPrice(total)}</TableCell>
         <TableCell className="px-4">
-          <Badge
-            variant={config.variant ?? "outline"}
-            className={config.className}
-          >
+          <Badge variant={config.variant ?? "outline"} className={config.className}>
             {config.label}
           </Badge>
         </TableCell>

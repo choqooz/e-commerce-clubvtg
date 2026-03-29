@@ -1,12 +1,12 @@
-import { NextResponse } from "next/server";
 import { createHmac } from "node:crypto";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import * as Sentry from "@sentry/nextjs";
 import { MercadoPagoConfig, Payment } from "mercadopago";
+import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { ReceiptEmail } from "@/components/emails/receipt-email";
 import { CREDIT_PACKS } from "@/lib/config";
-import * as Sentry from "@sentry/nextjs";
 import { getPostHogServer } from "@/lib/posthog";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 /**
  * Verify MercadoPago webhook HMAC-SHA256 signature.
@@ -17,13 +17,13 @@ function verifyMPSignature(
   xSignature: string,
   xRequestId: string,
   dataId: string,
-  secret: string
+  secret: string,
 ): boolean {
   const parts = Object.fromEntries(
     xSignature.split(",").map((part) => {
       const [key, ...rest] = part.trim().split("=");
       return [key, rest.join("=")] as const;
-    })
+    }),
   );
 
   const ts = parts["ts"];
@@ -45,9 +45,10 @@ export async function POST(req: Request) {
     const url = new URL(req.url);
     // MP sends the topic and id either in URL params or body
     const body = await req.json().catch(() => ({}));
-    
+
     // MP sends `data.id` or `id` depending on the notification type
-    const paymentId = url.searchParams.get("data.id") || url.searchParams.get("id") || body?.data?.id;
+    const paymentId =
+      url.searchParams.get("data.id") || url.searchParams.get("id") || body?.data?.id;
     const type = url.searchParams.get("type") || body?.type;
 
     const webhookSecret = process.env.MP_WEBHOOK_SECRET;
@@ -69,16 +70,16 @@ export async function POST(req: Request) {
 
     if (type === "payment" && paymentId) {
       // Initialize MP
-      const client = new MercadoPagoConfig({ 
-        accessToken: process.env.MP_ACCESS_TOKEN || "", 
-        options: { timeout: 10000 } 
+      const client = new MercadoPagoConfig({
+        accessToken: process.env.MP_ACCESS_TOKEN || "",
+        options: { timeout: 10000 },
       });
       const payment = new Payment(client);
-      
+
       // Fetch the real payment data from MercadoPago using the ID
       // This prevents spoofing attacks
       const paymentData = await payment.get({ id: paymentId });
-      
+
       if (paymentData.status === "approved") {
         const externalReference = paymentData.external_reference as string;
         const supabase = supabaseAdmin;
@@ -119,20 +120,20 @@ export async function POST(req: Request) {
           }
 
           // Record the transaction
-          const { error: txErr } = await supabase
-            .from("credit_transactions")
-            .insert({
-              user_id: userId,
-              amount: pack.credits,
-              reason: `Compra pack ${pack.name}`,
-              mp_payment_id: String(paymentId),
-            });
+          const { error: txErr } = await supabase.from("credit_transactions").insert({
+            user_id: userId,
+            amount: pack.credits,
+            reason: `Compra pack ${pack.name}`,
+            mp_payment_id: String(paymentId),
+          });
 
           if (txErr) {
             console.error("MP Webhook: Failed to insert credit_transaction:", txErr);
           }
 
-          console.log(`MP Webhook: Added ${pack.credits} credits to user ${userId} (pack: ${packId})`);
+          console.log(
+            `MP Webhook: Added ${pack.credits} credits to user ${userId} (pack: ${packId})`,
+          );
 
           const ph = getPostHogServer();
           if (ph) {
@@ -148,14 +149,13 @@ export async function POST(req: Request) {
             });
             await ph.shutdown();
           }
-
         } else if (externalReference) {
           // ── Existing product order flow ──
           const orderId = externalReference;
 
           // Usamos el cliente Admin porque los webhooks no tienen cookies de sesión
           // y las políticas RLS bloquearían cualquier intento de UPDATE por parte de "public"
-          
+
           // 1. Update order status
           const { data: order, error: orderErr } = await supabase
             .from("orders")
@@ -172,7 +172,7 @@ export async function POST(req: Request) {
               .eq("order_id", orderId);
 
             if (items && items.length > 0) {
-              const productIds = items.map(i => i.product_id);
+              const productIds = items.map((i) => i.product_id);
               await supabase
                 .from("products")
                 .update({ status: "sold", reserved_at: null })
@@ -190,7 +190,7 @@ export async function POST(req: Request) {
                   react: ReceiptEmail({
                     customerName: order.customer_name,
                     orderId: order.id,
-                    totalAmount: Number(order.total_amount)
+                    totalAmount: Number(order.total_amount),
                   }),
                 });
                 console.log("Receipt email sent to:", order.customer_email);
@@ -217,7 +217,7 @@ export async function POST(req: Request) {
           }
         }
       }
-      
+
       if (paymentData.status === "rejected" || paymentData.status === "cancelled") {
         const externalReference = paymentData.external_reference as string;
 
@@ -244,12 +244,11 @@ export async function POST(req: Request) {
           }
 
           // Mark order as cancelled
-          await supabase
-            .from("orders")
-            .update({ status: "cancelled" })
-            .eq("id", orderId);
+          await supabase.from("orders").update({ status: "cancelled" }).eq("id", orderId);
 
-          console.log(`MP Webhook: Payment ${paymentData.status} for order ${orderId} — products released`);
+          console.log(
+            `MP Webhook: Payment ${paymentData.status} for order ${orderId} — products released`,
+          );
         }
       }
     }

@@ -10,8 +10,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
     if (key) {
       posthog.init(key, {
-        api_host:
-          process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://eu.i.posthog.com",
+        api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://eu.i.posthog.com",
         persistence: "memory",
         disable_session_recording: true,
       });

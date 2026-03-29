@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
 import * as Sentry from "@sentry/nextjs";
 import Link from "next/link";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
 export default function Error({
@@ -22,8 +22,7 @@ export default function Error({
         No pudimos cargar la prueba virtual
       </h1>
       <p className="text-muted-foreground max-w-md mx-auto mb-8">
-        Ocurrió un error inesperado. Por favor intentá de nuevo o volvé al
-        producto.
+        Ocurrió un error inesperado. Por favor intentá de nuevo o volvé al producto.
       </p>
       <div className="flex items-center justify-center gap-4">
         <Button onClick={reset}>Reintentar</Button>

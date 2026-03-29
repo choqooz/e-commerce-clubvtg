@@ -8,10 +8,7 @@ export default function Loading() {
 
           {/* 3 order card skeletons */}
           {Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={i}
-              className="rounded-lg border p-5 space-y-4"
-            >
+            <div key={i} className="rounded-lg border p-5 space-y-4">
               {/* Header row */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">

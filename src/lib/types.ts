@@ -138,9 +138,6 @@ export interface TryOnErrorEvent {
     | "inappropriate_image";
 }
 
-export type TryOnSSEEvent =
-  | TryOnProgressEvent
-  | TryOnCompleteEvent
-  | TryOnErrorEvent;
+export type TryOnSSEEvent = TryOnProgressEvent | TryOnCompleteEvent | TryOnErrorEvent;
 
 export type CreditPackId = "basic" | "popular" | "pro";

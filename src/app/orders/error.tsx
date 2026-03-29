@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
 import * as Sentry from "@sentry/nextjs";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
 export default function Error({
@@ -21,8 +21,7 @@ export default function Error({
         Error al cargar tus pedidos
       </h1>
       <p className="text-muted-foreground max-w-md mx-auto mb-8">
-        Ocurrió un error inesperado cargando tus pedidos. Por favor intentá de
-        nuevo.
+        Ocurrió un error inesperado cargando tus pedidos. Por favor intentá de nuevo.
       </p>
       <Button onClick={reset}>Reintentar</Button>
     </div>

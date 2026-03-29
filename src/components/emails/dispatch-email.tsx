@@ -33,9 +33,7 @@ export const DispatchEmail = ({
           <Heading style={h1}>¡Tu pedido está en camino!</Heading>
 
           <Section style={bodySection}>
-            <Text style={text}>
-              Hola {customerName}, tu pedido ya fue despachado.
-            </Text>
+            <Text style={text}>Hola {customerName}, tu pedido ya fue despachado.</Text>
 
             <Section style={detailsContainer}>
               <Text style={detailItem}>
@@ -47,8 +45,7 @@ export const DispatchEmail = ({
             </Section>
 
             <Text style={text}>
-              Podés seguir tu envío en{" "}
-              <strong>correoargentino.com.ar</strong>
+              Podés seguir tu envío en <strong>correoargentino.com.ar</strong>
             </Text>
 
             <Hr style={hr} />
@@ -69,8 +66,6 @@ export const DispatchEmail = ({
     </Html>
   );
 };
-
-export default DispatchEmail;
 
 const main = {
   backgroundColor: "#f6f9fc",

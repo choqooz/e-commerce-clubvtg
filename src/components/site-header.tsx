@@ -1,17 +1,10 @@
 "use client";
 
+import { useAuth, SignInButton, UserButton } from "@clerk/nextjs";
+import { Search, ShoppingBag, Sparkles, User, Package, CreditCard } from "lucide-react";
 import Link from "next/link";
-import {
-  Search,
-  ShoppingBag,
-  Sparkles,
-  User,
-  Package,
-  CreditCard,
-} from "lucide-react";
 import { useState, useEffect } from "react";
 import { useCart } from "@/contexts/cart-context";
-import { useAuth, SignInButton, UserButton } from "@clerk/nextjs";
 import { getUserCredits } from "@/lib/actions/credits";
 
 function CreditBadge() {
@@ -36,7 +29,7 @@ function CreditBadge() {
   );
 }
 
-export default function SiteHeader() {
+export function SiteHeader() {
   const [searchOpen, setSearchOpen] = useState(false);
   const { totalItems, setIsOpen } = useCart();
   const { isSignedIn } = useAuth();
@@ -59,9 +52,7 @@ export default function SiteHeader() {
 
           {/* Logo (centered) */}
           <Link href="/" className="absolute left-1/2 -translate-x-1/2">
-            <h1 className="font-heading text-2xl tracking-wider font-medium">
-              clubvtg
-            </h1>
+            <h1 className="font-heading text-2xl tracking-wider font-medium">clubvtg</h1>
           </Link>
 
           {/* Right icons */}

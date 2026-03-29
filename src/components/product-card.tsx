@@ -3,9 +3,12 @@ import Link from "next/link";
 import { formatPrice } from "@/lib/config";
 import type { Product } from "@/lib/types";
 
-export default function ProductCard({ product }: { product: Product }) {
+export function ProductCard({ product }: { product: Product }) {
   return (
-    <Link href={`/product/${product.slug}`} className="product-card group transition-shadow duration-200 hover:shadow-md">
+    <Link
+      href={`/product/${product.slug}`}
+      className="product-card group transition-shadow duration-200 hover:shadow-md"
+    >
       <div className="relative overflow-hidden">
         {/* Product image */}
         <div className="product-card-image bg-secondary flex items-center justify-center relative">
@@ -34,7 +37,7 @@ export default function ProductCard({ product }: { product: Product }) {
       {/* Color + size */}
       <div className="flex items-center gap-2 mt-2">
         <span className="text-xs text-muted-foreground">
-          {product.size ? `Talle ${product.size}` : "Talle Único"} 
+          {product.size ? `Talle ${product.size}` : "Talle Único"}
           {product.color ? ` • ${product.color}` : ""}
         </span>
       </div>

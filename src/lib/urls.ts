@@ -14,19 +14,13 @@ export function resolvePaymentUrls(): ResolvedUrls {
   const envUrl = (process.env.NEXT_PUBLIC_APP_URL || "").trim();
 
   const rawSiteUrl = envUrl || "http://localhost:3000";
-  const siteUrl = rawSiteUrl.endsWith("/")
-    ? rawSiteUrl.slice(0, -1)
-    : rawSiteUrl;
+  const siteUrl = rawSiteUrl.endsWith("/") ? rawSiteUrl.slice(0, -1) : rawSiteUrl;
 
   const rawWebhookUrl = ngrokUrl || siteUrl;
-  const webhookBaseUrl = rawWebhookUrl.endsWith("/")
-    ? rawWebhookUrl.slice(0, -1)
-    : rawWebhookUrl;
+  const webhookBaseUrl = rawWebhookUrl.endsWith("/") ? rawWebhookUrl.slice(0, -1) : rawWebhookUrl;
 
   if (!siteUrl.startsWith("http")) {
-    throw new Error(
-      `La URL configurada en el .env no es válida: "${siteUrl}"`,
-    );
+    throw new Error(`La URL configurada en el .env no es válida: "${siteUrl}"`);
   }
 
   return { siteUrl, webhookBaseUrl };

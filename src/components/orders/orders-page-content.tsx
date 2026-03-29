@@ -1,9 +1,8 @@
 "use client";
 
+import { ExternalLink, Package, Truck } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { ExternalLink, Package, Truck } from "lucide-react";
-
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { formatPrice } from "@/lib/config";
@@ -31,18 +30,15 @@ const STATUS_CONFIG: Record<
 > = {
   pending: {
     label: "Pendiente",
-    className:
-      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+    className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
   },
   paid: {
     label: "Pagado",
-    className:
-      "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+    className: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
   },
   shipped: {
     label: "Enviado",
-    className:
-      "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+    className: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
   },
   cancelled: {
     label: "Cancelado",
@@ -61,9 +57,7 @@ export function OrdersPageContent({ orders }: OrdersPageContentProps) {
   return (
     <div className="container mx-auto px-4 py-10">
       <div className="mx-auto max-w-3xl space-y-6">
-        <h1 className="text-3xl font-heading font-light tracking-wide">
-          Mis Pedidos
-        </h1>
+        <h1 className="text-3xl font-heading font-light tracking-wide">Mis Pedidos</h1>
 
         {orders.map((order) => (
           <OrderCard key={order.id} order={order} />
@@ -89,13 +83,8 @@ function OrderCard({ order }: { order: OrderWithItems }) {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-4">
         <div className="flex items-center gap-3">
-          <span className="font-mono text-sm font-medium">
-            #{order.id.slice(0, 8)}
-          </span>
-          <Badge
-            variant={config.variant ?? "outline"}
-            className={config.className}
-          >
+          <span className="font-mono text-sm font-medium">#{order.id.slice(0, 8)}</span>
+          <Badge variant={config.variant ?? "outline"} className={config.className}>
             {config.label}
           </Badge>
         </div>
@@ -111,9 +100,7 @@ function OrderCard({ order }: { order: OrderWithItems }) {
             <Truck className="size-4 text-blue-600 dark:text-blue-400 shrink-0" />
             <span className="text-sm">
               Número de seguimiento:{" "}
-              <span className="font-mono font-medium">
-                {order.tracking_number}
-              </span>
+              <span className="font-mono font-medium">{order.tracking_number}</span>
             </span>
             <a
               href={`https://www.correoargentino.com.ar/formularios/e-comercio?id=${order.tracking_number}`}
@@ -141,8 +128,7 @@ function OrderCard({ order }: { order: OrderWithItems }) {
       {/* Footer — Total */}
       <div className="flex items-center justify-between px-5 py-3">
         <span className="text-sm text-muted-foreground">
-          {order.order_items.length}{" "}
-          {order.order_items.length === 1 ? "producto" : "productos"}
+          {order.order_items.length} {order.order_items.length === 1 ? "producto" : "productos"}
         </span>
         <span className="text-base font-semibold">{formatPrice(total)}</span>
       </div>
@@ -159,10 +145,7 @@ function OrderItemRow({ item }: { item: OrderItemWithProduct }) {
   return (
     <div className="flex items-center gap-3">
       {imageUrl ? (
-        <Link
-          href={product?.slug ? `/product/${product.slug}` : "#"}
-          className="shrink-0"
-        >
+        <Link href={product?.slug ? `/product/${product.slug}` : "#"} className="shrink-0">
           <Image
             src={imageUrl}
             alt={product?.title ?? "Producto"}
@@ -188,9 +171,7 @@ function OrderItemRow({ item }: { item: OrderItemWithProduct }) {
         ) : (
           <span className="text-sm font-medium line-clamp-1">Producto</span>
         )}
-        <p className="text-sm text-muted-foreground">
-          {formatPrice(item.price)}
-        </p>
+        <p className="text-sm text-muted-foreground">{formatPrice(item.price)}</p>
       </div>
     </div>
   );

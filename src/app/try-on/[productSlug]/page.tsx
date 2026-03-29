@@ -1,17 +1,13 @@
+import { auth } from "@clerk/nextjs/server";
 import type { Metadata } from "next";
 import { redirect, notFound } from "next/navigation";
-import { auth } from "@clerk/nextjs/server";
-import { createClient } from "@/lib/supabase/server";
-import { getUserCredits } from "@/lib/actions/credits";
 import { TryOnPageContent } from "@/components/try-on/try-on-page-content";
+import { getUserCredits } from "@/lib/actions/credits";
+import { createClient } from "@/lib/supabase/server";
 
 async function getProduct(slug: string) {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("products")
-    .select("*")
-    .eq("slug", slug)
-    .single();
+  const { data, error } = await supabase.from("products").select("*").eq("slug", slug).single();
 
   if (error || !data) return null;
   return data;
@@ -35,11 +31,7 @@ export async function generateMetadata({
   };
 }
 
-export default async function TryOnPage({
-  params,
-}: {
-  params: Promise<{ productSlug: string }>;
-}) {
+export default async function TryOnPage({ params }: { params: Promise<{ productSlug: string }> }) {
   const { userId } = await auth();
   if (!userId) {
     const { productSlug } = await params;
@@ -56,10 +48,5 @@ export default async function TryOnPage({
   const creditsResult = await getUserCredits();
   const credits = creditsResult?.credits ?? 0;
 
-  return (
-    <TryOnPageContent
-      product={product}
-      initialCredits={credits}
-    />
-  );
+  return <TryOnPageContent product={product} initialCredits={credits} />;
 }

@@ -1,19 +1,15 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ProductDetailContent } from "@/components/product-detail-content";
-import { createClient } from "@/lib/supabase/server";
 import { releaseExpiredReservations } from "@/lib/supabase/release-reservations";
+import { createClient } from "@/lib/supabase/server";
 
 async function getProduct(slug: string) {
   // Lazy release: free any products reserved >15 min before reading
   await releaseExpiredReservations();
 
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("products")
-    .select("*")
-    .eq("slug", slug)
-    .single();
+  const { data, error } = await supabase.from("products").select("*").eq("slug", slug).single();
 
   if (error || !data) return null;
   return data;
@@ -38,18 +34,12 @@ export async function generateMetadata({
       title: product.title,
       description: product.description ?? `${product.title} — Club VTG`,
       images:
-        product.image_urls && product.image_urls.length > 0
-          ? [{ url: product.image_urls[0] }]
-          : [],
+        product.image_urls && product.image_urls.length > 0 ? [{ url: product.image_urls[0] }] : [],
     },
   };
 }
 
-export default async function ProductDetailPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
+export default async function ProductDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const product = await getProduct(slug);
 

@@ -1,13 +1,13 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
-import { rateLimiter } from "@/lib/rate-limit";
+import * as Sentry from "@sentry/nextjs";
+import { runContentGuard } from "@/lib/ai/content-guard";
 import { validateImage, processUserImage } from "@/lib/ai/image-processing";
 import { getOpenAI, generateTryOn } from "@/lib/ai/openai";
 import { buildTryOnPrompt } from "@/lib/ai/prompts";
-import { runContentGuard } from "@/lib/ai/content-guard";
-import type { TryOnSSEEvent, TryOnErrorEvent } from "@/lib/types";
-import * as Sentry from "@sentry/nextjs";
 import { getPostHogServer } from "@/lib/posthog";
+import { rateLimiter } from "@/lib/rate-limit";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import type { TryOnSSEEvent, TryOnErrorEvent } from "@/lib/types";
 
 export const maxDuration = 90;
 
@@ -24,10 +24,7 @@ function sseResponse(stream: ReadableStream): Response {
 }
 
 /** Quick bail-out for pre-stream errors (auth, rate-limit, etc.) */
-function createErrorSSE(
-  message: string,
-  code: TryOnErrorEvent["code"],
-): Response {
+function createErrorSSE(message: string, code: TryOnErrorEvent["code"]): Response {
   const event: TryOnErrorEvent = { type: "error", message, code };
   const body = `data: ${JSON.stringify(event)}\n\n`;
   return new Response(body, { headers: SSE_HEADERS });
@@ -44,14 +41,9 @@ export async function POST(req: Request) {
 
   // ── 2. Email verification ──
   const user = await currentUser();
-  const primaryEmail = user?.emailAddresses.find(
-    (e) => e.id === user.primaryEmailAddressId,
-  );
+  const primaryEmail = user?.emailAddresses.find((e) => e.id === user.primaryEmailAddressId);
   if (!primaryEmail || primaryEmail.verification?.status !== "verified") {
-    return createErrorSSE(
-      "Debés verificar tu email antes de usar esta función",
-      "not_verified",
-    );
+    return createErrorSSE("Debés verificar tu email antes de usar esta función", "not_verified");
   }
 
   // ── 3. Rate limiting ──
@@ -75,10 +67,7 @@ export async function POST(req: Request) {
   const imageFile = formData.get("image") as File | null;
 
   if (!productSlug || !imageFile) {
-    return createErrorSSE(
-      "Faltan datos requeridos (productSlug, image)",
-      "server_error",
-    );
+    return createErrorSSE("Faltan datos requeridos (productSlug, image)", "server_error");
   }
 
   // ── 5-12: SSE Pipeline ──
@@ -118,8 +107,7 @@ export async function POST(req: Request) {
           return;
         }
 
-        const { buffer: processedBuffer, width, height } =
-          await processUserImage(imageBuffer);
+        const { buffer: processedBuffer, width, height } = await processUserImage(imageBuffer);
 
         // ── 6. Check credits ──
         const { data: profile, error: profileError } = await supabaseAdmin
@@ -209,10 +197,9 @@ export async function POST(req: Request) {
         }
 
         // Get signed URL for the uploaded user image
-        const { data: userSignedData, error: userSignedError } =
-          await supabaseAdmin.storage
-            .from("user-uploads")
-            .createSignedUrl(uploadPath, 3600);
+        const { data: userSignedData, error: userSignedError } = await supabaseAdmin.storage
+          .from("user-uploads")
+          .createSignedUrl(uploadPath, 3600);
 
         if (userSignedError || !userSignedData?.signedUrl) {
           console.error("Signed URL error:", userSignedError);
@@ -231,14 +218,11 @@ export async function POST(req: Request) {
           message: "Procesando...",
         });
 
-        const { data: rpcResult, error: rpcError } = await supabaseAdmin.rpc(
-          "use_ai_credit",
-          {
-            p_user_id: userId,
-            p_product_id: product.id,
-            p_user_image_url: uploadPath,
-          },
-        );
+        const { data: rpcResult, error: rpcError } = await supabaseAdmin.rpc("use_ai_credit", {
+          p_user_id: userId,
+          p_product_id: product.id,
+          p_user_image_url: uploadPath,
+        });
 
         if (rpcError || !rpcResult) {
           console.error("Credit deduction RPC error:", rpcError);
@@ -273,9 +257,7 @@ export async function POST(req: Request) {
 
           sendEvent({
             type: "error",
-            message:
-              guardResult.reason ??
-              "Imagen no válida para el probador virtual",
+            message: guardResult.reason ?? "Imagen no válida para el probador virtual",
             code: guardResult.code ?? "inappropriate_image",
           });
           controller.close();
@@ -290,12 +272,10 @@ export async function POST(req: Request) {
         });
 
         const prompt = buildTryOnPrompt(product.category);
-        const { imageBase64 } = await generateTryOn(
-          processedBuffer,
-          productImageUrl,
-          prompt,
-          { width, height },
-        );
+        const { imageBase64 } = await generateTryOn(processedBuffer, productImageUrl, prompt, {
+          width,
+          height,
+        });
 
         // ── 12. Save result ──
         sendEvent({
@@ -320,10 +300,9 @@ export async function POST(req: Request) {
         }
 
         // Get signed URL for the result
-        const { data: resultSignedData, error: resultSignedError } =
-          await supabaseAdmin.storage
-            .from("ai-results")
-            .createSignedUrl(resultPath, 3600);
+        const { data: resultSignedData, error: resultSignedError } = await supabaseAdmin.storage
+          .from("ai-results")
+          .createSignedUrl(resultPath, 3600);
 
         if (resultSignedError || !resultSignedData?.signedUrl) {
           console.error("Result signed URL error:", resultSignedError);
@@ -375,8 +354,7 @@ export async function POST(req: Request) {
               .from("ai_tryon_logs")
               .update({
                 status: "failed" as const,
-                error_message:
-                  error instanceof Error ? error.message : "Error desconocido",
+                error_message: error instanceof Error ? error.message : "Error desconocido",
               })
               .eq("id", logId);
             await supabaseAdmin.rpc("refund_ai_credit", {
@@ -389,10 +367,7 @@ export async function POST(req: Request) {
 
         sendEvent({
           type: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Error inesperado en la generación",
+          message: error instanceof Error ? error.message : "Error inesperado en la generación",
           code: "generation_failed",
         });
       } finally {
@@ -427,4 +402,3 @@ export async function POST(req: Request) {
 
   return sseResponse(stream);
 }
-

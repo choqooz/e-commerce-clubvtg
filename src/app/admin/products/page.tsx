@@ -1,6 +1,6 @@
+import { Plus, Edit } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { Plus, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
@@ -71,17 +71,15 @@ export default async function AdminProductsPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3">
-                    ${product.price.toLocaleString("es-AR")}
-                  </td>
+                  <td className="px-4 py-3">${product.price.toLocaleString("es-AR")}</td>
                   <td className="px-4 py-3">
                     <span
                       className={`inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium uppercase tracking-wider ${
                         product.status === "available"
                           ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                           : product.status === "sold"
-                          ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                          : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400"
+                            ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                            : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400"
                       }`}
                     >
                       {product.status}

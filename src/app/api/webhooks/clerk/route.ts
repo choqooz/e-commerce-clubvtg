@@ -2,9 +2,9 @@
 // Creates profiles in Supabase when users sign up via Clerk
 // Assigns 2 credits when email is verified
 
-import { Webhook } from "svix";
-import { headers } from "next/headers";
 import type { WebhookEvent } from "@clerk/nextjs/server";
+import { headers } from "next/headers";
+import { Webhook } from "svix";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export async function POST(req: Request) {
@@ -72,15 +72,12 @@ export async function POST(req: Request) {
       console.error("[webhook] ❌ Supabase upsert failed:", JSON.stringify(error));
       return new Response(`Failed to create profile: ${error.message}`, { status: 500 });
     }
-
   }
 
   // ── user.updated → Check email verification → assign 2 credits ──
   if (eventType === "user.updated") {
     const { id, email_addresses } = evt.data;
-    const primaryEmail = email_addresses?.find(
-      (e) => e.id === evt.data.primary_email_address_id,
-    );
+    const primaryEmail = email_addresses?.find((e) => e.id === evt.data.primary_email_address_id);
 
     if (primaryEmail?.verification?.status === "verified") {
       const { data: profile } = await supabaseAdmin
@@ -101,7 +98,6 @@ export async function POST(req: Request) {
             amount: 2,
             reason: "registration_bonus",
           });
-
         } else {
           console.error("[webhook] ❌ Failed to assign credits:", updateError);
         }
@@ -138,17 +134,13 @@ export async function POST(req: Request) {
       }
 
       // Delete uploaded images from storage
-      const { data: uploads } = await supabaseAdmin.storage
-        .from("user-uploads")
-        .list(userId);
+      const { data: uploads } = await supabaseAdmin.storage.from("user-uploads").list(userId);
       if (uploads && uploads.length > 0) {
         const uploadPaths = uploads.map((f) => `${userId}/${f.name}`);
         await supabaseAdmin.storage.from("user-uploads").remove(uploadPaths);
       }
 
-      const { data: results } = await supabaseAdmin.storage
-        .from("ai-results")
-        .list(userId);
+      const { data: results } = await supabaseAdmin.storage.from("ai-results").list(userId);
       if (results && results.length > 0) {
         const resultPaths = results.map((f) => `${userId}/${f.name}`);
         await supabaseAdmin.storage.from("ai-results").remove(resultPaths);
@@ -156,7 +148,6 @@ export async function POST(req: Request) {
 
       // Delete profile last
       await supabaseAdmin.from("profiles").delete().eq("id", userId);
-
     } catch (err) {
       console.error(`[webhook] ❌ Failed to clean up user ${userId}:`, err);
       return new Response("Failed to delete user data", { status: 500 });

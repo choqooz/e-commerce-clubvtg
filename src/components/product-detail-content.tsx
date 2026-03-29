@@ -1,36 +1,36 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { usePostHog } from "posthog-js/react";
+import { ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { usePostHog } from "posthog-js/react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import SiteHeader from "@/components/site-header";
-import SiteFooter from "@/components/site-footer";
-import ProductCard from "@/components/product-card";
-import TryOnSection from "@/components/try-on-section";
-import CartDrawer from "@/components/cart-drawer";
+import { CartDrawer } from "@/components/cart-drawer";
+import { ProductCard } from "@/components/product-card";
+import { SiteFooter } from "@/components/site-footer";
+import { SiteHeader } from "@/components/site-header";
+import { TryOnSection } from "@/components/try-on-section";
 import { useCart } from "@/contexts/cart-context";
 import { formatPrice } from "@/lib/config";
 import { COLOR_MAP } from "@/lib/constants";
 import type { Product } from "@/lib/types";
 
-export function ProductDetailContent({ 
-  product, 
-  relatedProducts 
-}: { 
+export function ProductDetailContent({
+  product,
+  relatedProducts,
+}: {
   product: Product;
   relatedProducts: Product[];
 }) {
   const { addItem } = useCart();
   const posthog = usePostHog();
   const [activeImage, setActiveImage] = useState<string | null>(
-    product.image_urls && product.image_urls.length > 0 ? product.image_urls[0] : null
+    product.image_urls && product.image_urls.length > 0 ? product.image_urls[0] : null,
   );
-  
+
   useEffect(() => {
-    posthog?.capture('product_viewed', {
+    posthog?.capture("product_viewed", {
       productId: product.id,
       productName: product.title,
       productCategory: product.category,
@@ -57,10 +57,7 @@ export function ProductDetailContent({
         {/* Breadcrumb */}
         <div className="container mx-auto px-6 py-4">
           <nav className="flex items-center gap-1.5 text-xs text-muted-foreground font-sans">
-            <Link
-              href="/"
-              className="hover:text-foreground transition-colors"
-            >
+            <Link href="/" className="hover:text-foreground transition-colors">
               Inicio
             </Link>
             <ChevronRight size={12} />
@@ -103,7 +100,7 @@ export function ProductDetailContent({
                   </span>
                 )}
               </div>
-              
+
               {/* Thumbnails */}
               {product.image_urls && product.image_urls.length > 1 && (
                 <div className="grid grid-cols-5 gap-3">
@@ -112,12 +109,14 @@ export function ProductDetailContent({
                       key={url}
                       onClick={() => setActiveImage(url)}
                       className={`relative aspect-4/5 bg-secondary overflow-hidden border-2 transition-all ${
-                        activeImage === url ? 'border-primary opacity-100' : 'border-transparent opacity-60 hover:opacity-100'
+                        activeImage === url
+                          ? "border-primary opacity-100"
+                          : "border-transparent opacity-60 hover:opacity-100"
                       }`}
                     >
                       <Image
                         src={url}
-                        alt={`Vista ${i+1}`}
+                        alt={`Vista ${i + 1}`}
                         fill
                         sizes="10vw"
                         className="object-contain"
@@ -126,25 +125,25 @@ export function ProductDetailContent({
                   ))}
                 </div>
               )}
-              
+
               {product.status === "sold" && (
-                <span className="absolute top-4 right-4 bg-muted text-muted-foreground text-xs font-sans uppercase tracking-widest px-3 py-1 font-medium">Vendido</span>
+                <span className="absolute top-4 right-4 bg-muted text-muted-foreground text-xs font-sans uppercase tracking-widest px-3 py-1 font-medium">
+                  Vendido
+                </span>
               )}
               {product.status === "reserved" && (
-                <span className="absolute top-4 right-4 bg-amber-100 text-amber-800 text-xs font-sans uppercase tracking-widest px-3 py-1 font-medium">Reservado</span>
+                <span className="absolute top-4 right-4 bg-amber-100 text-amber-800 text-xs font-sans uppercase tracking-widest px-3 py-1 font-medium">
+                  Reservado
+                </span>
               )}
             </div>
 
             {/* Product Info */}
             <div className="flex flex-col justify-center">
-              <h1 className="font-heading text-3xl md:text-4xl font-light mb-3">
-                {product.title}
-              </h1>
+              <h1 className="font-heading text-3xl md:text-4xl font-light mb-3">{product.title}</h1>
 
               <div className="flex items-center gap-3 mb-6">
-                <span className="text-lg font-sans">
-                  {formatPrice(product.price)}
-                </span>
+                <span className="text-lg font-sans">{formatPrice(product.price)}</span>
                 {/* Vintage items don't typically have "originalPrice", so removed */}
               </div>
 
@@ -163,10 +162,14 @@ export function ProductDetailContent({
                       const colorName = c.trim();
                       const hex = COLOR_MAP[colorName.toLowerCase()] || "#cccccc";
                       return (
-                        <div 
-                          key={colorName} 
+                        <div
+                          key={colorName}
                           className="w-6 h-6 rounded-full border border-border/50 shadow-sm relative group cursor-help transition-transform hover:scale-110"
-                          style={hex.includes("gradient") ? { background: hex } : { backgroundColor: hex }}
+                          style={
+                            hex.includes("gradient")
+                              ? { background: hex }
+                              : { backgroundColor: hex }
+                          }
                           aria-label={colorName}
                         >
                           {/* Tooltip */}

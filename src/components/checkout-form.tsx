@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { usePostHog } from "posthog-js/react";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useCart } from "@/contexts/cart-context";
-import { checkoutSchema, type CheckoutFormValues } from "@/lib/validations/checkout";
-import { createCheckoutPreference } from "@/lib/actions/checkout";
-import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { usePostHog } from "posthog-js/react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { useCart } from "@/contexts/cart-context";
+import { createCheckoutPreference } from "@/lib/actions/checkout";
+import { checkoutSchema, type CheckoutFormValues } from "@/lib/validations/checkout";
 
 export function CheckoutForm() {
   const { items, totalPrice } = useCart();
@@ -39,13 +39,13 @@ export function CheckoutForm() {
 
     setIsSubmitting(true);
     try {
-      posthog?.capture('checkout_started', {
+      posthog?.capture("checkout_started", {
         cartItemCount: items.length,
         cartTotal: totalPrice,
       });
       // Create Order and MP Preference
       const res = await createCheckoutPreference(data, items);
-      
+
       if (!res.success) {
         toast.error(res.error || "Ocurrió un error al procesar el pago");
         setIsSubmitting(false);
@@ -56,7 +56,7 @@ export function CheckoutForm() {
       // Usamos siempre initPoint (incluso en dev) porque sandboxInitPoint suele entrar en bucles infinitos por bugs de MP.
       // Si usamos un token de prueba (TEST-...), el production initPoint detecta automáticamente que es Sandbox y te muestra el banner de "Modo de Prueba".
       const url = res.initPoint;
-      
+
       if (url) {
         window.location.assign(url);
       } else {
@@ -73,122 +73,152 @@ export function CheckoutForm() {
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
       <div className="space-y-4">
         <h3 className="font-heading text-xl">Datos de Contacto</h3>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <label className="text-xs uppercase font-sans font-medium tracking-widest">Nombre Completo</label>
-            <input 
+            <label className="text-xs uppercase font-sans font-medium tracking-widest">
+              Nombre Completo
+            </label>
+            <input
               {...form.register("fullName")}
-               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="Juan Pérez"
               disabled={isSubmitting}
             />
-            {form.formState.errors.fullName && <p className="text-destructive text-xs">{form.formState.errors.fullName.message}</p>}
+            {form.formState.errors.fullName && (
+              <p className="text-destructive text-xs">{form.formState.errors.fullName.message}</p>
+            )}
           </div>
 
           <div className="space-y-2">
             <label className="text-xs uppercase font-sans font-medium tracking-widest">Email</label>
-            <input 
+            <input
               {...form.register("email")}
               type="email"
-               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="juan@ejemplo.com"
               disabled={isSubmitting}
             />
-            {form.formState.errors.email && <p className="text-destructive text-xs">{form.formState.errors.email.message}</p>}
+            {form.formState.errors.email && (
+              <p className="text-destructive text-xs">{form.formState.errors.email.message}</p>
+            )}
           </div>
 
           <div className="space-y-2">
             <label className="text-xs uppercase font-sans font-medium tracking-widest">DNI</label>
-            <input 
+            <input
               {...form.register("dni")}
-               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="12345678"
               disabled={isSubmitting}
             />
-            {form.formState.errors.dni && <p className="text-destructive text-xs">{form.formState.errors.dni.message}</p>}
+            {form.formState.errors.dni && (
+              <p className="text-destructive text-xs">{form.formState.errors.dni.message}</p>
+            )}
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs uppercase font-sans font-medium tracking-widest">Teléfono</label>
-            <input 
+            <label className="text-xs uppercase font-sans font-medium tracking-widest">
+              Teléfono
+            </label>
+            <input
               {...form.register("phone")}
-               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="11 1234 5678"
               disabled={isSubmitting}
             />
-            {form.formState.errors.phone && <p className="text-destructive text-xs">{form.formState.errors.phone.message}</p>}
+            {form.formState.errors.phone && (
+              <p className="text-destructive text-xs">{form.formState.errors.phone.message}</p>
+            )}
           </div>
         </div>
       </div>
 
       <div className="space-y-4 pt-6 border-t border-border">
         <h3 className="font-heading text-xl">Datos de Envío (Correo Argentino)</h3>
-        
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="space-y-2 col-span-2 md:col-span-2">
             <label className="text-xs uppercase font-sans font-medium tracking-widest">Calle</label>
-            <input 
+            <input
               {...form.register("street")}
-               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="Av. Rivadavia"
               disabled={isSubmitting}
             />
-            {form.formState.errors.street && <p className="text-destructive text-xs">{form.formState.errors.street.message}</p>}
+            {form.formState.errors.street && (
+              <p className="text-destructive text-xs">{form.formState.errors.street.message}</p>
+            )}
           </div>
 
           <div className="space-y-2 col-span-1">
-            <label className="text-xs uppercase font-sans font-medium tracking-widest">Número</label>
-            <input 
+            <label className="text-xs uppercase font-sans font-medium tracking-widest">
+              Número
+            </label>
+            <input
               {...form.register("number")}
-               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="1234"
               disabled={isSubmitting}
             />
-            {form.formState.errors.number && <p className="text-destructive text-xs">{form.formState.errors.number.message}</p>}
+            {form.formState.errors.number && (
+              <p className="text-destructive text-xs">{form.formState.errors.number.message}</p>
+            )}
           </div>
 
           <div className="space-y-2 col-span-1">
-            <label className="text-xs uppercase font-sans font-medium tracking-widest">Piso/Dpto</label>
-            <input 
+            <label className="text-xs uppercase font-sans font-medium tracking-widest">
+              Piso/Dpto
+            </label>
+            <input
               {...form.register("floorOrApt")}
-               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="4B (Opcional)"
               disabled={isSubmitting}
             />
           </div>
 
           <div className="space-y-2 col-span-2 md:col-span-2">
-            <label className="text-xs uppercase font-sans font-medium tracking-widest">Ciudad</label>
-            <input 
+            <label className="text-xs uppercase font-sans font-medium tracking-widest">
+              Ciudad
+            </label>
+            <input
               {...form.register("city")}
-               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="CABA"
               disabled={isSubmitting}
             />
-            {form.formState.errors.city && <p className="text-destructive text-xs">{form.formState.errors.city.message}</p>}
+            {form.formState.errors.city && (
+              <p className="text-destructive text-xs">{form.formState.errors.city.message}</p>
+            )}
           </div>
 
           <div className="space-y-2 col-span-1 md:col-span-1">
-            <label className="text-xs uppercase font-sans font-medium tracking-widest">Provincia</label>
-            <input 
+            <label className="text-xs uppercase font-sans font-medium tracking-widest">
+              Provincia
+            </label>
+            <input
               {...form.register("province")}
-               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="Buenos Aires"
               disabled={isSubmitting}
             />
-            {form.formState.errors.province && <p className="text-destructive text-xs">{form.formState.errors.province.message}</p>}
+            {form.formState.errors.province && (
+              <p className="text-destructive text-xs">{form.formState.errors.province.message}</p>
+            )}
           </div>
 
           <div className="space-y-2 col-span-1 md:col-span-1">
             <label className="text-xs uppercase font-sans font-medium tracking-widest">CP</label>
-            <input 
+            <input
               {...form.register("zipCode")}
-               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="1000"
               disabled={isSubmitting}
             />
-            {form.formState.errors.zipCode && <p className="text-destructive text-xs">{form.formState.errors.zipCode.message}</p>}
+            {form.formState.errors.zipCode && (
+              <p className="text-destructive text-xs">{form.formState.errors.zipCode.message}</p>
+            )}
           </div>
         </div>
       </div>

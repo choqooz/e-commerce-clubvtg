@@ -10,8 +10,7 @@ export default function SignInPage() {
             card: "shadow-none border border-border rounded-none",
             headerTitle: "font-heading font-light",
             headerSubtitle: "font-sans text-muted-foreground",
-            formButtonPrimary:
-              "bg-foreground text-background hover:bg-foreground/90 rounded-none",
+            formButtonPrimary: "bg-foreground text-background hover:bg-foreground/90 rounded-none",
             formFieldInput: "rounded-none border-border",
             footerActionLink: "text-foreground hover:text-foreground/80",
           },

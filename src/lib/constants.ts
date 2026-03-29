@@ -22,8 +22,7 @@ export const COLOR_MAP: Record<string, string> = {
   violeta: "#8b5cf6",
   lila: "#a78bfa",
   navy: "#1e3a8a",
-  multicolor:
-    "conic-gradient(red, yellow, lime, aqua, blue, magenta, red)",
+  multicolor: "conic-gradient(red, yellow, lime, aqua, blue, magenta, red)",
 };
 
 /** Canonical color entries shown in the catalog filter */
@@ -52,10 +51,4 @@ export const PRICE_BRACKETS = [
 ] as const;
 
 /** Condition options (ordered best → worst) */
-export const CONDITION_OPTIONS = [
-  "Nuevo",
-  "Excelente",
-  "Muy Bueno",
-  "Bueno",
-  "Regular",
-] as const;
+export const CONDITION_OPTIONS = ["Nuevo", "Excelente", "Muy Bueno", "Bueno", "Regular"] as const;

@@ -1,10 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { auth } from "@clerk/nextjs/server";
+import { revalidatePath } from "next/cache";
+import { requireAdmin } from "@/lib/actions/auth";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { OrderStatus } from "@/lib/types";
-import { requireAdmin } from "@/lib/actions/auth";
 
 // ── User-facing ──
 
@@ -74,9 +74,7 @@ export async function shipOrder(orderId: string, trackingNumber: string) {
     try {
       const { Resend } = await import("resend");
       const resend = new Resend(process.env.RESEND_API_KEY);
-      const { DispatchEmail } = await import(
-        "@/components/emails/dispatch-email"
-      );
+      const { DispatchEmail } = await import("@/components/emails/dispatch-email");
 
       await resend.emails.send({
         from: "ClubVTG <onboarding@resend.dev>",

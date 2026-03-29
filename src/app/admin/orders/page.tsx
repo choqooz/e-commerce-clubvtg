@@ -1,5 +1,5 @@
-import { supabaseAdmin } from "@/lib/supabase/admin";
 import { OrdersTable } from "@/components/admin/orders-table";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { Order, OrderItem } from "@/lib/types";
 
 export const metadata = {
@@ -21,9 +21,7 @@ export default async function AdminOrdersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-heading font-medium tracking-wide">
-          Órdenes
-        </h1>
+        <h1 className="text-3xl font-heading font-medium tracking-wide">Órdenes</h1>
         <p className="text-muted-foreground mt-1 text-sm">
           Gestión de pedidos ({typedOrders.length} en total).
         </p>

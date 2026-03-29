@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export default function SiteFooter() {
+export function SiteFooter() {
   return (
     <footer className="border-t border-border mt-20">
       <div className="container mx-auto px-6 py-16">
@@ -9,8 +9,8 @@ export default function SiteFooter() {
           <div>
             <h3 className="font-heading text-xl font-medium mb-4">clubvtg</h3>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Prendas vintage únicas curadas para el guardarropa moderno. Cada
-              pieza tiene una historia.
+              Prendas vintage únicas curadas para el guardarropa moderno. Cada pieza tiene una
+              historia.
             </p>
           </div>
 
@@ -21,12 +21,18 @@ export default function SiteFooter() {
             </h4>
             <ul className="space-y-2.5 text-sm text-muted-foreground">
               <li>
-                <Link href="/" className="hover:text-foreground transition-colors duration-200 hover:underline underline-offset-4">
+                <Link
+                  href="/"
+                  className="hover:text-foreground transition-colors duration-200 hover:underline underline-offset-4"
+                >
                   Catálogo
                 </Link>
               </li>
               <li>
-                <Link href="/credits" className="hover:text-foreground transition-colors duration-200 hover:underline underline-offset-4">
+                <Link
+                  href="/credits"
+                  className="hover:text-foreground transition-colors duration-200 hover:underline underline-offset-4"
+                >
                   Créditos IA
                 </Link>
               </li>
@@ -40,9 +46,7 @@ export default function SiteFooter() {
             </h4>
             <ul className="space-y-2.5 text-sm text-muted-foreground">
               <li>
-                <span className="cursor-default">
-                  Envíos a todo el país · Correo Argentino
-                </span>
+                <span className="cursor-default">Envíos a todo el país · Correo Argentino</span>
               </li>
               <li>
                 <a

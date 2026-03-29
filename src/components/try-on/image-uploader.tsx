@@ -1,10 +1,10 @@
 "use client";
 
-import { useRef, useState, type DragEvent, type ChangeEvent } from "react";
-import Image from "next/image";
 import { Upload, Camera, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import Image from "next/image";
+import { useRef, useState, type DragEvent, type ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -75,10 +75,7 @@ interface ImageUploaderProps {
   disabled?: boolean;
 }
 
-export function ImageUploader({
-  onImageSelect,
-  disabled = false,
-}: ImageUploaderProps) {
+export function ImageUploader({ onImageSelect, disabled = false }: ImageUploaderProps) {
   const [preview, setPreview] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -158,9 +155,7 @@ export function ImageUploader({
     return (
       <div className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-accent bg-accent/5 p-8 min-h-[200px]">
         <div className="animate-spin h-6 w-6 border-2 border-accent border-t-transparent rounded-full" />
-        <p className="text-sm text-foreground font-sans">
-          Optimizando para IA...
-        </p>
+        <p className="text-sm text-foreground font-sans">Optimizando para IA...</p>
       </div>
     );
   }
@@ -170,13 +165,7 @@ export function ImageUploader({
     return (
       <div className="relative border border-border bg-card">
         <div className="relative aspect-[3/4] w-full">
-          <Image
-            src={preview}
-            alt="Vista previa"
-            fill
-            className="object-cover"
-            unoptimized
-          />
+          <Image src={preview} alt="Vista previa" fill className="object-cover" unoptimized />
         </div>
 
         <div className="flex items-center justify-between p-3 border-t border-border">
@@ -240,15 +229,9 @@ export function ImageUploader({
           disabled && "cursor-not-allowed opacity-50",
         )}
       >
-        <Upload
-          size={28}
-          strokeWidth={1}
-          className="text-muted-foreground"
-        />
+        <Upload size={28} strokeWidth={1} className="text-muted-foreground" />
         <div className="text-center">
-          <p className="text-sm text-foreground font-sans">
-            Arrastrá tu foto acá
-          </p>
+          <p className="text-sm text-foreground font-sans">Arrastrá tu foto acá</p>
           <p className="text-xs text-muted-foreground mt-1 font-sans">
             o hacé click para seleccionar
           </p>
@@ -258,9 +241,7 @@ export function ImageUploader({
         </p>
       </div>
 
-      {error && (
-        <p className="text-xs text-destructive mt-2 font-sans">{error}</p>
-      )}
+      {error && <p className="text-xs text-destructive mt-2 font-sans">{error}</p>}
 
       <input
         ref={inputRef}

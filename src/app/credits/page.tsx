@@ -1,8 +1,8 @@
+import { auth } from "@clerk/nextjs/server";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { auth } from "@clerk/nextjs/server";
-import { getUserCredits } from "@/lib/actions/credits";
 import { CreditsPageContent } from "@/components/credits/credits-page-content";
+import { getUserCredits } from "@/lib/actions/credits";
 
 export const metadata: Metadata = {
   title: "Créditos | ClubVTG",

@@ -1,8 +1,8 @@
 "use client";
 
 import { Check, Circle, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import type { TryOnStep } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 interface GenerationProgressProps {
   currentStep: TryOnStep | null;
@@ -33,10 +33,7 @@ function getStepStatus(
   return "pending";
 }
 
-export function GenerationProgress({
-  currentStep,
-  isGenerating,
-}: GenerationProgressProps) {
+export function GenerationProgress({ currentStep, isGenerating }: GenerationProgressProps) {
   return (
     <div className="space-y-0" role="list" aria-label="Progreso de generación">
       {STEPS.map((step, i) => {
@@ -56,15 +53,11 @@ export function GenerationProgress({
                   status === "pending" && "text-muted-foreground/40",
                 )}
               >
-                {status === "completed" && (
-                  <Check size={14} strokeWidth={2} />
-                )}
+                {status === "completed" && <Check size={14} strokeWidth={2} />}
                 {status === "current" && (
                   <Loader2 size={14} strokeWidth={2} className="animate-spin" />
                 )}
-                {status === "pending" && (
-                  <Circle size={8} strokeWidth={2} />
-                )}
+                {status === "pending" && <Circle size={8} strokeWidth={2} />}
               </div>
 
               {/* Connector line */}
@@ -72,9 +65,7 @@ export function GenerationProgress({
                 <div
                   className={cn(
                     "w-px flex-1 min-h-4",
-                    status === "completed"
-                      ? "bg-foreground/20"
-                      : "bg-border",
+                    status === "completed" ? "bg-foreground/20" : "bg-border",
                   )}
                 />
               )}
@@ -90,11 +81,7 @@ export function GenerationProgress({
               )}
             >
               <span
-                className={cn(
-                  status === "current" &&
-                    step.key === "generating" &&
-                    "animate-pulse",
-                )}
+                className={cn(status === "current" && step.key === "generating" && "animate-pulse")}
               >
                 {step.label}
               </span>

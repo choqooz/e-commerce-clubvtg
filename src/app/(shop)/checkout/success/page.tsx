@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, Suspense } from "react";
-import { useCart } from "@/contexts/cart-context";
-import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
-import SiteHeader from "@/components/site-header";
-import SiteFooter from "@/components/site-footer";
+import Link from "next/link";
+import { useEffect, Suspense } from "react";
+import { SiteFooter } from "@/components/site-footer";
+import { SiteHeader } from "@/components/site-header";
+import { useCart } from "@/contexts/cart-context";
 
 function SuccessContent() {
   const { clearCart } = useCart();
@@ -20,10 +20,10 @@ function SuccessContent() {
       <CheckCircle2 className="w-16 h-16 text-primary mb-6" />
       <h1 className="font-heading text-4xl mb-4">¡Pago Exitoso!</h1>
       <p className="text-muted-foreground font-sans mb-8">
-        Tu orden ha sido confirmada y está siendo procesada. 
-        En breve recibirás un email con los detalles del envío por Correo Argentino.
+        Tu orden ha sido confirmada y está siendo procesada. En breve recibirás un email con los
+        detalles del envío por Correo Argentino.
       </p>
-      <Link 
+      <Link
         href="/"
         className="w-full bg-primary text-primary-foreground py-4 text-sm uppercase tracking-widest font-sans font-medium hover:opacity-90 transition-opacity"
       >

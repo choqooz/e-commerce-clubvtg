@@ -1,11 +1,11 @@
-import Link from "next/link";
 import { Sparkles } from "lucide-react";
+import Link from "next/link";
 
 interface TryOnSectionProps {
   productSlug: string;
 }
 
-export default function TryOnSection({ productSlug }: TryOnSectionProps) {
+export function TryOnSection({ productSlug }: TryOnSectionProps) {
   return (
     <div className="border-t border-border pt-6 mt-4">
       <div className="flex items-center gap-2 mb-3">

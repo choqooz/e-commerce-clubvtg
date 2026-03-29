@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
 import { Download, ZoomIn } from "lucide-react";
-import { cn } from "@/lib/utils";
+import Image from "next/image";
+import { useState } from "react";
 import { ImageZoomModal } from "@/components/try-on/image-zoom-modal";
+import { cn } from "@/lib/utils";
 
 interface ResultViewerProps {
   originalImageUrl: string;

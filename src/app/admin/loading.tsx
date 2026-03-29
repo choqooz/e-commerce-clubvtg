@@ -16,10 +16,7 @@ export default function Loading() {
           <div className="h-4 w-full bg-muted animate-pulse rounded" />
         </div>
         {Array.from({ length: 5 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex items-center gap-4 px-4 py-4 border-b last:border-b-0"
-          >
+          <div key={i} className="flex items-center gap-4 px-4 py-4 border-b last:border-b-0">
             <div className="w-10 h-10 bg-muted animate-pulse rounded" />
             <div className="flex-1 space-y-2">
               <div className="h-4 w-1/3 bg-muted animate-pulse rounded" />

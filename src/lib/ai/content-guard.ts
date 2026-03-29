@@ -102,9 +102,7 @@ async function validatePersonInImage(
     if (!parsed.appropriate) {
       return {
         approved: false,
-        reason:
-          parsed.reason ||
-          "La imagen no es apropiada para el probador virtual",
+        reason: parsed.reason || "La imagen no es apropiada para el probador virtual",
         code: "inappropriate_image",
       };
     }

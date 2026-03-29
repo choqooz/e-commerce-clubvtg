@@ -1,8 +1,8 @@
+import { auth, currentUser } from "@clerk/nextjs/server";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { auth, currentUser } from "@clerk/nextjs/server";
-import { getUserCredits } from "@/lib/actions/credits";
 import { ProfilePageContent } from "@/components/profile/profile-page-content";
+import { getUserCredits, getTryOnHistory } from "@/lib/actions/credits";
 
 export const metadata: Metadata = {
   title: "Mi Perfil | ClubVTG",
@@ -20,12 +20,10 @@ export default async function ProfilePage() {
     redirect("/sign-in?redirect_url=/profile");
   }
 
-  const creditsResult = await getUserCredits();
+  const [creditsResult, tryOnHistory] = await Promise.all([getUserCredits(), getTryOnHistory()]);
   const credits = creditsResult?.credits ?? 0;
 
-  const primaryEmail = user.emailAddresses.find(
-    (e) => e.id === user.primaryEmailAddressId,
-  );
+  const primaryEmail = user.emailAddresses.find((e) => e.id === user.primaryEmailAddressId);
 
   return (
     <ProfilePageContent
@@ -37,6 +35,7 @@ export default async function ProfilePage() {
         emailVerified: primaryEmail?.verification?.status === "verified",
       }}
       credits={credits}
+      tryOnHistory={tryOnHistory}
     />
   );
 }

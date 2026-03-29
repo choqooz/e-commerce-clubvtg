@@ -1,12 +1,12 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
 import { Preference } from "mercadopago";
 import { CREDIT_PACKS } from "@/lib/config";
-import { resolvePaymentUrls } from "@/lib/urls";
-import type { AiTryonLog, CreditPackId } from "@/lib/types";
 import { mpClient } from "@/lib/mercadopago";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import type { AiTryonLog, CreditPackId } from "@/lib/types";
+import { resolvePaymentUrls } from "@/lib/urls";
 
 // ── getUserCredits ──
 
@@ -34,10 +34,7 @@ export interface TryOnHistoryItem extends AiTryonLog {
 
 const SIGNED_URL_EXPIRY = 3600; // 1 hour
 
-async function resolveSignedUrl(
-  bucket: string,
-  path: string | null,
-): Promise<string | null> {
+async function resolveSignedUrl(bucket: string, path: string | null): Promise<string | null> {
   if (!path) return null;
 
   // Already a full URL — return as-is
@@ -96,7 +93,7 @@ export async function getTryOnHistory(): Promise<TryOnHistoryItem[]> {
 // ── createCreditPackPreference ──
 
 export async function createCreditPackPreference(
-  packId: CreditPackId
+  packId: CreditPackId,
 ): Promise<{ url: string } | { error: string }> {
   try {
     const { userId } = await auth();
@@ -147,8 +144,7 @@ export async function createCreditPackPreference(
     return { url: response.init_point };
   } catch (error: unknown) {
     console.error("Credit pack preference error:", error);
-    const message =
-      error instanceof Error ? error.message : "Error creando la preferencia de pago";
+    const message = error instanceof Error ? error.message : "Error creando la preferencia de pago";
     return { error: message };
   }
 }

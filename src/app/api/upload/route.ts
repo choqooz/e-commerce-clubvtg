@@ -1,13 +1,9 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/actions/auth";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ALLOWED_MIME_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-]);
+const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 export async function POST(req: Request) {
   try {
@@ -30,7 +26,7 @@ export async function POST(req: Request) {
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
         { error: `El archivo excede el límite de 5MB (${(file.size / 1024 / 1024).toFixed(1)}MB)` },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -38,7 +34,7 @@ export async function POST(req: Request) {
     if (!ALLOWED_MIME_TYPES.has(file.type)) {
       return NextResponse.json(
         { error: `Tipo de archivo no permitido: ${file.type}. Solo se aceptan JPEG, PNG y WebP.` },
-        { status: 400 }
+        { status: 400 },
       );
     }
 

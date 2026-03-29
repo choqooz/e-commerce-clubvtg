@@ -10,7 +10,7 @@ export const tryOnImageSchema = z.object({
     .refine((f) => f.size <= MAX_FILE_SIZE, "La imagen no puede superar 10MB")
     .refine(
       (f) => ACCEPTED_IMAGE_TYPES.includes(f.type),
-      "Formato no soportado. Usá JPG, PNG o WebP"
+      "Formato no soportado. Usá JPG, PNG o WebP",
     ),
 });
 

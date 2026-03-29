@@ -1,22 +1,17 @@
 "use client";
 
+import { useClerk } from "@clerk/nextjs";
+import { ChevronRight, Sparkles, ShoppingBag, Store, CreditCard, Settings } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  ChevronRight,
-  Sparkles,
-  ShoppingBag,
-  Store,
-  CreditCard,
-  Settings,
-} from "lucide-react";
-import { useClerk } from "@clerk/nextjs";
-import SiteHeader from "@/components/site-header";
-import SiteFooter from "@/components/site-footer";
-import CartDrawer from "@/components/cart-drawer";
+import { CartDrawer } from "@/components/cart-drawer";
+import { SiteFooter } from "@/components/site-footer";
+import { SiteHeader } from "@/components/site-header";
+import { TryOnHistory } from "@/components/try-on/try-on-history";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import type { TryOnHistoryItem } from "@/lib/actions/credits";
 
 interface ProfileUser {
   firstName: string | null;
@@ -29,12 +24,12 @@ interface ProfileUser {
 interface ProfilePageContentProps {
   user: ProfileUser;
   credits: number;
+  tryOnHistory: TryOnHistoryItem[];
 }
 
-export function ProfilePageContent({ user, credits }: ProfilePageContentProps) {
+export function ProfilePageContent({ user, credits, tryOnHistory }: ProfilePageContentProps) {
   const { openUserProfile } = useClerk();
-  const displayName =
-    [user.firstName, user.lastName].filter(Boolean).join(" ") || "Usuario";
+  const displayName = [user.firstName, user.lastName].filter(Boolean).join(" ") || "Usuario";
 
   return (
     <div className="min-h-screen bg-background">
@@ -45,10 +40,7 @@ export function ProfilePageContent({ user, credits }: ProfilePageContentProps) {
         {/* Breadcrumb */}
         <div className="container mx-auto px-6 py-4">
           <nav className="flex items-center gap-1.5 text-xs text-muted-foreground font-sans">
-            <Link
-              href="/"
-              className="hover:text-foreground transition-colors"
-            >
+            <Link href="/" className="hover:text-foreground transition-colors">
               Inicio
             </Link>
             <ChevronRight size={12} />
@@ -68,12 +60,8 @@ export function ProfilePageContent({ user, credits }: ProfilePageContentProps) {
                 className="rounded-full border border-border"
               />
               <div className="text-center space-y-1.5">
-                <h1 className="text-2xl font-heading font-medium tracking-wide">
-                  {displayName}
-                </h1>
-                <p className="text-sm text-muted-foreground font-sans">
-                  {user.email}
-                </p>
+                <h1 className="text-2xl font-heading font-medium tracking-wide">{displayName}</h1>
+                <p className="text-sm text-muted-foreground font-sans">{user.email}</p>
                 {user.emailVerified ? (
                   <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800">
                     Email verificado
@@ -84,11 +72,7 @@ export function ProfilePageContent({ user, credits }: ProfilePageContentProps) {
                   </Badge>
                 )}
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => openUserProfile()}
-              >
+              <Button variant="outline" size="sm" onClick={() => openUserProfile()}>
                 <Settings className="size-4 mr-1.5" />
                 Gestionar cuenta
               </Button>
@@ -102,9 +86,7 @@ export function ProfilePageContent({ user, credits }: ProfilePageContentProps) {
                 <Sparkles className="size-6 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground font-sans mb-1">
-                  Tu balance
-                </p>
+                <p className="text-sm text-muted-foreground font-sans mb-1">Tu balance</p>
                 <p className="text-4xl font-heading font-medium tracking-wide">
                   {credits}
                   <span className="text-lg text-muted-foreground ml-2">
@@ -133,17 +115,23 @@ export function ProfilePageContent({ user, credits }: ProfilePageContentProps) {
                   icon={<ShoppingBag className="size-4" />}
                   label="Mis Pedidos"
                 />
-                <QuickLink
-                  href="/"
-                  icon={<Store className="size-4" />}
-                  label="Catálogo"
-                />
+                <QuickLink href="/" icon={<Store className="size-4" />} label="Catálogo" />
                 <QuickLink
                   href="/credits"
                   icon={<CreditCard className="size-4" />}
                   label="Créditos"
                 />
               </nav>
+            </div>
+
+            <Separator />
+
+            {/* Section 4: Try-On History */}
+            <div className="space-y-4">
+              <h2 className="text-sm uppercase tracking-widest font-sans font-medium text-muted-foreground">
+                Mis pruebas virtuales
+              </h2>
+              <TryOnHistory items={tryOnHistory} />
             </div>
           </div>
         </div>
@@ -154,15 +142,7 @@ export function ProfilePageContent({ user, credits }: ProfilePageContentProps) {
   );
 }
 
-function QuickLink({
-  href,
-  icon,
-  label,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  label: string;
-}) {
+function QuickLink({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
   return (
     <Link
       href={href}

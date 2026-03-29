@@ -10,8 +10,7 @@ export async function processUserImage(
   const inputMeta = await sharp(buffer).metadata();
   const isJpeg = inputMeta.format === "jpeg";
   const needsResize =
-    (inputMeta.width ?? 0) > MAX_DIMENSION ||
-    (inputMeta.height ?? 0) > MAX_DIMENSION;
+    (inputMeta.width ?? 0) > MAX_DIMENSION || (inputMeta.height ?? 0) > MAX_DIMENSION;
 
   let pipeline = sharp(buffer)
     .rotate() // Auto-rotate based on EXIF

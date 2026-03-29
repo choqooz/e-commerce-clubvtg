@@ -1,13 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
-import {
-  Dialog,
-  DialogOverlay,
-  DialogPortal,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Dialog, DialogOverlay, DialogPortal, DialogTitle } from "@/components/ui/dialog";
 
 interface ImageZoomModalProps {
   src: string;
@@ -45,45 +40,36 @@ export function ImageZoomModal({ src, alt, open, onClose }: ImageZoomModalProps)
   }
 
   // Clamp position so the image doesn't drift too far when zoomed
-  const clampPosition = useCallback(
-    (pos: { x: number; y: number }, currentScale: number) => {
-      if (currentScale <= 1) return { x: 0, y: 0 };
-      // Allow panning proportional to the zoom overflow
-      const maxOffset = ((currentScale - 1) / currentScale) * 200;
-      return {
-        x: Math.max(-maxOffset, Math.min(maxOffset, pos.x)),
-        y: Math.max(-maxOffset, Math.min(maxOffset, pos.y)),
-      };
-    },
-    [],
-  );
+  const clampPosition = useCallback((pos: { x: number; y: number }, currentScale: number) => {
+    if (currentScale <= 1) return { x: 0, y: 0 };
+    // Allow panning proportional to the zoom overflow
+    const maxOffset = ((currentScale - 1) / currentScale) * 200;
+    return {
+      x: Math.max(-maxOffset, Math.min(maxOffset, pos.x)),
+      y: Math.max(-maxOffset, Math.min(maxOffset, pos.y)),
+    };
+  }, []);
 
   // --- Desktop: Wheel zoom ---
-  const handleWheel = useCallback(
-    (e: React.WheelEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const delta = e.deltaY > 0 ? -SCALE_STEP : SCALE_STEP;
-      setScale((prev) => {
-        const next = Math.min(MAX_SCALE, Math.max(MIN_SCALE, prev + delta));
-        // Reset position when zooming back to 1x
-        if (next <= 1) setPosition({ x: 0, y: 0 });
-        return Math.round(next * 10) / 10;
-      });
-    },
-    [],
-  );
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const delta = e.deltaY > 0 ? -SCALE_STEP : SCALE_STEP;
+    setScale((prev) => {
+      const next = Math.min(MAX_SCALE, Math.max(MIN_SCALE, prev + delta));
+      // Reset position when zooming back to 1x
+      if (next <= 1) setPosition({ x: 0, y: 0 });
+      return Math.round(next * 10) / 10;
+    });
+  }, []);
 
   // --- Double click/tap: toggle 1x ↔ 2x ---
-  const handleDoubleClick = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setScale((prev) => (prev === 1 ? 2 : 1));
-      setPosition({ x: 0, y: 0 });
-    },
-    [],
-  );
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setScale((prev) => (prev === 1 ? 2 : 1));
+    setPosition({ x: 0, y: 0 });
+  }, []);
 
   // --- Pointer drag (desktop + mobile single-finger) ---
   const handlePointerDown = useCallback(
@@ -115,14 +101,11 @@ export function ImageZoomModal({ src, alt, open, onClose }: ImageZoomModalProps)
     [isDragging, scale, clampPosition],
   );
 
-  const handlePointerUp = useCallback(
-    (e: React.PointerEvent) => {
-      if (!e.isPrimary) return;
-      setIsDragging(false);
-      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-    },
-    [],
-  );
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    if (!e.isPrimary) return;
+    setIsDragging(false);
+    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+  }, []);
 
   // --- Pinch-to-zoom (mobile) ---
   const getTouchDistance = (touches: React.TouchList) => {
@@ -143,23 +126,17 @@ export function ImageZoomModal({ src, alt, open, onClose }: ImageZoomModalProps)
     [scale],
   );
 
-  const handleTouchMove = useCallback(
-    (e: React.TouchEvent) => {
-      if (e.touches.length === 2) {
-        e.preventDefault();
-        const currentDist = getTouchDistance(e.touches);
-        if (pinchDistStart.current === 0) return;
-        const ratio = currentDist / pinchDistStart.current;
-        const newScale = Math.min(
-          MAX_SCALE,
-          Math.max(MIN_SCALE, pinchScaleStart.current * ratio),
-        );
-        setScale(Math.round(newScale * 10) / 10);
-        if (newScale <= 1) setPosition({ x: 0, y: 0 });
-      }
-    },
-    [],
-  );
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const currentDist = getTouchDistance(e.touches);
+      if (pinchDistStart.current === 0) return;
+      const ratio = currentDist / pinchDistStart.current;
+      const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, pinchScaleStart.current * ratio));
+      setScale(Math.round(newScale * 10) / 10);
+      if (newScale <= 1) setPosition({ x: 0, y: 0 });
+    }
+  }, []);
 
   // Prevent passive wheel on the container for zoom to work
   useEffect(() => {
@@ -180,11 +157,7 @@ export function ImageZoomModal({ src, alt, open, onClose }: ImageZoomModalProps)
     [onClose],
   );
 
-  const cursorStyle = isDragging
-    ? "grabbing"
-    : scale > 1
-      ? "grab"
-      : "zoom-in";
+  const cursorStyle = isDragging ? "grabbing" : scale > 1 ? "grab" : "zoom-in";
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>

@@ -1,11 +1,11 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { formatPrice } from "@/lib/config";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { formatPrice } from "@/lib/config";
 import type { CreditPackId } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 interface CreditPackCardProps {
   packId: CreditPackId;
@@ -40,10 +40,12 @@ export function CreditPackCard({
       )}
 
       {/* Pack name */}
-      <p className={cn(
-        "text-xs uppercase tracking-widest font-sans",
-        popular ? "text-accent font-medium" : "text-muted-foreground"
-      )}>
+      <p
+        className={cn(
+          "text-xs uppercase tracking-widest font-sans",
+          popular ? "text-accent font-medium" : "text-muted-foreground",
+        )}
+      >
         {name}
       </p>
 
@@ -56,9 +58,7 @@ export function CreditPackCard({
       </p>
 
       {/* Price */}
-      <p className="text-sm text-foreground/70 mt-2 font-sans">
-        {formatPrice(price)}
-      </p>
+      <p className="text-sm text-foreground/70 mt-2 font-sans">{formatPrice(price)}</p>
 
       {/* Buy button */}
       <Button

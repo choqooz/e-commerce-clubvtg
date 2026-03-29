@@ -11,8 +11,8 @@ export default function NotFound() {
         Esta prenda ya no está
       </h1>
       <p className="text-muted-foreground max-w-md mb-10">
-        Lo que buscás no existe o fue retirado del catálogo. Explorá nuestra
-        colección para encontrar prendas vintage únicas.
+        Lo que buscás no existe o fue retirado del catálogo. Explorá nuestra colección para
+        encontrar prendas vintage únicas.
       </p>
       <Button asChild>
         <Link href="/">Explorar la tienda</Link>

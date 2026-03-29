@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useCallback, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { TryOnHistoryItem } from "@/lib/actions/credits";
@@ -22,10 +22,7 @@ function isValidImageUrl(url: string | null | undefined): url is string {
   }
 }
 
-const STATUS_CONFIG: Record<
-  TryOnStatus,
-  { label: string; className: string }
-> = {
+const STATUS_CONFIG: Record<TryOnStatus, { label: string; className: string }> = {
   completed: {
     label: "Completado",
     className: "bg-green-500/10 text-green-700 dark:text-green-400",
@@ -56,13 +53,7 @@ function ImagePlaceholder() {
   );
 }
 
-function HistoryThumbnail({
-  src,
-  alt,
-}: {
-  src: string | null | undefined;
-  alt: string;
-}) {
+function HistoryThumbnail({ src, alt }: { src: string | null | undefined; alt: string }) {
   const [failed, setFailed] = useState(false);
   const handleError = useCallback(() => setFailed(true), []);
 
@@ -86,9 +77,7 @@ export function TryOnHistory({ items }: TryOnHistoryProps) {
   if (items.length === 0) {
     return (
       <div className="text-center py-12 space-y-4">
-        <p className="text-muted-foreground">
-          Aún no probaste ninguna prenda
-        </p>
+        <p className="text-muted-foreground">Aún no probaste ninguna prenda</p>
         <Button asChild variant="outline" size="sm">
           <Link href="/">Explorar el catálogo</Link>
         </Button>
@@ -110,10 +99,7 @@ export function TryOnHistory({ items }: TryOnHistoryProps) {
           <div key={item.id} className="group space-y-2">
             {/* Thumbnail */}
             <div className="relative aspect-[3/4] w-full overflow-hidden rounded-lg bg-muted">
-              <HistoryThumbnail
-                src={imageUrl}
-                alt={`Prueba: ${item.product_title}`}
-              />
+              <HistoryThumbnail src={imageUrl} alt={`Prueba: ${item.product_title}`} />
 
               {/* Status badge overlay */}
               <div className="absolute top-2 left-2">
@@ -125,12 +111,8 @@ export function TryOnHistory({ items }: TryOnHistoryProps) {
 
             {/* Info */}
             <div className="space-y-0.5">
-              <p className="text-sm font-medium leading-tight line-clamp-1">
-                {item.product_title}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {formatDate(item.created_at)}
-              </p>
+              <p className="text-sm font-medium leading-tight line-clamp-1">{item.product_title}</p>
+              <p className="text-xs text-muted-foreground">{formatDate(item.created_at)}</p>
             </div>
           </div>
         );

@@ -1,15 +1,14 @@
 "use client";
 
-import Image from "next/image";
-import { useCart } from "@/contexts/cart-context";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { X } from "lucide-react";
-import { formatPrice } from "@/lib/config";
+import Image from "next/image";
 import Link from "next/link";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useCart } from "@/contexts/cart-context";
+import { formatPrice } from "@/lib/config";
 
-export default function CartDrawer() {
-  const { items, removeItem, totalItems, totalPrice, isOpen, setIsOpen } =
-    useCart();
+export function CartDrawer() {
+  const { items, removeItem, totalItems, totalPrice, isOpen, setIsOpen } = useCart();
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -22,15 +21,16 @@ export default function CartDrawer() {
 
         {items.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">
-            <p className="text-sm text-muted-foreground font-sans">
-              Tu carrito está vacío
-            </p>
+            <p className="text-sm text-muted-foreground font-sans">Tu carrito está vacío</p>
           </div>
         ) : (
           <>
             <div className="flex-1 overflow-y-auto py-4 space-y-4">
               {items.map((item) => (
-                <div key={item.product.id} className="flex gap-4 animate-in fade-in slide-in-from-right-2 duration-200">
+                <div
+                  key={item.product.id}
+                  className="flex gap-4 animate-in fade-in slide-in-from-right-2 duration-200"
+                >
                   {/* Product image */}
                   <div className="relative w-20 h-24 bg-secondary shrink-0 flex items-center justify-center overflow-hidden">
                     {item.product.image_urls && item.product.image_urls.length > 0 ? (
@@ -48,15 +48,11 @@ export default function CartDrawer() {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-sans truncate">
-                      {item.product.title}
-                    </h4>
+                    <h4 className="text-sm font-sans truncate">{item.product.title}</h4>
                     <p className="text-xs text-muted-foreground font-sans mt-0.5">
                       {item.product.color} · Talle {item.product.size}
                     </p>
-                    <p className="text-sm font-sans mt-1">
-                      {formatPrice(item.product.price)}
-                    </p>
+                    <p className="text-sm font-sans mt-1">{formatPrice(item.product.price)}</p>
                   </div>
                   <button
                     onClick={() => removeItem(item.product.id)}

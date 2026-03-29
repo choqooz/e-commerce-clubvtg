@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { Clock } from "lucide-react";
-import SiteHeader from "@/components/site-header";
-import SiteFooter from "@/components/site-footer";
+import Link from "next/link";
+import { SiteFooter } from "@/components/site-footer";
+import { SiteHeader } from "@/components/site-header";
 
 export default function CheckoutPendingPage() {
   return (
@@ -12,10 +12,11 @@ export default function CheckoutPendingPage() {
           <Clock className="w-16 h-16 text-yellow-500 mb-6" />
           <h1 className="font-heading text-4xl mb-4">Pago Pendiente</h1>
           <p className="text-muted-foreground font-sans mb-8">
-            Tu pago está siendo procesado por MercadoPago (por ejemplo, si pagaste en efectivo en Rapipago o PagoFácil).
-            Una vez que se acredite, te enviaremos un email con la confirmación.
+            Tu pago está siendo procesado por MercadoPago (por ejemplo, si pagaste en efectivo en
+            Rapipago o PagoFácil). Una vez que se acredite, te enviaremos un email con la
+            confirmación.
           </p>
-          <Link 
+          <Link
             href="/"
             className="w-full bg-primary text-primary-foreground py-4 text-sm uppercase tracking-widest font-sans font-medium hover:opacity-90 transition-opacity"
           >

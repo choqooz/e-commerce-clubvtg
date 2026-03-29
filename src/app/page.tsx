@@ -1,6 +1,6 @@
 import { CatalogContent } from "@/components/catalog-content";
-import { createClient } from "@/lib/supabase/server";
 import { releaseExpiredReservations } from "@/lib/supabase/release-reservations";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function HomePage() {
   // Lazy release: free any products reserved >15 min before querying
@@ -14,7 +14,5 @@ export default async function HomePage() {
     .eq("status", "available")
     .order("created_at", { ascending: false });
 
-  return (
-    <CatalogContent initialProducts={products || []} />
-  );
+  return <CatalogContent initialProducts={products || []} />;
 }

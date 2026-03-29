@@ -1,7 +1,7 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { usePostHog } from "posthog-js/react";
+import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import type { Product, CartItem } from "@/lib/types";
 
 interface CartContextValue {
@@ -57,7 +57,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         return [...prev, { product, quantity: 1 }];
       });
       setIsOpen(true);
-      posthog?.capture('product_added_to_cart', {
+      posthog?.capture("product_added_to_cart", {
         productId: product.id,
         productName: product.title,
         productCategory: product.category,

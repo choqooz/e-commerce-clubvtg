@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
 import * as Sentry from "@sentry/nextjs";
 import Link from "next/link";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
 export default function Error({
@@ -22,8 +22,8 @@ export default function Error({
         No pudimos cargar el producto
       </h1>
       <p className="text-muted-foreground max-w-md mx-auto mb-8">
-        Hubo un problema al obtener los detalles de esta prenda. Podés
-        reintentar o volver al catálogo.
+        Hubo un problema al obtener los detalles de esta prenda. Podés reintentar o volver al
+        catálogo.
       </p>
       <div className="flex items-center justify-center gap-4">
         <Button onClick={reset}>Reintentar</Button>

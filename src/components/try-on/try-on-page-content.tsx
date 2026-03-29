@@ -1,17 +1,17 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { ChevronRight, Coins, AlertCircle, RotateCcw } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronRight, Coins, AlertCircle, RotateCcw } from "lucide-react";
+import { useState, useCallback } from "react";
 import { toast } from "sonner";
-import SiteHeader from "@/components/site-header";
-import SiteFooter from "@/components/site-footer";
-import CartDrawer from "@/components/cart-drawer";
-import { ImageUploader } from "@/components/try-on/image-uploader";
-import { GenerationProgress } from "@/components/try-on/generation-progress";
-import { ResultViewer } from "@/components/try-on/result-viewer";
+import { CartDrawer } from "@/components/cart-drawer";
 import { CreditBalance } from "@/components/credits/credit-balance";
+import { SiteFooter } from "@/components/site-footer";
+import { SiteHeader } from "@/components/site-header";
+import { GenerationProgress } from "@/components/try-on/generation-progress";
+import { ImageUploader } from "@/components/try-on/image-uploader";
+import { ResultViewer } from "@/components/try-on/result-viewer";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/config";
 import type { Product, TryOnSSEEvent, TryOnStep } from "@/lib/types";
@@ -29,18 +29,13 @@ interface TryOnPageContentProps {
   initialCredits: number;
 }
 
-export function TryOnPageContent({
-  product,
-  initialCredits,
-}: TryOnPageContentProps) {
+export function TryOnPageContent({ product, initialCredits }: TryOnPageContentProps) {
   const [state, setState] = useState<TryOnState>({ phase: "idle" });
   const [credits, setCredits] = useState(initialCredits);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const productImage =
-    product.image_urls && product.image_urls.length > 0
-      ? product.image_urls[0]
-      : null;
+    product.image_urls && product.image_urls.length > 0 ? product.image_urls[0] : null;
 
   // ── SSE Consumer (fetch + ReadableStream) ──
 
@@ -171,10 +166,7 @@ export function TryOnPageContent({
         {/* Breadcrumb */}
         <div className="container mx-auto px-6 py-4">
           <nav className="flex items-center gap-1.5 text-xs text-muted-foreground font-sans">
-            <Link
-              href="/"
-              className="hover:text-foreground transition-colors"
-            >
+            <Link href="/" className="hover:text-foreground transition-colors">
               Inicio
             </Link>
             <ChevronRight size={12} />
@@ -217,12 +209,8 @@ export function TryOnPageContent({
                 <p className="text-xs text-muted-foreground uppercase tracking-wider font-sans">
                   {product.category}
                 </p>
-                <h1 className="text-2xl font-heading font-medium tracking-wide">
-                  {product.title}
-                </h1>
-                <p className="text-lg font-medium">
-                  {formatPrice(product.price)}
-                </p>
+                <h1 className="text-2xl font-heading font-medium tracking-wide">{product.title}</h1>
+                <p className="text-lg font-medium">{formatPrice(product.price)}</p>
               </div>
             </div>
 
@@ -236,9 +224,7 @@ export function TryOnPageContent({
                 <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 flex items-start gap-3">
                   <Coins className="size-5 text-destructive shrink-0 mt-0.5" />
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-destructive">
-                      Sin créditos
-                    </p>
+                    <p className="text-sm font-medium text-destructive">Sin créditos</p>
                     <p className="text-sm text-muted-foreground">
                       Necesitás al menos 1 crédito para generar una prueba virtual.
                     </p>
@@ -253,9 +239,7 @@ export function TryOnPageContent({
               {state.phase === "idle" && credits > 0 && (
                 <div className="space-y-4">
                   <div>
-                    <h2 className="text-lg font-heading font-medium tracking-wide">
-                      Subí tu foto
-                    </h2>
+                    <h2 className="text-lg font-heading font-medium tracking-wide">Subí tu foto</h2>
                     <p className="text-sm text-muted-foreground mt-1">
                       Subí una foto tuya de cuerpo entero para ver cómo te queda esta prenda.
                     </p>
@@ -263,8 +247,7 @@ export function TryOnPageContent({
                   <ImageUploader onImageSelect={startGeneration} />
                   <p className="text-xs text-muted-foreground text-center">
                     Se descontará 1 crédito al generar. Te quedan{" "}
-                    <span className="font-medium text-foreground">{credits}</span>{" "}
-                    créditos.
+                    <span className="font-medium text-foreground">{credits}</span> créditos.
                   </p>
                 </div>
               )}
@@ -275,19 +258,14 @@ export function TryOnPageContent({
                   <h2 className="text-lg font-heading font-medium tracking-wide">
                     Generando prueba virtual...
                   </h2>
-                  <GenerationProgress
-                    currentStep={state.step}
-                    isGenerating={isGenerating}
-                  />
+                  <GenerationProgress currentStep={state.step} isGenerating={isGenerating} />
                 </div>
               )}
 
               {/* ── Phase: Complete → Result Viewer ── */}
               {state.phase === "complete" && selectedImage && (
                 <div className="space-y-4">
-                  <h2 className="text-lg font-heading font-medium tracking-wide">
-                    Resultado
-                  </h2>
+                  <h2 className="text-lg font-heading font-medium tracking-wide">Resultado</h2>
                   <ResultViewer
                     originalImageUrl={selectedImage}
                     resultImageUrl={state.resultUrl}
@@ -296,9 +274,7 @@ export function TryOnPageContent({
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-muted-foreground">
                       Créditos restantes:{" "}
-                      <span className="font-medium text-foreground">
-                        {state.creditsRemaining}
-                      </span>
+                      <span className="font-medium text-foreground">{state.creditsRemaining}</span>
                     </p>
                     <Button variant="outline" size="sm" onClick={handleRetry}>
                       <RotateCcw className="size-3.5" />
@@ -314,12 +290,8 @@ export function TryOnPageContent({
                   <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 flex items-start gap-3">
                     <AlertCircle className="size-5 text-destructive shrink-0 mt-0.5" />
                     <div className="space-y-1">
-                      <p className="text-sm font-medium text-destructive">
-                        Error en la generación
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {state.message}
-                      </p>
+                      <p className="text-sm font-medium text-destructive">Error en la generación</p>
+                      <p className="text-sm text-muted-foreground">{state.message}</p>
                     </div>
                   </div>
                   <Button variant="outline" size="sm" onClick={handleRetry}>
@@ -332,9 +304,7 @@ export function TryOnPageContent({
               {/* Back to product */}
               <div className="pt-4 border-t">
                 <Button variant="ghost" size="sm" asChild>
-                  <Link href={`/product/${product.slug}`}>
-                    &larr; Volver al producto
-                  </Link>
+                  <Link href={`/product/${product.slug}`}>&larr; Volver al producto</Link>
                 </Button>
               </div>
             </div>
