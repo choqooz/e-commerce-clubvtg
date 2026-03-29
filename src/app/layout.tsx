@@ -3,7 +3,7 @@ import { DM_Sans, Cormorant_Garamond } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { esES } from "@clerk/localizations";
 import { Toaster } from "sonner";
-import { CartProvider } from "@/contexts/cart-context";
+import { Providers } from "@/app/providers";
 import "./globals.css";
 
 const dmSans = DM_Sans({
@@ -47,10 +47,10 @@ export default function RootLayout({
         className={`${dmSans.variable} ${cormorant.variable} h-full antialiased`}
       >
         <body className="min-h-full flex flex-col font-sans">
-          <CartProvider>
+          <Providers>
             {children}
             <Toaster position="bottom-right" richColors />
-          </CartProvider>
+          </Providers>
         </body>
       </html>
     </ClerkProvider>

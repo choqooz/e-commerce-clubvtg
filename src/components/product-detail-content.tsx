@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { usePostHog } from "posthog-js/react";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
@@ -23,10 +24,21 @@ export function ProductDetailContent({
   relatedProducts: Product[];
 }) {
   const { addItem } = useCart();
+  const posthog = usePostHog();
   const [activeImage, setActiveImage] = useState<string | null>(
     product.image_urls && product.image_urls.length > 0 ? product.image_urls[0] : null
   );
   
+  useEffect(() => {
+    posthog?.capture('product_viewed', {
+      productId: product.id,
+      productName: product.title,
+      productCategory: product.category,
+      productPrice: product.price,
+      productSlug: product.slug,
+    });
+  }, [product.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleAddToCart = () => {
     if (product.status !== "available") {
       toast.error("Este producto ya no está disponible");
@@ -118,6 +130,9 @@ export function ProductDetailContent({
               {product.status === "sold" && (
                 <span className="absolute top-4 right-4 bg-muted text-muted-foreground text-xs font-sans uppercase tracking-widest px-3 py-1 font-medium">Vendido</span>
               )}
+              {product.status === "reserved" && (
+                <span className="absolute top-4 right-4 bg-amber-100 text-amber-800 text-xs font-sans uppercase tracking-widest px-3 py-1 font-medium">Reservado</span>
+              )}
             </div>
 
             {/* Product Info */}
@@ -192,7 +207,13 @@ export function ProductDetailContent({
                     : "bg-muted text-muted-foreground cursor-not-allowed"
                 }`}
               >
-                {product.status === "available" ? "Agregar al carrito" : "No Disponible"}
+                {product.status === "available"
+                  ? "Agregar al carrito"
+                  : product.status === "reserved"
+                    ? "Reservado"
+                    : product.status === "sold"
+                      ? "Vendido"
+                      : "No Disponible"}
               </button>
 
               <p className="text-xs text-muted-foreground text-center font-sans mb-4">

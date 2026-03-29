@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { usePostHog } from "posthog-js/react";
 import type { Product, CartItem } from "@/lib/types";
 
 interface CartContextValue {
@@ -18,16 +19,21 @@ interface CartContextValue {
 const CartContext = createContext<CartContextValue | null>(null);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
+  const posthog = usePostHog();
   const [items, setItems] = useState<CartItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
 
-  // Hydrate from localStorage on client only
+  // Hydrate from localStorage on client only.
+  // setState in effect is intentional here — this synchronizes with an external
+  // system (localStorage) to avoid SSR hydration mismatch. This is the canonical
+  // Next.js pattern for client-only state restoration.
   useEffect(() => {
     try {
       const saved = localStorage.getItem("clubvtg-cart");
       if (saved) {
         const parsed = JSON.parse(saved);
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage hydration requires effect + setState
         if (Array.isArray(parsed)) setItems(parsed);
       }
     } catch {
@@ -51,8 +57,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         return [...prev, { product, quantity: 1 }];
       });
       setIsOpen(true);
+      posthog?.capture('product_added_to_cart', {
+        productId: product.id,
+        productName: product.title,
+        productCategory: product.category,
+        productPrice: product.price,
+        productSlug: product.slug,
+      });
     },
-    [],
+    [posthog],
   );
 
   const removeItem = useCallback((productId: string) => {

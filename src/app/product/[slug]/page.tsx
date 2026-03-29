@@ -2,8 +2,12 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ProductDetailContent } from "@/components/product-detail-content";
 import { createClient } from "@/lib/supabase/server";
+import { releaseExpiredReservations } from "@/lib/supabase/release-reservations";
 
 async function getProduct(slug: string) {
+  // Lazy release: free any products reserved >15 min before reading
+  await releaseExpiredReservations();
+
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("products")

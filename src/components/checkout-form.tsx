@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePostHog } from "posthog-js/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useCart } from "@/contexts/cart-context";
@@ -10,7 +11,8 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 export function CheckoutForm() {
-  const { items } = useCart();
+  const { items, totalPrice } = useCart();
+  const posthog = usePostHog();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<CheckoutFormValues>({
@@ -37,6 +39,10 @@ export function CheckoutForm() {
 
     setIsSubmitting(true);
     try {
+      posthog?.capture('checkout_started', {
+        cartItemCount: items.length,
+        cartTotal: totalPrice,
+      });
       // Create Order and MP Preference
       const res = await createCheckoutPreference(data, items);
       
@@ -52,7 +58,7 @@ export function CheckoutForm() {
       const url = res.initPoint;
       
       if (url) {
-        window.location.href = url;
+        window.location.assign(url);
       } else {
         toast.error("No se pudo obtener el link de pago");
         setIsSubmitting(false);

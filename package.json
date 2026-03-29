@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@clerk/localizations": "^4.2.3",
@@ -14,6 +15,7 @@
     "@hookform/resolvers": "^5.2.2",
     "@react-email/components": "^1.0.10",
     "@react-email/render": "^2.0.4",
+    "@sentry/nextjs": "^10.46.0",
     "@supabase/ssr": "^0.9.0",
     "@supabase/supabase-js": "^2.100.0",
     "@upstash/ratelimit": "^2.0.8",
@@ -24,12 +26,13 @@
     "mercadopago": "^2.12.0",
     "next": "16.2.1",
     "openai": "^6.32.0",
+    "posthog-js": "^1.364.1",
+    "posthog-node": "^5.21.2",
     "radix-ui": "^1.4.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-hook-form": "^7.72.0",
     "resend": "^6.9.4",
-    "shadcn": "^4.1.0",
     "sharp": "^0.34.5",
     "sonner": "^1",
     "svix": "^1.89.0",
@@ -44,6 +47,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
+    "shadcn": "^4.1.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
