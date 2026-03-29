@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { currentUser } from "@clerk/nextjs/server";
 import { AdminSidebar } from "@/components/admin/sidebar";
+import { ADMIN_EMAIL } from "@/lib/config.server";
 
 export default async function AdminLayout({
   children,
@@ -13,7 +14,7 @@ export default async function AdminLayout({
   )?.emailAddress;
 
   // Protect admin routes: only the designated ADMIN_EMAIL can access
-  if (!primaryEmail || primaryEmail !== process.env.ADMIN_EMAIL) {
+  if (!primaryEmail || primaryEmail !== ADMIN_EMAIL) {
     redirect("/");
   }
 

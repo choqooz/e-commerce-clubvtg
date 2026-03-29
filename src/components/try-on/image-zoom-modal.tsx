@@ -32,14 +32,17 @@ export function ImageZoomModal({ src, alt, open, onClose }: ImageZoomModalProps)
   const imageRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Reset state when modal opens
-  useEffect(() => {
+  // Reset state when modal opens — React 19 "state from props" pattern
+  // (avoids useEffect + setState which the React Compiler flags)
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) {
       setScale(1);
       setPosition({ x: 0, y: 0 });
       setIsDragging(false);
     }
-  }, [open]);
+  }
 
   // Clamp position so the image doesn't drift too far when zoomed
   const clampPosition = useCallback(

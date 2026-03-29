@@ -1,4 +1,11 @@
 import type OpenAI from "openai";
+import { z } from "zod";
+
+const contentGuardSchema = z.object({
+  has_person: z.boolean(),
+  appropriate: z.boolean(),
+  reason: z.string(),
+});
 
 export interface ContentGuardResult {
   approved: boolean;
@@ -82,11 +89,7 @@ async function validatePersonInImage(
 
   try {
     const jsonStr = content.replace(/```json\n?|\n?```/g, "").trim();
-    const parsed = JSON.parse(jsonStr) as {
-      has_person: boolean;
-      appropriate: boolean;
-      reason: string;
-    };
+    const parsed = contentGuardSchema.parse(JSON.parse(jsonStr));
 
     if (!parsed.has_person) {
       return {

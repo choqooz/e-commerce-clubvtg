@@ -44,15 +44,11 @@ export async function POST(req: Request) {
   }
 
   const eventType = evt.type;
-  console.log(`[webhook] ✅ Received event: ${eventType}`);
-  console.log(`[webhook] Event data keys:`, Object.keys(evt.data));
 
   // ── user.created → Create profile with 0 credits ──
   if (eventType === "user.created") {
     const { id, email_addresses, first_name, last_name } = evt.data;
     const email = email_addresses?.[0]?.email_address;
-
-    console.log(`[webhook] user.created — id: ${id}, email: ${email}`);
 
     if (!email) {
       console.error("[webhook] No email found in event data");
@@ -61,10 +57,7 @@ export async function POST(req: Request) {
 
     const fullName = [first_name, last_name].filter(Boolean).join(" ") || null;
 
-    console.log(`[webhook] Upserting profile — id: ${id}, email: ${email}, name: ${fullName}`);
-    console.log(`[webhook] Supabase URL: ${process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0, 30)}...`);
-
-    const { data, error } = await supabaseAdmin.from("profiles").upsert(
+    const { error } = await supabaseAdmin.from("profiles").upsert(
       {
         id,
         email,
@@ -80,7 +73,6 @@ export async function POST(req: Request) {
       return new Response(`Failed to create profile: ${error.message}`, { status: 500 });
     }
 
-    console.log(`[webhook] ✅ Profile created for ${email} (${id})`, data);
   }
 
   // ── user.updated → Check email verification → assign 2 credits ──
@@ -90,16 +82,12 @@ export async function POST(req: Request) {
       (e) => e.id === evt.data.primary_email_address_id,
     );
 
-    console.log(`[webhook] user.updated — id: ${id}, verification: ${primaryEmail?.verification?.status}`);
-
     if (primaryEmail?.verification?.status === "verified") {
       const { data: profile } = await supabaseAdmin
         .from("profiles")
         .select("credits")
         .eq("id", id)
         .single();
-
-      console.log(`[webhook] Current credits: ${profile?.credits}`);
 
       if (profile && profile.credits === 0) {
         const { error: updateError } = await supabaseAdmin
@@ -114,7 +102,6 @@ export async function POST(req: Request) {
             reason: "registration_bonus",
           });
 
-          console.log(`[webhook] ✅ Assigned 2 welcome credits to ${id}`);
         } else {
           console.error("[webhook] ❌ Failed to assign credits:", updateError);
         }
@@ -122,11 +109,59 @@ export async function POST(req: Request) {
     }
   }
 
-  // ── user.deleted ──
+  // ── user.deleted → Clean up all user data ──
   if (eventType === "user.deleted") {
-    console.log(`[webhook] user.deleted: ${evt.data.id}`);
+    const userId = evt.data.id;
+
+    if (!userId) {
+      console.error("[webhook] user.deleted — no user ID in event data");
+      return new Response("No user ID", { status: 400 });
+    }
+
+    try {
+      // Delete AI try-on logs
+      await supabaseAdmin.from("ai_tryon_logs").delete().eq("user_id", userId);
+
+      // Delete credit transactions
+      await supabaseAdmin.from("credit_transactions").delete().eq("user_id", userId);
+
+      // Delete orders (order_items first due to FK constraint)
+      const { data: orders } = await supabaseAdmin
+        .from("orders")
+        .select("id")
+        .eq("user_id", userId);
+
+      if (orders && orders.length > 0) {
+        const orderIds = orders.map((o) => o.id);
+        await supabaseAdmin.from("order_items").delete().in("order_id", orderIds);
+        await supabaseAdmin.from("orders").delete().eq("user_id", userId);
+      }
+
+      // Delete uploaded images from storage
+      const { data: uploads } = await supabaseAdmin.storage
+        .from("user-uploads")
+        .list(userId);
+      if (uploads && uploads.length > 0) {
+        const uploadPaths = uploads.map((f) => `${userId}/${f.name}`);
+        await supabaseAdmin.storage.from("user-uploads").remove(uploadPaths);
+      }
+
+      const { data: results } = await supabaseAdmin.storage
+        .from("ai-results")
+        .list(userId);
+      if (results && results.length > 0) {
+        const resultPaths = results.map((f) => `${userId}/${f.name}`);
+        await supabaseAdmin.storage.from("ai-results").remove(resultPaths);
+      }
+
+      // Delete profile last
+      await supabaseAdmin.from("profiles").delete().eq("id", userId);
+
+    } catch (err) {
+      console.error(`[webhook] ❌ Failed to clean up user ${userId}:`, err);
+      return new Response("Failed to delete user data", { status: 500 });
+    }
   }
 
-  console.log(`[webhook] ✅ Done processing ${eventType}`);
   return new Response("OK", { status: 200 });
 }

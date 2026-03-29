@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/actions/auth";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_MIME_TYPES = new Set([
@@ -12,17 +12,10 @@ const ALLOWED_MIME_TYPES = new Set([
 export async function POST(req: Request) {
   try {
     // 1. Verify user is authenticated and is admin
-    const user = await currentUser();
-    if (!user) {
-      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
-    }
-
-    const primaryEmail = user.emailAddresses.find(
-      (e) => e.id === user.primaryEmailAddressId
-    )?.emailAddress;
-
-    if (!primaryEmail || primaryEmail !== process.env.ADMIN_EMAIL) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    const authError = await requireAdmin();
+    if (authError) {
+      const isUnauth = authError.error.includes("autenticado");
+      return NextResponse.json({ error: authError.error }, { status: isUnauth ? 401 : 403 });
     }
 
     // 2. Parse FormData
@@ -51,7 +44,7 @@ export async function POST(req: Request) {
 
     // 5. Prepare file for Supabase
     const fileBuffer = await file.arrayBuffer();
-    const fileExt = file.name.split(".").pop();
+    const fileExt = file.name.split(".").pop() ?? file.type.split("/")[1] ?? "jpg";
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
     const filePath = `products/${fileName}`;
 

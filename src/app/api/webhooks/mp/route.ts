@@ -5,6 +5,8 @@ import { MercadoPagoConfig, Payment } from "mercadopago";
 import { Resend } from "resend";
 import { ReceiptEmail } from "@/components/emails/receipt-email";
 import { CREDIT_PACKS } from "@/lib/config";
+import * as Sentry from "@sentry/nextjs";
+import { getPostHogServer } from "@/lib/posthog";
 
 /**
  * Verify MercadoPago webhook HMAC-SHA256 signature.
@@ -49,6 +51,10 @@ export async function POST(req: Request) {
     const type = url.searchParams.get("type") || body?.type;
 
     const webhookSecret = process.env.MP_WEBHOOK_SECRET;
+    if (!webhookSecret && process.env.NODE_ENV === "production") {
+      console.error("FATAL: MP_WEBHOOK_SECRET is not configured in production");
+      return NextResponse.json({ error: "Server misconfigured" }, { status: 500 });
+    }
     if (webhookSecret && xSignature) {
       const dataId = String(paymentId ?? body?.data?.id ?? "");
       if (!verifyMPSignature(xSignature, xRequestId, dataId, webhookSecret)) {
@@ -128,6 +134,21 @@ export async function POST(req: Request) {
 
           console.log(`MP Webhook: Added ${pack.credits} credits to user ${userId} (pack: ${packId})`);
 
+          const ph = getPostHogServer();
+          if (ph) {
+            ph.capture({
+              distinctId: userId,
+              event: "credits_purchased",
+              properties: {
+                packId,
+                packName: pack.name,
+                credits: pack.credits,
+                mpPaymentId: String(paymentId),
+              },
+            });
+            await ph.shutdown();
+          }
+
         } else if (externalReference) {
           // ── Existing product order flow ──
           const orderId = externalReference;
@@ -154,7 +175,7 @@ export async function POST(req: Request) {
               const productIds = items.map(i => i.product_id);
               await supabase
                 .from("products")
-                .update({ status: "sold" })
+                .update({ status: "sold", reserved_at: null })
                 .in("id", productIds);
             }
 
@@ -163,8 +184,7 @@ export async function POST(req: Request) {
               try {
                 const resend = new Resend(process.env.RESEND_API_KEY);
                 await resend.emails.send({
-                  // En modo prueba de Resend, hay que usar onboarding@resend.dev y SOLO se puede enviar al mail registrado en tu cuenta de Resend
-                  from: "ClubVTG Envios <onboarding@resend.dev>",
+                  from: process.env.RESEND_FROM_EMAIL ?? "ClubVTG <noreply@clubvtg.com>",
                   to: order.customer_email,
                   subject: "¡Tu compra en ClubVTG fue confirmada!",
                   react: ReceiptEmail({
@@ -180,19 +200,64 @@ export async function POST(req: Request) {
             } else {
               console.warn("No RESEND_API_KEY found. Skipping receipt email.");
             }
+
+            const ph = getPostHogServer();
+            if (ph) {
+              ph.capture({
+                distinctId: order.customer_email,
+                event: "purchase_completed",
+                properties: {
+                  orderId: order.id,
+                  totalAmount: Number(order.total_amount),
+                  mpPaymentId: String(paymentId),
+                },
+              });
+              await ph.shutdown();
+            }
           }
         }
       }
       
-      // Additional states:
-      // if (paymentData.status === "rejected" || paymentData.status === "cancelled") {
-      //   // We might want to revert the status to 'available' if it was 'reserved'
-      // }
+      if (paymentData.status === "rejected" || paymentData.status === "cancelled") {
+        const externalReference = paymentData.external_reference as string;
+
+        // Only handle product orders (not credit packs)
+        if (externalReference && !externalReference.startsWith("credits:")) {
+          const orderId = externalReference;
+          const supabase = supabaseAdmin;
+
+          // Fetch order items to release reserved products
+          const { data: order } = await supabase
+            .from("orders")
+            .select("id, order_items(product_id)")
+            .eq("id", orderId)
+            .single();
+
+          if (order?.order_items) {
+            for (const item of order.order_items) {
+              await supabase
+                .from("products")
+                .update({ status: "available", reserved_at: null })
+                .eq("id", (item as { product_id: string }).product_id)
+                .eq("status", "reserved"); // Only release if still reserved
+            }
+          }
+
+          // Mark order as cancelled
+          await supabase
+            .from("orders")
+            .update({ status: "cancelled" })
+            .eq("id", orderId);
+
+          console.log(`MP Webhook: Payment ${paymentData.status} for order ${orderId} — products released`);
+        }
+      }
     }
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     console.error("MP Webhook Error:", error);
+    Sentry.captureException(error);
     return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
   }
 }

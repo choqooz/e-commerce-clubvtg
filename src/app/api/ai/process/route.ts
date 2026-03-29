@@ -6,6 +6,8 @@ import { getOpenAI, generateTryOn } from "@/lib/ai/openai";
 import { buildTryOnPrompt } from "@/lib/ai/prompts";
 import { runContentGuard } from "@/lib/ai/content-guard";
 import type { TryOnSSEEvent, TryOnErrorEvent } from "@/lib/types";
+import * as Sentry from "@sentry/nextjs";
+import { getPostHogServer } from "@/lib/posthog";
 
 export const maxDuration = 90;
 
@@ -85,6 +87,12 @@ export async function POST(req: Request) {
       const encoder = new TextEncoder();
       let logId: string | null = null;
       let creditDeducted = false;
+      let posthogPayload: {
+        distinctId: string;
+        productId: string;
+        productSlug: string;
+        logId: string;
+      } | null = null;
 
       function sendEvent(event: TryOnSSEEvent) {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
@@ -345,15 +353,24 @@ export async function POST(req: Request) {
           logId,
           creditsRemaining: updatedProfile?.credits ?? 0,
         });
+
+        // Prepare PostHog payload — captured OUTSIDE main try to prevent
+        // analytics errors from triggering a false credit refund on success.
+        posthogPayload = {
+          distinctId: userId,
+          productId: product.id,
+          productSlug: String(productSlug),
+          logId: String(logId),
+        };
       } catch (error: unknown) {
         console.error("AI process pipeline error:", error);
+        Sentry.captureException(error);
 
-        // If credit was deducted, refund and mark log as failed
+        // If credit was deducted, refund and mark log as failed.
+        // Order is critical: update status to "failed" FIRST so the
+        // refund_ai_credit RPC (WHERE status = 'failed') matches the row.
         if (creditDeducted && logId) {
           try {
-            await supabaseAdmin.rpc("refund_ai_credit", {
-              p_log_id: logId,
-            });
             await supabaseAdmin
               .from("ai_tryon_logs")
               .update({
@@ -362,6 +379,9 @@ export async function POST(req: Request) {
                   error instanceof Error ? error.message : "Error desconocido",
               })
               .eq("id", logId);
+            await supabaseAdmin.rpc("refund_ai_credit", {
+              p_log_id: logId,
+            });
           } catch (refundError) {
             console.error("Failed to refund credit:", refundError);
           }
@@ -377,6 +397,30 @@ export async function POST(req: Request) {
         });
       } finally {
         controller.close();
+      }
+
+      // ── PostHog analytics (isolated — must not reach the catch above) ──
+      // Fires only on success (posthogPayload is set). Running outside the
+      // main try/catch means a PostHog failure can NEVER trigger a false refund.
+      if (posthogPayload) {
+        try {
+          const ph = getPostHogServer();
+          if (ph) {
+            ph.capture({
+              distinctId: posthogPayload.distinctId,
+              event: "tryon_generated",
+              properties: {
+                productId: posthogPayload.productId,
+                productSlug: posthogPayload.productSlug,
+                logId: posthogPayload.logId,
+                userId: posthogPayload.distinctId,
+              },
+            });
+            await ph.shutdown();
+          }
+        } catch (phError) {
+          console.error("PostHog capture error:", phError);
+        }
       }
     },
   });

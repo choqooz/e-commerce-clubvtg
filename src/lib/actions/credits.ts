@@ -2,15 +2,11 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { MercadoPagoConfig, Preference } from "mercadopago";
+import { Preference } from "mercadopago";
 import { CREDIT_PACKS } from "@/lib/config";
 import { resolvePaymentUrls } from "@/lib/urls";
 import type { AiTryonLog, CreditPackId } from "@/lib/types";
-
-const client = new MercadoPagoConfig({
-  accessToken: process.env.MP_ACCESS_TOKEN || "",
-  options: { timeout: 10000 },
-});
+import { mpClient } from "@/lib/mercadopago";
 
 // ── getUserCredits ──
 
@@ -80,13 +76,13 @@ export async function getTryOnHistory(): Promise<TryOnHistoryItem[]> {
 
       const [resultUrl, sourceUrl] = await Promise.all([
         resolveSignedUrl("ai-results", log.result_image_url),
-        resolveSignedUrl("user-uploads", log.source_image_url),
+        resolveSignedUrl("user-uploads", log.user_image_url),
       ]);
 
       return {
         ...log,
         result_image_url: resultUrl,
-        source_image_url: sourceUrl,
+        user_image_url: sourceUrl,
         product_title: product?.title ?? "Producto eliminado",
         product_image: product?.image_urls?.[0] ?? null,
         products: undefined,
@@ -113,7 +109,7 @@ export async function createCreditPackPreference(
       return { error: "Pack de créditos inválido." };
     }
 
-    const preference = new Preference(client);
+    const preference = new Preference(mpClient);
 
     // Resolve payment URLs from environment
     const { webhookBaseUrl } = resolvePaymentUrls();
@@ -140,6 +136,7 @@ export async function createCreditPackPreference(
         external_reference: externalReference,
         notification_url: `${webhookBaseUrl}/api/webhooks/mp`,
         statement_descriptor: "CLUB VTG",
+        binary_mode: true,
       },
     });
 

@@ -7,7 +7,7 @@ export const productSchema = z.object({
   category: z.string().min(1, "Seleccionar categoría"),
   subcategory: z.string().min(1, "Seleccionar subcategoría"),
   image_urls: z.array(z.string().url("URL inválida")).min(1, "Tenés que subir al menos 1 foto"),
-  status: z.enum(["available", "sold", "archived"]),
+  status: z.enum(["available", "reserved", "sold", "archived"]),
   color: z.string().optional(),
   size: z.string().optional(),
   brand: z.string().optional(),

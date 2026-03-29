@@ -1,6 +1,7 @@
 "use server";
 
 import { auth, currentUser } from "@clerk/nextjs/server";
+import { ADMIN_EMAIL } from "@/lib/config.server";
 
 /**
  * Verify the current user is authenticated AND is an admin.
@@ -12,18 +13,12 @@ export async function requireAdmin(): Promise<{ error: string } | null> {
     return { error: "No autenticado. Iniciá sesión para continuar." };
   }
 
-  const adminEmail = process.env.ADMIN_EMAIL;
-  if (!adminEmail) {
-    console.error("ADMIN_EMAIL env var is not configured");
-    return { error: "Error de configuración del servidor." };
-  }
-
   const user = await currentUser();
   const primaryEmail = user?.emailAddresses.find(
     (e) => e.id === user.primaryEmailAddressId,
   )?.emailAddress;
 
-  if (!primaryEmail || primaryEmail !== adminEmail) {
+  if (!primaryEmail || primaryEmail !== ADMIN_EMAIL) {
     return { error: "No tenés permisos de administrador." };
   }
 

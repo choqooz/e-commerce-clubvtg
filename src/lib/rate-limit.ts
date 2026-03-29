@@ -10,6 +10,7 @@ function createRateLimiter() {
   if (!url || !token) {
     // Development fallback: no rate limiting
     return {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       limit: async (_identifier: string) => ({
         success: true,
         limit: 5,

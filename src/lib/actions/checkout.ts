@@ -1,20 +1,18 @@
 "use server";
 
 import { supabaseAdmin as supabase } from "@/lib/supabase/admin";
+import * as Sentry from "@sentry/nextjs";
 import {
   type CheckoutFormValues,
   checkoutItemsSchema,
 } from "@/lib/validations/checkout";
-import { MercadoPagoConfig, Preference } from "mercadopago";
+import { Preference } from "mercadopago";
 import { SHIPPING_FEE } from "@/lib/config";
 import { resolvePaymentUrls } from "@/lib/urls";
 import { auth } from "@clerk/nextjs/server";
+import { releaseExpiredReservations } from "@/lib/supabase/release-reservations";
 import type { CartItem } from "@/lib/types";
-
-const client = new MercadoPagoConfig({ 
-  accessToken: process.env.MP_ACCESS_TOKEN || "", 
-  options: { timeout: 10000 } 
-});
+import { mpClient } from "@/lib/mercadopago";
 
 export async function createCheckoutPreference(
   data: CheckoutFormValues,
@@ -22,6 +20,9 @@ export async function createCheckoutPreference(
 ) {
   try {
     const { userId } = await auth();
+
+    // Lazy release: free any products reserved >15 min before checking availability
+    await releaseExpiredReservations();
 
     // Validate cart items shape before touching the DB
     const parsed = checkoutItemsSchema.safeParse(items);
@@ -88,8 +89,37 @@ export async function createCheckoutPreference(
       throw new Error("No se pudieron guardar los detalles de la orden");
     }
 
-    // 4. Removed the 'reserved' state block to avoid locking out the buyer if they hit 'back'.
-    // The items will stay 'available' until MercadoPago confirms payment.
+    // 4. Reserve products atomically (only if still available)
+    // Expired reservations are released lazily via releaseExpiredReservations() above.
+    for (const dbProduct of dbProducts) {
+      const { data: reserved, error: reserveErr } = await supabase
+        .from("products")
+        .update({ status: "reserved", reserved_at: new Date().toISOString() })
+        .eq("id", dbProduct.id)
+        .eq("status", "available") // Atomic: only reserve if still available
+        .select("id")
+        .single();
+
+      if (reserveErr || !reserved) {
+        // Rollback any products we already reserved in this batch
+        const alreadyReserved = dbProducts
+          .slice(0, dbProducts.indexOf(dbProduct))
+          .map((p) => p.id);
+
+        if (alreadyReserved.length > 0) {
+          await supabase
+            .from("products")
+            .update({ status: "available", reserved_at: null })
+            .in("id", alreadyReserved)
+            .eq("status", "reserved");
+        }
+
+        return {
+          success: false,
+          error: `El producto "${dbProduct.title}" ya no está disponible`,
+        };
+      }
+    }
 
     // 5. Build MP Preference items
     const mpItems = dbProducts.map(p => ({
@@ -113,7 +143,7 @@ export async function createCheckoutPreference(
       unit_price: Number(SHIPPING_FEE),
     });
 
-    const preference = new Preference(client);
+    const preference = new Preference(mpClient);
     
     // Resolve payment URLs from environment
     const { webhookBaseUrl } = resolvePaymentUrls();
@@ -135,6 +165,7 @@ export async function createCheckoutPreference(
         external_reference: order.id,
         notification_url: `${webhookBaseUrl}/api/webhooks/mp`,
         statement_descriptor: "CLUB VTG",
+        binary_mode: true,
       }
     });
 
@@ -149,6 +180,7 @@ export async function createCheckoutPreference(
 
   } catch (error: unknown) {
     console.error("Checkout action error:", error);
+    Sentry.captureException(error);
     const message =
       error instanceof Error ? error.message : "Error procesando el checkout";
     return { success: false, error: message };

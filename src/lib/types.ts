@@ -1,7 +1,7 @@
 // ── Canonical Domain Types ──
 // Single source of truth for all domain types.
 // Field names match the Supabase DB schema (snake_case).
-// Last synced with: migrations 001 + 004 + 005 + 006 + 007
+// Last synced with: migrations 001 + 004 + 005 + 006 + 007 + 009
 
 // ── Product ──
 
@@ -50,6 +50,8 @@ export interface Order {
   shipping_info: Record<string, unknown> | null;
   mp_preference_id: string | null;
   mp_payment_id: string | null;
+  tracking_number: string | null;
+  shipped_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -81,7 +83,7 @@ export interface AiTryonLog {
   id: string;
   user_id: string;
   product_id: string;
-  source_image_url: string;
+  user_image_url: string;
   result_image_url: string | null;
   status: TryOnStatus;
   credits_charged: number;
