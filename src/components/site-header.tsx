@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Search, ShoppingBag, Sparkles } from "lucide-react";
+import {
+  Search,
+  ShoppingBag,
+  Sparkles,
+  User,
+  Package,
+  CreditCard,
+} from "lucide-react";
 import { useState, useEffect } from "react";
 import { useCart } from "@/contexts/cart-context";
 import { useAuth, SignInButton, UserButton } from "@clerk/nextjs";
@@ -48,9 +55,6 @@ export default function SiteHeader() {
             <Link href="/" className="nav-link nav-link-active transition-colors duration-200">
               Catálogo
             </Link>
-            <Link href="/" className="nav-link transition-colors duration-200">
-              Novedades
-            </Link>
           </nav>
 
           {/* Logo (centered) */}
@@ -80,7 +84,27 @@ export default function SiteHeader() {
                       avatarBox: "w-7 h-7",
                     },
                   }}
-                />
+                >
+                  <UserButton.MenuItems>
+                    <UserButton.Link
+                      label="Mi Perfil"
+                      labelIcon={<User size={16} />}
+                      href="/profile"
+                    />
+                    <UserButton.Link
+                      label="Mis Pedidos"
+                      labelIcon={<Package size={16} />}
+                      href="/orders"
+                    />
+                    <UserButton.Link
+                      label="Créditos"
+                      labelIcon={<CreditCard size={16} />}
+                      href="/credits"
+                    />
+                    <UserButton.Action label="manageAccount" />
+                    <UserButton.Action label="signOut" />
+                  </UserButton.MenuItems>
+                </UserButton>
               </>
             ) : (
               <SignInButton mode="modal">

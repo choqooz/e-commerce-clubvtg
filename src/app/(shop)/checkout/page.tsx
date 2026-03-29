@@ -24,9 +24,7 @@ export default function CheckoutPage() {
               Inicio
             </Link>
             <ChevronRight size={12} />
-            <Link href="/cart" className="hover:text-foreground transition-colors">
-              Carrito
-            </Link>
+            <span>Carrito</span>
             <ChevronRight size={12} />
             <span className="text-foreground">Checkout</span>
           </nav>
