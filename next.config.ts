@@ -1,8 +1,8 @@
-import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
+import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["127.0.0.1"],
+  allowedDevOrigins: ["127.0.0.1", "*.ngrok-free.app", "192.168.0.103"],
   images: {
     remotePatterns: [
       {

@@ -12,7 +12,7 @@ export function CartDrawer() {
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
-      <SheetContent className="w-full sm:max-w-md bg-background border-border flex flex-col">
+      <SheetContent aria-describedby={undefined} className="w-full sm:max-w-md bg-background border-border flex flex-col">
         <SheetHeader className="border-b border-border pb-4">
           <SheetTitle className="font-heading text-xl font-normal tracking-wide">
             Carrito ({totalItems})

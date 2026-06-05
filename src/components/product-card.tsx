@@ -3,7 +3,7 @@ import Link from "next/link";
 import { formatPrice } from "@/lib/config";
 import type { Product } from "@/lib/types";
 
-export function ProductCard({ product }: { product: Product }) {
+export function ProductCard({ product, priority = false }: { product: Product; priority?: boolean }) {
   return (
     <Link
       href={`/product/${product.slug}`}
@@ -17,6 +17,7 @@ export function ProductCard({ product }: { product: Product }) {
               src={product.image_urls[0]}
               alt={product.title}
               fill
+              priority={priority}
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               className="object-cover transition-transform duration-300 group-hover:scale-105"
             />

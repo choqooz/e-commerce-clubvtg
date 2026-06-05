@@ -184,7 +184,7 @@ export async function POST(req: Request) {
               try {
                 const resend = new Resend(process.env.RESEND_API_KEY);
                 await resend.emails.send({
-                  from: process.env.RESEND_FROM_EMAIL ?? "ClubVTG <noreply@clubvtg.com>",
+                  from: process.env.RESEND_FROM_EMAIL ?? "ClubVTG <onboarding@resend.dev>",
                   to: order.customer_email,
                   subject: "¡Tu compra en ClubVTG fue confirmada!",
                   react: ReceiptEmail({

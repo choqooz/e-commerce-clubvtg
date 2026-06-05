@@ -119,7 +119,7 @@ export function CatalogContent({ initialProducts }: { initialProducts: Product[]
                     </span>
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="right" className="flex flex-col">
+                <SheetContent side="right" aria-describedby={undefined} className="flex flex-col">
                   <SheetHeader>
                     <SheetTitle>Filtros</SheetTitle>
                   </SheetHeader>
@@ -192,7 +192,7 @@ export function CatalogContent({ initialProducts }: { initialProducts: Product[]
                         animationFillMode: "backwards",
                       }}
                     >
-                      <ProductCard product={product} />
+                      <ProductCard product={product} priority={i === 0} />
                     </div>
                   ))}
                 </div>
