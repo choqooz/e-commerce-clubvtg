@@ -1,262 +1,98 @@
-import { createHmac } from "node:crypto";
-import * as Sentry from "@sentry/nextjs";
-import { MercadoPagoConfig, Payment } from "mercadopago";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
-import { Resend } from "resend";
-import { ReceiptEmail } from "@/components/emails/receipt-email";
-import { CREDIT_PACKS } from "@/lib/config";
-import { getPostHogServer } from "@/lib/posthog";
-import { supabaseAdmin } from "@/lib/supabase/admin";
 
-/**
- * Verify MercadoPago webhook HMAC-SHA256 signature.
- * x-signature format: "ts=<timestamp>,v1=<hash>"
- * Signed template: "id:{data.id};request-id:{x-request-id};ts:{ts};"
- */
+const RETRY_AFTER_SECONDS = "60";
+
+interface WebhookPayload {
+  type?: unknown;
+  status?: unknown;
+  data?: {
+    id?: unknown;
+  };
+}
+
+function reject(error: string, status: 400 | 401) {
+  return NextResponse.json({ error }, { status });
+}
+
+function temporarilyUnavailable() {
+  return NextResponse.json(
+    {
+      error: "Product payment settlement is temporarily unavailable",
+      retryable: true,
+    },
+    {
+      status: 503,
+      headers: { "Retry-After": RETRY_AFTER_SECONDS },
+    },
+  );
+}
+
+function stringValue(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
 function verifyMPSignature(
   xSignature: string,
   xRequestId: string,
-  dataId: string,
+  paymentId: string,
   secret: string,
 ): boolean {
-  const parts = Object.fromEntries(
+  const parts = new Map(
     xSignature.split(",").map((part) => {
-      const [key, ...rest] = part.trim().split("=");
-      return [key, rest.join("=")] as const;
+      const [key, value] = part.trim().split("=", 2);
+      return [key, value] as const;
     }),
   );
+  const timestamp = parts.get("ts");
+  const signature = parts.get("v1");
+  if (!timestamp || !signature) return false;
 
-  const ts = parts["ts"];
-  const v1 = parts["v1"];
-  if (!ts || !v1) return false;
+  const manifest = `id:${paymentId};request-id:${xRequestId};ts:${timestamp};`;
+  const expected = createHmac("sha256", secret).update(manifest).digest();
+  const received = Buffer.from(signature, "hex");
 
-  const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
-  const hmac = createHmac("sha256", secret).update(manifest).digest("hex");
-
-  return hmac === v1;
+  return received.length === expected.length && timingSafeEqual(received, expected);
 }
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
+  let body: WebhookPayload;
   try {
-    // ── Signature verification ──
-    const xSignature = req.headers.get("x-signature") ?? "";
-    const xRequestId = req.headers.get("x-request-id") ?? "";
-
-    const url = new URL(req.url);
-    // MP sends the topic and id either in URL params or body
-    const body = await req.json().catch(() => ({}));
-
-    // MP sends `data.id` or `id` depending on the notification type
-    const paymentId =
-      url.searchParams.get("data.id") || url.searchParams.get("id") || body?.data?.id;
-    const type = url.searchParams.get("type") || body?.type;
-
-    const webhookSecret = process.env.MP_WEBHOOK_SECRET;
-    if (!webhookSecret && process.env.NODE_ENV === "production") {
-      console.error("FATAL: MP_WEBHOOK_SECRET is not configured in production");
-      return NextResponse.json({ error: "Server misconfigured" }, { status: 500 });
-    }
-    if (webhookSecret && xSignature) {
-      const dataId = String(paymentId ?? body?.data?.id ?? "");
-      if (!verifyMPSignature(xSignature, xRequestId, dataId, webhookSecret)) {
-        console.error("MP Webhook: Invalid signature");
-        return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-      }
-    } else if (webhookSecret && !xSignature) {
-      // Secret is configured but no signature header — reject
-      console.error("MP Webhook: Missing x-signature header");
-      return NextResponse.json({ error: "Missing signature" }, { status: 401 });
-    }
-
-    if (type === "payment" && paymentId) {
-      // Initialize MP
-      const client = new MercadoPagoConfig({
-        accessToken: process.env.MP_ACCESS_TOKEN || "",
-        options: { timeout: 10000 },
-      });
-      const payment = new Payment(client);
-
-      // Fetch the real payment data from MercadoPago using the ID
-      // This prevents spoofing attacks
-      const paymentData = await payment.get({ id: paymentId });
-
-      if (paymentData.status === "approved") {
-        const externalReference = paymentData.external_reference as string;
-        const supabase = supabaseAdmin;
-
-        if (externalReference?.startsWith("credits:")) {
-          // ── Credit pack payment flow ──
-          const [, userId, packId] = externalReference.split(":");
-
-          const pack = CREDIT_PACKS.find((p) => p.id === packId);
-          if (!pack) {
-            console.error("MP Webhook: Unknown credit pack:", packId);
-            return NextResponse.json({ error: "Unknown pack" }, { status: 400 });
-          }
-
-          // Idempotency — skip if this payment was already processed
-          const { data: existing } = await supabase
-            .from("credit_transactions")
-            .select("id")
-            .eq("mp_payment_id", String(paymentId))
-            .maybeSingle();
-
-          if (existing) {
-            console.log("MP Webhook: Credit payment already processed:", paymentId);
-            return NextResponse.json({ success: true });
-          }
-
-          // Atomic credit addition (requires DB function `increment_credits`)
-          // CREATE FUNCTION increment_credits(row_id uuid, amount int)
-          // RETURNS void AS $$ UPDATE profiles SET credits = credits + amount WHERE id = row_id; $$ LANGUAGE sql;
-          const { error: updateErr } = await supabase.rpc("increment_credits", {
-            row_id: userId,
-            amount: pack.credits,
-          });
-
-          if (updateErr) {
-            console.error("MP Webhook: Failed to add credits for user:", userId, updateErr);
-            return NextResponse.json({ error: "Credit update failed" }, { status: 500 });
-          }
-
-          // Record the transaction
-          const { error: txErr } = await supabase.from("credit_transactions").insert({
-            user_id: userId,
-            amount: pack.credits,
-            reason: `Compra pack ${pack.name}`,
-            mp_payment_id: String(paymentId),
-          });
-
-          if (txErr) {
-            console.error("MP Webhook: Failed to insert credit_transaction:", txErr);
-          }
-
-          console.log(
-            `MP Webhook: Added ${pack.credits} credits to user ${userId} (pack: ${packId})`,
-          );
-
-          const ph = getPostHogServer();
-          if (ph) {
-            ph.capture({
-              distinctId: userId,
-              event: "credits_purchased",
-              properties: {
-                packId,
-                packName: pack.name,
-                credits: pack.credits,
-                mpPaymentId: String(paymentId),
-              },
-            });
-            await ph.shutdown();
-          }
-        } else if (externalReference) {
-          // ── Existing product order flow ──
-          const orderId = externalReference;
-
-          // Usamos el cliente Admin porque los webhooks no tienen cookies de sesión
-          // y las políticas RLS bloquearían cualquier intento de UPDATE por parte de "public"
-
-          // 1. Update order status
-          const { data: order, error: orderErr } = await supabase
-            .from("orders")
-            .update({ status: "paid", mp_payment_id: paymentId })
-            .eq("id", orderId)
-            .select("id, customer_email, customer_name, total_amount")
-            .single();
-
-          if (!orderErr && order) {
-            // 2. Fetch order items to mark products as sold
-            const { data: items } = await supabase
-              .from("order_items")
-              .select("product_id")
-              .eq("order_id", orderId);
-
-            if (items && items.length > 0) {
-              const productIds = items.map((i) => i.product_id);
-              await supabase
-                .from("products")
-                .update({ status: "sold", reserved_at: null })
-                .in("id", productIds);
-            }
-
-            // 3. Send email receipt
-            if (process.env.RESEND_API_KEY) {
-              try {
-                const resend = new Resend(process.env.RESEND_API_KEY);
-                await resend.emails.send({
-                  from: process.env.RESEND_FROM_EMAIL ?? "ClubVTG <onboarding@resend.dev>",
-                  to: order.customer_email,
-                  subject: "¡Tu compra en ClubVTG fue confirmada!",
-                  react: ReceiptEmail({
-                    customerName: order.customer_name,
-                    orderId: order.id,
-                    totalAmount: Number(order.total_amount),
-                  }),
-                });
-                console.log("Receipt email sent to:", order.customer_email);
-              } catch (emailErr) {
-                console.error("Failed to send receipt email:", emailErr);
-              }
-            } else {
-              console.warn("No RESEND_API_KEY found. Skipping receipt email.");
-            }
-
-            const ph = getPostHogServer();
-            if (ph) {
-              ph.capture({
-                distinctId: order.customer_email,
-                event: "purchase_completed",
-                properties: {
-                  orderId: order.id,
-                  totalAmount: Number(order.total_amount),
-                  mpPaymentId: String(paymentId),
-                },
-              });
-              await ph.shutdown();
-            }
-          }
-        }
-      }
-
-      if (paymentData.status === "rejected" || paymentData.status === "cancelled") {
-        const externalReference = paymentData.external_reference as string;
-
-        // Only handle product orders (not credit packs)
-        if (externalReference && !externalReference.startsWith("credits:")) {
-          const orderId = externalReference;
-          const supabase = supabaseAdmin;
-
-          // Fetch order items to release reserved products
-          const { data: order } = await supabase
-            .from("orders")
-            .select("id, order_items(product_id)")
-            .eq("id", orderId)
-            .single();
-
-          if (order?.order_items) {
-            for (const item of order.order_items) {
-              await supabase
-                .from("products")
-                .update({ status: "available", reserved_at: null })
-                .eq("id", (item as { product_id: string }).product_id)
-                .eq("status", "reserved"); // Only release if still reserved
-            }
-          }
-
-          // Mark order as cancelled
-          await supabase.from("orders").update({ status: "cancelled" }).eq("id", orderId);
-
-          console.log(
-            `MP Webhook: Payment ${paymentData.status} for order ${orderId} — products released`,
-          );
-        }
-      }
-    }
-
-    return NextResponse.json({ success: true });
-  } catch (error: unknown) {
-    console.error("MP Webhook Error:", error);
-    Sentry.captureException(error);
-    return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
+    body = (await request.json()) as WebhookPayload;
+  } catch {
+    return reject("Malformed webhook payload", 400);
   }
+
+  const url = new URL(request.url);
+  const queryPaymentId = url.searchParams.get("data.id") ?? url.searchParams.get("id");
+  const bodyPaymentId = stringValue(body.data?.id);
+  const queryType = url.searchParams.get("type");
+  const bodyType = stringValue(body.type);
+
+  if (
+    (queryPaymentId && bodyPaymentId && queryPaymentId !== bodyPaymentId) ||
+    (queryType && bodyType && queryType !== bodyType)
+  ) {
+    return reject("Conflicting webhook payload", 400);
+  }
+
+  const paymentId = queryPaymentId ?? bodyPaymentId;
+  const type = queryType ?? bodyType;
+  if (type !== "payment" || !paymentId) {
+    return reject("Unsupported webhook notification", 400);
+  }
+  if (body.status !== undefined) {
+    return reject("Unsupported webhook status", 400);
+  }
+
+  const secret = process.env.MP_WEBHOOK_SECRET;
+  if (!secret) return temporarilyUnavailable();
+
+  const signature = request.headers.get("x-signature");
+  const requestId = request.headers.get("x-request-id");
+  if (!signature || !requestId || !verifyMPSignature(signature, requestId, paymentId, secret)) {
+    return reject("Invalid webhook signature", 401);
+  }
+
+  return temporarilyUnavailable();
 }
