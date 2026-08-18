@@ -5,7 +5,7 @@ import { Preference } from "mercadopago";
 import { CREDIT_PACKS } from "@/lib/config";
 import { mpClient } from "@/lib/mercadopago";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import type { AiTryonLog, CreditPackId } from "@/lib/types";
+import type { AiTryonLog, CreditPackId, CreditPurchaseIntent } from "@/lib/types";
 import { resolvePaymentUrls } from "@/lib/urls";
 
 // ── getUserCredits ──
@@ -106,42 +106,42 @@ export async function createCreditPackPreference(
       return { error: "Pack de créditos inválido." };
     }
 
-    const preference = new Preference(mpClient);
-
-    // Resolve payment URLs from environment
-    const { webhookBaseUrl } = resolvePaymentUrls();
-
-    const externalReference = `credits:${userId}:${packId}:${crypto.randomUUID()}`;
-
-    const response = await preference.create({
-      body: {
-        items: [
-          {
-            id: `credit-pack-${packId}`,
-            title: `Pack de ${pack.credits} créditos - ClubVTG`,
-            currency_id: "ARS",
-            quantity: 1,
-            unit_price: pack.price,
-          },
-        ],
-        back_urls: {
-          success: `${webhookBaseUrl}/api/mp-return?status=success&type=credits`,
-          failure: `${webhookBaseUrl}/api/mp-return?status=failure&type=credits`,
-          pending: `${webhookBaseUrl}/api/mp-return?status=pending&type=credits`,
-        },
-        auto_return: "approved",
-        external_reference: externalReference,
-        notification_url: `${webhookBaseUrl}/api/webhooks/mp`,
-        statement_descriptor: "CLUB VTG",
-        binary_mode: true,
-      },
+    const reference = `credits:${crypto.randomUUID()}`;
+    const { data, error: intentError } = await supabaseAdmin.rpc("create_credit_purchase_intent", {
+      p_user_id: userId,
+      p_pack_id: pack.id,
+      p_amount: pack.price,
+      p_reference: reference,
+      p_credits: pack.credits,
     });
-
-    if (!response.init_point) {
-      throw new Error("MercadoPago no devolvió una URL de pago.");
+    const intent = data?.[0] as CreditPurchaseIntent | undefined;
+    if (intentError || !intent) {
+      console.error("Credit purchase intent error:", intentError?.message);
+      return { error: "La compra de créditos no está disponible temporalmente." };
     }
 
-    return { url: response.init_point };
+    try {
+      const preference = new Preference(mpClient);
+      const { webhookBaseUrl } = resolvePaymentUrls();
+      const response = await preference.create({
+        body: {
+          items: [{ id: `credit-pack-${packId}`, title: `Pack de ${pack.credits} créditos - ClubVTG`, currency_id: "ARS", quantity: 1, unit_price: pack.price }],
+          back_urls: { success: `${webhookBaseUrl}/api/mp-return?status=success&type=credits`, failure: `${webhookBaseUrl}/api/mp-return?status=failure&type=credits`, pending: `${webhookBaseUrl}/api/mp-return?status=pending&type=credits` },
+          auto_return: "approved", external_reference: intent.reference, notification_url: `${webhookBaseUrl}/api/webhooks/mp`, statement_descriptor: "CLUB VTG", binary_mode: true,
+          expires: true, expiration_date_from: new Date().toISOString(), expiration_date_to: intent.expires_at,
+        },
+      });
+      if (!response.init_point || !response.id) throw new Error("MercadoPago no devolvió una preferencia de pago válida.");
+      const { data: attached, error: attachError } = await supabaseAdmin.rpc("attach_credit_preference", {
+        p_intent_id: intent.id, p_preference_id: response.id, p_expires_at: intent.expires_at,
+      });
+      if (attachError || !attached) throw new Error("No se pudo asociar la preferencia de pago.");
+      return { url: response.init_point };
+    } catch (error: unknown) {
+      const { error: cancelError } = await supabaseAdmin.rpc("cancel_credit_purchase_intent", { p_intent_id: intent.id, p_reason: "preference_creation_or_attachment_failed" });
+      if (cancelError) console.error("Credit purchase cancellation error:", cancelError.message);
+      throw error;
+    }
   } catch (error: unknown) {
     console.error("Credit pack preference error:", error);
     const message = error instanceof Error ? error.message : "Error creando la preferencia de pago";

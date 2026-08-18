@@ -101,6 +101,22 @@ export interface CreditTransaction {
   created_at: string;
 }
 
+export const CREDIT_PURCHASE_INTENT_STATUS = {
+  PENDING: "pending",
+  APPLIED: "applied",
+  CANCELLED: "cancelled",
+} as const;
+
+export type CreditPurchaseIntentStatus =
+  (typeof CREDIT_PURCHASE_INTENT_STATUS)[keyof typeof CREDIT_PURCHASE_INTENT_STATUS];
+
+export interface CreditPurchaseIntent {
+  id: string;
+  reference: string;
+  expires_at: string;
+  status: CreditPurchaseIntentStatus;
+}
+
 // SSE event types for try-on generation
 export type TryOnStep =
   | "validating"
