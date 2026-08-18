@@ -187,6 +187,26 @@ Mutable search-path and public-execution findings are expected RED evidence; una
 - Rollback proof left fixture rows at `profiles=0`, `products=0`, and `ai_tryon_logs=0`.
 - Containers and anonymous volumes were removed; Git was unchanged and no remote was accessed.
 
+## 8a. Disposable PR 2 GREEN harness evidence
+
+- Ran in a fresh disposable `postgres:16` container with support-only roles and `auth.uid()` stub, then applied migrations `001`, `004`, `005`, `011`, and `013` in that order.
+- `PGOPTIONS='-c app.disposable_test=true' psql -X -v ON_ERROR_STOP=1 -f supabase/tests/database/013_harden_supabase_rpcs.test.sql` exited `0`.
+- The harness proved all nine green catalog checks, nine `P0001` invalid-flow checks with zero deltas, service-role success for every RPC, `anon`/`authenticated` denial for every RPC, a positive increment of `42`, and an exactly-once refund claim.
+- After `ROLLBACK`, fixture counts were zero for `profiles`, `products`, `ai_tryon_logs`, and `credit_transactions`; the container and its anonymous volume were removed.
+- This local evidence does not replace the immediate remote preflight or remote Security Advisor review; no remote target was contacted.
+
+## 8b. Authorized remote PR 2 read-only preflight (2026-08-18)
+
+- Metadata-only collection confirmed that the configured project matched the approved target: database `postgres`, connected role `postgres`, PostgreSQL `17.6`. No remote write occurred.
+- All three exact target signatures exist, are owned by `postgres`, use `SECURITY DEFINER`, have `proconfig = null`, and match the captured pre-hardening definitions.
+- Raw ACLs include `PUBLIC`, `anon`, `authenticated`, `service_role`, and `postgres`; effective `EXECUTE` is true for `anon`, `authenticated`, `service_role`, and `postgres`.
+- `postgres`/`public` function defaults explicitly grant `anon`, `authenticated`, `service_role`, and `postgres`; no global default row exists, so PostgreSQL's implicit global `PUBLIC` execute remains relevant.
+- All six scoped tables have RLS enabled and expected policy metadata was readable; native and alternate Supabase migration-history relations are absent.
+- `public.update_orders_updated_at()` remains owned by `postgres`, security invoker, with null settings and unchanged captured ACL; it is out of scope.
+- Security Advisors reported nine target warnings: three mutable-search-path, three anon-executable `SECURITY DEFINER`, and three authenticated-executable `SECURITY DEFINER`; one additional mutable-search-path warning belongs to the out-of-scope helper.
+- No critical advisor finding or drift from the approved RED baseline was observed.
+- This snapshot proves pre-merge readiness only. It MUST be rerun immediately before any later approved remote migration application; any drift still blocks rollout.
+
 ## 9. Safe rollout prerequisites
 
 Proceed only with a current target and read-only snapshot; captured signatures, owners, bodies, settings, ACLs, defaults, RLS, and history; disposable RED evidence (never production fixtures); reviewed additive `013` that leaves the helper untouched; and explicit approval after preflight recheck. SDD apply does not perform the remote mutation.
