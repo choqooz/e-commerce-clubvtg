@@ -12,4 +12,6 @@ export type {
   Profile,
   AiTryonLog,
   CreditTransaction,
+  CreditPurchaseIntent,
+  CreditPurchaseIntentStatus,
 } from "@/lib/types";
