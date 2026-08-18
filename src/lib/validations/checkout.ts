@@ -21,11 +21,20 @@ const cartItemSchema = z.object({
   product: z.object({
     id: z.string().uuid("ID de producto inválido"),
   }),
-  quantity: z.number().int().positive(),
+  quantity: z.literal(1, { errorMap: () => ({ message: "Cada producto debe tener cantidad uno" }) }),
 });
 
 export const checkoutItemsSchema = z
   .array(cartItemSchema)
-  .min(1, "El carrito no puede estar vacío");
+  .min(1, "El carrito no puede estar vacío")
+  .superRefine((items, context) => {
+    const ids = new Set<string>();
+    for (const [index, item] of items.entries()) {
+      if (ids.has(item.product.id)) {
+        context.addIssue({ code: z.ZodIssueCode.custom, message: "Cada producto debe aparecer una vez", path: [index, "product", "id"] });
+      }
+      ids.add(item.product.id);
+    }
+  });
 
 export type CheckoutCartItem = z.infer<typeof cartItemSchema>;
