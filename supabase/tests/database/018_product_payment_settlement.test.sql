@@ -1,0 +1,59 @@
+-- Run against a fresh disposable database built through migration 017.
+do $guard$ begin if current_setting('app.disposable_test', true) is distinct from 'true' then raise exception 'disposable_database_guard_required'; end if; end $guard$;
+create function pg_temp.assert_true(p_condition boolean, p_case text) returns void language plpgsql as $assert$
+begin if not coalesce(p_condition, false) then raise exception using errcode = 'P0001', message = p_case; end if; end $assert$;
+
+insert into public.profiles (id, email, credits) values
+  ('user_018_a', 'a@example.invalid', 0), ('user_018_b', 'b@example.invalid', 0), ('user_018_fail', 'fail@example.invalid', 0);
+insert into public.products (id, title, slug, description, price, size, color, category, image_urls, status) values
+  ('18000000-0000-0000-0000-000000000001', 'Main', 'main-018', 'fixture', 100, 'M', 'black', 'fixture', '{}', 'available'),
+  ('18000000-0000-0000-0000-000000000002', 'Reuse', 'reuse-018', 'fixture', 200, 'M', 'black', 'fixture', '{}', 'available'),
+  ('18000000-0000-0000-0000-000000000003', 'Invalid', 'invalid-018', 'fixture', 300, 'M', 'black', 'fixture', '{}', 'available'),
+  ('18000000-0000-0000-0000-000000000004', 'Late', 'late-018', 'fixture', 400, 'M', 'black', 'fixture', '{}', 'available'),
+  ('18000000-0000-0000-0000-000000000005', 'Failure', 'failure-018', 'fixture', 500, 'M', 'black', 'fixture', '{}', 'available'),
+  ('18000000-0000-0000-0000-000000000006', 'Concurrent', 'concurrent-018', 'fixture', 600, 'M', 'black', 'fixture', '{}', 'available');
+create temp table order_main as select * from public.create_product_checkout('user_018_a', '{"email":"a@example.invalid","fullName":"A User"}'::jsonb, array['18000000-0000-0000-0000-000000000001'::uuid], 50);
+create temp table order_reuse as select * from public.create_product_checkout('user_018_b', '{"email":"b@example.invalid","fullName":"B User"}'::jsonb, array['18000000-0000-0000-0000-000000000002'::uuid], 0);
+create temp table order_invalid as select * from public.create_product_checkout('user_018_a', '{"email":"a@example.invalid","fullName":"A User"}'::jsonb, array['18000000-0000-0000-0000-000000000003'::uuid], 0);
+create temp table order_late as select * from public.create_product_checkout('user_018_b', '{"email":"b@example.invalid","fullName":"B User"}'::jsonb, array['18000000-0000-0000-0000-000000000004'::uuid], 0);
+create temp table order_failure as select * from public.create_product_checkout('user_018_fail', '{"email":"fail@example.invalid","fullName":"Fail User"}'::jsonb, array['18000000-0000-0000-0000-000000000005'::uuid], 0);
+create temp table order_concurrent as select * from public.create_product_checkout('user_018_a', '{"email":"a@example.invalid","fullName":"A User"}'::jsonb, array['18000000-0000-0000-0000-000000000006'::uuid], 0);
+select pg_temp.assert_true((select status = 'pending' from public.orders where id = (select order_id from order_concurrent)) and (select status = 'active' from public.inventory_reservations where order_id = (select order_id from order_concurrent)) and (select status = 'reserved' from public.products where id = '18000000-0000-0000-0000-000000000006'), 'concurrent_subject_not_eligible');
+
+\ir ../../migrations/018_product_payment_settlement.sql
+
+create temp table first_result as select * from public.settle_product_payment('mercadopago', 'pay-018-main', 'approved', (select reference from order_main), 150, 'ARS');
+select pg_temp.assert_true((select newly_applied and result = 'applied' from first_result) and (select status = 'paid' and mp_payment_id = 'pay-018-main' from public.orders where id = (select order_id from order_main)) and (select status = 'sold' from public.inventory_reservations where order_id = (select order_id from order_main)) and (select status = 'sold' from public.products where id = '18000000-0000-0000-0000-000000000001'), 'approved_settlement_not_atomic');
+create temp table replay_result as select * from public.settle_product_payment('mercadopago', 'pay-018-main', 'approved', (select reference from order_main), 150, 'ARS');
+select pg_temp.assert_true(not (select newly_applied from replay_result) and (select count(*) = 1 from public.payment_claims where provider = 'mercadopago' and payment_id = 'pay-018-main') and (select count(*) = 1 from public.payment_events where payment_id = 'pay-018-main'), 'sequential_replay_not_noop');
+create temp table reuse_result as select * from public.settle_product_payment('mercadopago', 'pay-018-main', 'approved', (select reference from order_reuse), 200, 'ARS');
+select pg_temp.assert_true(not (select newly_applied from reuse_result) and (select status = 'pending' from public.orders where id = (select order_id from order_reuse)) and (select status = 'reserved' from public.products where id = '18000000-0000-0000-0000-000000000002'), 'payment_reuse_mutated_second_order');
+
+create temp table invalid_results as
+  select * from public.settle_product_payment('mercadopago', 'pay-018-wrong-amount', 'approved', (select reference from order_invalid), 299, 'ARS')
+  union all select * from public.settle_product_payment('mercadopago', 'pay-018-wrong-currency', 'approved', (select reference from order_invalid), 300, 'USD')
+  union all select * from public.settle_product_payment('mercadopago', 'pay-018-wrong-reference', 'approved', 'order:forged-018', 300, 'ARS')
+  union all select * from public.settle_product_payment('mercadopago', 'pay-018-wrong-state', 'pending', (select reference from order_invalid), 300, 'ARS');
+select pg_temp.assert_true(not exists (select 1 from invalid_results where newly_applied), 'invalid_payment_applied');
+select pg_temp.assert_true((select status = 'pending' from public.orders where id = (select order_id from order_invalid)) and (select status = 'reserved' from public.products where id = '18000000-0000-0000-0000-000000000003') and not exists (select 1 from public.payment_claims where payment_id like 'pay-018-wrong-%'), 'invalid_payment_left_unauthorized_residue');
+do $immutable$ begin begin update public.orders set purchase_user_id = 'user_018_b' where id = (select order_id from order_invalid); raise exception 'immutable_owner_changed'; exception when raise_exception then if sqlerrm = 'immutable_owner_changed' then raise; end if; end; end $immutable$;
+select pg_temp.assert_true((select purchase_user_id = 'user_018_a' from public.orders where id = (select order_id from order_invalid)), 'immutable_owner_not_preserved');
+
+create temp table rejected_result as select * from public.settle_product_payment('mercadopago', 'pay-018-late', 'rejected', (select reference from order_late), 400, 'ARS');
+select pg_temp.assert_true(not (select newly_applied from rejected_result) and (select status = 'cancelled' from public.orders where id = (select order_id from order_late)) and (select status = 'released' from public.inventory_reservations where order_id = (select order_id from order_late)) and (select status = 'available' from public.products where id = '18000000-0000-0000-0000-000000000004'), 'rejected_payment_did_not_cancel_owner');
+create temp table late_result as select * from public.settle_product_payment('mercadopago', 'pay-018-late', 'approved', (select reference from order_late), 400, 'ARS');
+select pg_temp.assert_true(not (select newly_applied from late_result) and (select count(*) = 1 from public.payment_manual_reviews where payment_id = 'pay-018-late' and review_kind = 'late_approval_refund_required') and (select status = 'available' from public.products where id = '18000000-0000-0000-0000-000000000004'), 'late_approval_reacquired_stock');
+create temp table refund_results as select * from public.settle_product_payment('mercadopago', 'pay-018-main', 'refunded', (select reference from order_main), 150, 'ARS');
+insert into refund_results select * from public.settle_product_payment('mercadopago', 'pay-018-main', 'refunded', (select reference from order_main), 150, 'ARS');
+select pg_temp.assert_true(not exists (select 1 from refund_results where newly_applied) and (select count(*) = 1 from public.payment_manual_reviews where payment_id = 'pay-018-main' and review_kind = 'refund') and (select status = 'sold' from public.products where id = '18000000-0000-0000-0000-000000000001'), 'refund_automatically_reversed');
+
+create function pg_temp.reject_sale() returns trigger language plpgsql as $trigger$ begin raise exception 'sale_rejected'; end $trigger$;
+create trigger reject_sale before update on public.inventory_reservations for each row when (new.product_id = '18000000-0000-0000-0000-000000000005') execute function pg_temp.reject_sale();
+do $rollback$ begin begin perform public.settle_product_payment('mercadopago', 'pay-018-failure', 'approved', (select reference from order_failure), 500, 'ARS'); raise exception 'forced_failure_not_raised'; exception when raise_exception then if sqlerrm = 'forced_failure_not_raised' then raise; end if; end; end $rollback$;
+drop trigger reject_sale on public.inventory_reservations;
+select pg_temp.assert_true((select status = 'pending' from public.orders where id = (select order_id from order_failure)) and (select status = 'active' from public.inventory_reservations where order_id = (select order_id from order_failure)) and (select status = 'reserved' from public.products where id = '18000000-0000-0000-0000-000000000005') and not exists (select 1 from public.payment_claims where payment_id = 'pay-018-failure') and not exists (select 1 from public.payment_events where payment_id = 'pay-018-failure'), 'forced_failure_left_residue');
+
+select pg_temp.assert_true(not has_function_privilege('anon', 'public.settle_product_payment(text,text,text,text,numeric,text)', 'execute') and not has_function_privilege('authenticated', 'public.settle_product_payment(text,text,text,text,numeric,text)', 'execute') and has_function_privilege('service_role', 'public.settle_product_payment(text,text,text,text,numeric,text)', 'execute') and has_function_privilege('postgres', 'public.settle_product_payment(text,text,text,text,numeric,text)', 'execute') and (select proconfig @> array['search_path=""'] from pg_proc where oid = 'public.settle_product_payment(text,text,text,text,numeric,text)'::regprocedure) and (select pg_get_function_arguments(oid) not like '%user%' from pg_proc where oid = 'public.settle_product_payment(text,text,text,text,numeric,text)'::regprocedure) and (select bool_and(relrowsecurity) from pg_class where oid in ('public.payment_claims'::regclass, 'public.payment_events'::regclass, 'public.payment_manual_reviews'::regclass, 'public.inventory_reservations'::regclass)), 'settlement_acl_catalog_or_rls_incorrect');
+\ir ../../migrations/018_product_payment_settlement.sql
+select pg_temp.assert_true((select count(*) = 1 from public.payment_claims where payment_id = 'pay-018-main') and (select status = 'reserved' from public.products where id = '18000000-0000-0000-0000-000000000006'), 'migration_rerun_changed_state');
+select count(*) as product_claims, (select count(*) from public.payment_events) as events, (select count(*) from public.payment_manual_reviews) as reviews from public.payment_claims where subject_kind = 'order';
