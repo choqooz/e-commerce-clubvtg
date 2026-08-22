@@ -87,10 +87,13 @@ begin
     result := 'cancelled'; return next; return;
   end if;
 
-  if v_order.status = 'cancelled' then
+  if v_order.status = 'cancelled' or (v_order.status = 'pending' and v_order.payment_expires_at <= pg_catalog.now()) then
     if not found then
       insert into public.payment_claims (provider, payment_id, claim_state, subject_kind, subject_id)
       values (p_provider, p_payment_id, 'active', 'order', v_order.id);
+    end if;
+    if v_order.status = 'pending' and not public.cancel_product_order(v_order.id, 'payment_expired', 'payment_expired') then
+      raise exception using errcode = 'P0001', message = 'expired_order_cancellation_failed';
     end if;
     insert into public.payment_manual_reviews (provider, payment_id, review_kind, evidence)
     values (p_provider, p_payment_id, 'late_approval_refund_required', pg_catalog.jsonb_build_object('order_id', v_order.id, 'reference', p_reference))
