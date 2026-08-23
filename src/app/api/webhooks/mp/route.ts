@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
-import { PROCESS_PAYMENT_RESULT, isCandidatePaymentId, processProductPayment } from "../../../../lib/payments/mercadopago";
+import { runNewlyAppliedProductPaymentEffects } from "@/lib/payments/first-effects";
+import { PROCESS_PAYMENT_RESULT, isCandidatePaymentId, processProductPaymentDetails } from "../../../../lib/payments/mercadopago";
 
 const RETRY_AFTER_SECONDS = "60";
 const CANONICAL_HEX = /^[0-9a-f]+$/;
@@ -97,11 +98,14 @@ export async function POST(request: Request) {
     return reject("Invalid webhook signature", 401);
   }
 
-  const result = await processProductPayment(paymentId);
-  if (result === PROCESS_PAYMENT_RESULT.ACKNOWLEDGED) {
+  const processing = await processProductPaymentDetails(paymentId);
+  if (processing.result === PROCESS_PAYMENT_RESULT.ACKNOWLEDGED) {
+    if (processing.settlement?.newlyApplied && processing.settlement.orderId) {
+      await runNewlyAppliedProductPaymentEffects(processing.settlement.orderId);
+    }
     return NextResponse.json({ received: true });
   }
-  if (result === PROCESS_PAYMENT_RESULT.INVALID) {
+  if (processing.result === PROCESS_PAYMENT_RESULT.INVALID) {
     return reject("Invalid provider payment", 400);
   }
   return temporarilyUnavailable();
