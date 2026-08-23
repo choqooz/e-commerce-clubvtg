@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "type-check": "tsc --noEmit",
-    "format": "prettier --write src/"
+    "format": "prettier --write src/",
+    "test": "vitest run",
+    "test:payment-webhook": "vitest run src/lib/payments/mercadopago.test.ts src/app/api/webhooks/mp/route.test.ts"
   },
   "dependencies": {
     "@clerk/localizations": "^4.2.3",
@@ -53,6 +55,7 @@
     "prettier": "^3.8.1",
     "shadcn": "^4.1.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "4.1.11"
   }
 }
