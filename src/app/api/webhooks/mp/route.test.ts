@@ -1,73 +1,84 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment, import/order */
-// @ts-nocheck -- Vitest is invoked ephemerally for this isolated safety proof.
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+// @ts-nocheck -- This contract intentionally mutates request headers with malformed values.
 import { createHmac } from "node:crypto";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const calls = vi.hoisted(() => ({ mercadoPago: 0, supabaseMutation: 0, email: 0, revalidate: 0 }));
-vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
-vi.mock("mercadopago", () => ({
-  MercadoPagoConfig: class {},
-  Payment: class {
-    async get() {
-      calls.mercadoPago += 1;
-      return { status: "approved", external_reference: "order-123" };
-    }
-  },
-}));
-vi.mock("resend", () => ({ Resend: class { emails = { send: async () => (calls.email += 1) }; } }));
-vi.mock("@/components/emails/receipt-email", () => ({ ReceiptEmail: vi.fn() }));
-vi.mock("@/lib/config", () => ({ CREDIT_PACKS: [] }));
-vi.mock("@/lib/posthog", () => ({ getPostHogServer: () => null }));
-vi.mock("@/lib/supabase/admin", () => ({
-  supabaseAdmin: {
-    from: () => ({
-      update: () => {
-        calls.supabaseMutation += 1;
-        return { eq: () => ({ select: () => ({ single: async () => ({ data: {} }) }) }) };
-      },
-    }),
-  },
+import { afterEach, describe, expect, it, vi } from "vitest";
+const mocks = vi.hoisted(() => ({ processProductPayment: vi.fn() }));
+vi.mock("../../../../lib/payments/mercadopago", () => ({
+  PROCESS_PAYMENT_RESULT: { ACKNOWLEDGED: "acknowledged", INVALID: "invalid", RETRY: "retry" },
+  isCandidatePaymentId: (value: string | null) => value !== null && /^[1-9]\d{0,17}$/.test(value),
+  processProductPayment: mocks.processProductPayment,
 }));
 import { POST } from "./route";
 
-const SECRET = "test-webhook-secret";
-const ID = "payment-123";
-const REQUEST_ID = "request-123";
-const signature = (id = ID) => {
+const secret = "webhook-secret";
+
+function signedRequest({ body = { type: "payment", data: { id: "123" } }, paymentId = "123", signature = true, topic = "payment" }: { body?: unknown; paymentId?: string; signature?: boolean; topic?: string } = {}) {
+  const requestId = "request-1";
   const timestamp = "1710000000";
-  return `ts=${timestamp},v1=${createHmac("sha256", SECRET).update(`id:${id};request-id:${REQUEST_ID};ts:${timestamp};`).digest("hex")}`;
-};
-function request(body = { type: "payment", data: { id: ID } }, query = `?type=payment&data.id=${ID}`, signed = signature()) {
-  const headers = new Headers({ "content-type": "application/json", "x-request-id": REQUEST_ID });
-  if (signed !== null) headers.set("x-signature", signed);
-  return new Request(`http://localhost/api/webhooks/mp${query}`, { method: "POST", headers, body: typeof body === "string" ? body : JSON.stringify(body) });
+  const manifest = `id:${paymentId};request-id:${requestId};ts:${timestamp};`;
+  const digest = createHmac("sha256", secret).update(manifest).digest("hex");
+
+  return new Request(`http://localhost/api/webhooks/mp?data.id=${paymentId}&type=${topic}`, {
+    body: JSON.stringify(body),
+    headers: { "content-type": "application/json", "x-request-id": requestId, "x-signature": `ts=${timestamp},v1=${signature ? digest : "bad"}` },
+    method: "POST",
+  });
 }
 
-describe("MercadoPago webhook safety outage", () => {
-  beforeEach(() => {
-    process.env.MP_WEBHOOK_SECRET = SECRET;
-    delete process.env.RESEND_API_KEY;
-    Object.assign(calls, { mercadoPago: 0, supabaseMutation: 0, email: 0, revalidate: 0 });
+describe("MercadoPago product webhook activation", () => {
+  afterEach(() => { delete process.env.MP_WEBHOOK_SECRET; vi.clearAllMocks(); });
+
+  it("gates every provider and database call behind a valid signature", async () => {
+    process.env.MP_WEBHOOK_SECRET = secret;
+    expect((await POST(signedRequest({ signature: false }))).status).toBe(401);
+    expect(mocks.processProductPayment).not.toHaveBeenCalled();
   });
 
-  it("fails closed before provider or settlement side effects", async () => {
-    const response = await POST(request());
-    expect(calls).toEqual({ mercadoPago: 0, supabaseMutation: 0, email: 0, revalidate: 0 });
-    expect(response.status).toBe(503);
-    expect(response.headers.get("Retry-After")).toBe("60");
-    await expect(response.json()).resolves.toEqual({ error: "Product payment settlement is temporarily unavailable", retryable: true });
+  it.each([null, "ts=1710000000,v1=bad", "ts=1710000000,v1=a"])("rejects missing, bad, and unequal-length signatures", async (signature) => {
+    process.env.MP_WEBHOOK_SECRET = secret;
+    const request = signedRequest();
+    if (signature === null) request.headers.delete("x-signature");
+    else request.headers.set("x-signature", signature);
+    expect((await POST(request)).status).toBe(401);
+    expect(mocks.processProductPayment).not.toHaveBeenCalled();
+  });
+
+  it("rejects a valid digest with a non-hex suffix without downstream effects", async () => {
+    process.env.MP_WEBHOOK_SECRET = secret;
+    const request = signedRequest();
+    const signature = request.headers.get("x-signature");
+    request.headers.set("x-signature", `${signature}not-hex`);
+
+    expect((await POST(request)).status).toBe(401);
+    expect(mocks.processProductPayment).not.toHaveBeenCalled();
   });
 
   it.each([
-    ["malformed JSON", "{", undefined, undefined, 400],
-    ["missing signature", undefined, undefined, null, 401],
-    ["bad signature", undefined, undefined, "ts=1710000000,v1=bad", 401],
-    ["unequal signature length", undefined, undefined, "ts=1710000000,v1=a", 401],
-    ["query/body conflict", { type: "payment", data: { id: "other" } }, undefined, undefined, 400],
-    ["unsupported type", { type: "merchant_order", data: { id: ID } }, `?data.id=${ID}`, undefined, 400],
-    ["unsupported status", { type: "payment", status: "in_process", data: { id: ID } }, undefined, undefined, 400],
-  ])("rejects %s without side effects", async (_name, body, query, signed, status) => {
-    expect((await POST(request(body, query, signed))).status).toBe(status);
-    expect(calls).toEqual({ mercadoPago: 0, supabaseMutation: 0, email: 0, revalidate: 0 });
+    ["malformed JSON", new Request("http://localhost/api/webhooks/mp", { body: "{", method: "POST" })],
+    ["invalid payment id", signedRequest({ paymentId: "not-an-id" })],
+    ["unsupported topic", signedRequest({ topic: "merchant_order" })],
+    ["conflicting body id", signedRequest({ body: { type: "payment", data: { id: "456" } } })],
+    ["untrusted status", signedRequest({ body: { status: "approved", type: "payment", data: { id: "123" } } })],
+  ])("rejects %s without side effects", async (_name, request) => {
+    process.env.MP_WEBHOOK_SECRET = secret;
+    expect((await POST(request)).status).toBe(400);
+    expect(mocks.processProductPayment).not.toHaveBeenCalled();
+  });
+
+  it("uses only the signed candidate id without PR5 side effects", async () => {
+    process.env.MP_WEBHOOK_SECRET = secret;
+    mocks.processProductPayment.mockResolvedValueOnce("acknowledged");
+    const response = await POST(signedRequest({ body: { amount: 1, currency: "USD", data: { id: "123" }, external_reference: "order:forged", payer: { id: "attacker" }, type: "payment" } }));
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ received: true });
+    expect(mocks.processProductPayment).toHaveBeenCalledWith("123");
+  });
+
+  it("returns retryable 503 responses for provider and database failures", async () => {
+    process.env.MP_WEBHOOK_SECRET = secret;
+    mocks.processProductPayment.mockResolvedValueOnce("retry");
+    const response = await POST(signedRequest());
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Retry-After")).toBe("60");
   });
 });

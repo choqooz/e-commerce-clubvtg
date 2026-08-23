@@ -1,7 +1,9 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
+import { PROCESS_PAYMENT_RESULT, isCandidatePaymentId, processProductPayment } from "../../../../lib/payments/mercadopago";
 
 const RETRY_AFTER_SECONDS = "60";
+const CANONICAL_HEX = /^[0-9a-f]+$/;
 
 interface WebhookPayload {
   type?: unknown;
@@ -50,6 +52,7 @@ function verifyMPSignature(
 
   const manifest = `id:${paymentId};request-id:${xRequestId};ts:${timestamp};`;
   const expected = createHmac("sha256", secret).update(manifest).digest();
+  if (signature.length !== expected.length * 2 || !CANONICAL_HEX.test(signature)) return false;
   const received = Buffer.from(signature, "hex");
 
   return received.length === expected.length && timingSafeEqual(received, expected);
@@ -78,10 +81,10 @@ export async function POST(request: Request) {
 
   const paymentId = queryPaymentId ?? bodyPaymentId;
   const type = queryType ?? bodyType;
-  if (type !== "payment" || !paymentId) {
+  if (type !== "payment" || !isCandidatePaymentId(paymentId)) {
     return reject("Unsupported webhook notification", 400);
   }
-  if (body.status !== undefined) {
+  if (body.status !== undefined || url.searchParams.has("status")) {
     return reject("Unsupported webhook status", 400);
   }
 
@@ -94,5 +97,12 @@ export async function POST(request: Request) {
     return reject("Invalid webhook signature", 401);
   }
 
+  const result = await processProductPayment(paymentId);
+  if (result === PROCESS_PAYMENT_RESULT.ACKNOWLEDGED) {
+    return NextResponse.json({ received: true });
+  }
+  if (result === PROCESS_PAYMENT_RESULT.INVALID) {
+    return reject("Invalid provider payment", 400);
+  }
   return temporarilyUnavailable();
 }
