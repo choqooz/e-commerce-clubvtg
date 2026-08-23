@@ -69,6 +69,16 @@ export const PROCESS_PAYMENT_RESULT = {
 
 export type ProcessPaymentResult = (typeof PROCESS_PAYMENT_RESULT)[keyof typeof PROCESS_PAYMENT_RESULT];
 
+interface PersistedSettlement {
+  newlyApplied: boolean;
+  orderId: string | null;
+}
+
+interface ProductPaymentProcessing {
+  result: ProcessPaymentResult;
+  settlement: PersistedSettlement | null;
+}
+
 export function isCandidatePaymentId(value: string | null): value is string {
   return value !== null && PAYMENT_ID.test(value);
 }
@@ -105,16 +115,23 @@ function paymentFacts(candidateId: string, value: unknown): PaymentFacts | null 
   return { amount, currency: "ARS", eventClass: status as PaymentEventClass, paymentId: id, reference };
 }
 
-function acknowledgedSettlement(data: unknown): boolean {
-  if (!Array.isArray(data) || data.length !== 1) return false;
+function acknowledgedSettlement(data: unknown): PersistedSettlement | null {
+  if (!Array.isArray(data) || data.length !== 1) return null;
   const result = data[0];
-  return (
+  if (
     typeof result === "object" &&
     result !== null &&
     typeof (result as Record<string, unknown>).newly_applied === "boolean" &&
     typeof (result as Record<string, unknown>).result === "string" &&
     ACKNOWLEDGED_RESULTS.has((result as Record<string, string>).result)
-  );
+  ) {
+    const orderId = (result as Record<string, unknown>).order_id;
+    return {
+      newlyApplied: (result as Record<string, boolean>).newly_applied,
+      orderId: typeof orderId === "string" ? orderId : null,
+    };
+  }
+  return null;
 }
 
 async function defaultDependencies(): Promise<PaymentDependencies> {
@@ -127,11 +144,11 @@ async function defaultDependencies(): Promise<PaymentDependencies> {
   return { provider: { get: ({ id }) => payment.get({ id }) }, settlement: supabaseAdmin };
 }
 
-export async function processProductPayment(
+export async function processProductPaymentDetails(
   candidateId: string,
   dependencies?: PaymentDependencies,
-): Promise<ProcessPaymentResult> {
-  if (!isCandidatePaymentId(candidateId)) return PROCESS_PAYMENT_RESULT.INVALID;
+): Promise<ProductPaymentProcessing> {
+  if (!isCandidatePaymentId(candidateId)) return { result: PROCESS_PAYMENT_RESULT.INVALID, settlement: null };
 
   let deps: PaymentDependencies;
   let providerPayment: unknown;
@@ -139,11 +156,11 @@ export async function processProductPayment(
     deps = dependencies ?? (await defaultDependencies());
     providerPayment = await deps.provider.get({ id: candidateId });
   } catch {
-    return PROCESS_PAYMENT_RESULT.RETRY;
+    return { result: PROCESS_PAYMENT_RESULT.RETRY, settlement: null };
   }
 
   const facts = paymentFacts(candidateId, providerPayment);
-  if (!facts) return PROCESS_PAYMENT_RESULT.INVALID;
+  if (!facts) return { result: PROCESS_PAYMENT_RESULT.INVALID, settlement: null };
 
   try {
     const { data, error } = await deps.settlement.rpc("settle_product_payment", {
@@ -154,8 +171,18 @@ export async function processProductPayment(
       p_provider: "mercadopago",
       p_reference: facts.reference,
     });
-    return error || !acknowledgedSettlement(data) ? PROCESS_PAYMENT_RESULT.RETRY : PROCESS_PAYMENT_RESULT.ACKNOWLEDGED;
+    const settlement = acknowledgedSettlement(data);
+    return error || !settlement
+      ? { result: PROCESS_PAYMENT_RESULT.RETRY, settlement: null }
+      : { result: PROCESS_PAYMENT_RESULT.ACKNOWLEDGED, settlement };
   } catch {
-    return PROCESS_PAYMENT_RESULT.RETRY;
+    return { result: PROCESS_PAYMENT_RESULT.RETRY, settlement: null };
   }
+}
+
+export async function processProductPayment(
+  candidateId: string,
+  dependencies?: PaymentDependencies,
+): Promise<ProcessPaymentResult> {
+  return (await processProductPaymentDetails(candidateId, dependencies)).result;
 }

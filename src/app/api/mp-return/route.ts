@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { PRODUCT_RETURN_OUTCOME, getOwnedProductReturnOutcome } from "@/lib/payments/return-authority";
 
 function getBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_APP_URL) {
@@ -14,20 +15,14 @@ function getBaseUrl(): string {
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
-
-  // MP appends query parameters: collection_id, collection_status, external_reference, etc.
-  const orderId =
-    url.searchParams.get("order_id") || url.searchParams.get("external_reference") || "";
-
-  // Validate status to prevent open redirect
-  const rawStatus = url.searchParams.get("status") || "success";
-  const allowedStatuses = ["success", "failure", "pending"] as const;
-  const status = allowedStatuses.includes(rawStatus as (typeof allowedStatuses)[number])
-    ? rawStatus
-    : "success";
+  const orderId = url.searchParams.get("order_id");
+  const outcome = await getOwnedProductReturnOutcome(orderId);
 
   const baseUrl = getBaseUrl();
-  const redirectUrl = `${baseUrl}/checkout/${status}?order_id=${encodeURIComponent(orderId)}`;
+  const redirectUrl =
+    outcome === PRODUCT_RETURN_OUTCOME.SUCCESS && orderId
+      ? `${baseUrl}/checkout/success?order_id=${encodeURIComponent(orderId)}`
+      : `${baseUrl}/checkout/${outcome}`;
 
   return NextResponse.redirect(redirectUrl);
 }
