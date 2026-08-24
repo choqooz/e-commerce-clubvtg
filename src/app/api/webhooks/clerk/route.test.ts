@@ -242,6 +242,14 @@ describe("Clerk lifecycle synchronization", () => {
     mocks.rpc.mockResolvedValueOnce({ data: null, error: { message: "offline" } });
     expect((await POST(signedRequest())).status).toBeGreaterThanOrEqual(500);
   });
+
+  it("acknowledges active granted and already-granted database outcomes without direct credits", async () => {
+    mocks.rpc.mockResolvedValueOnce({ data: "granted", error: null }).mockResolvedValueOnce({ data: "already_granted", error: null });
+
+    expect((await POST(signedRequest())).status).toBe(200);
+    expect((await POST(signedRequest())).status).toBe(200);
+    expect(mocks.upsert.mock.calls.every(([profile]) => !("credits" in profile))).toBe(true);
+  });
 });
 
 describe("Clerk lifecycle deletion", () => {
@@ -285,7 +293,7 @@ describe("Clerk lifecycle deletion", () => {
     expect((await POST(signedRequest({ event: DELETED_EVENT }))).status).toBeGreaterThanOrEqual(500);
   });
 
-  it("converges partial retries and already-clean anonymized deliveries without financial deletes", async () => {
+  it("acknowledges successful cleanup retries and already-clean anonymized deliveries without financial deletes", async () => {
     mocks.listV2.mockResolvedValueOnce(storagePage(["one.png"]));
     mocks.remove.mockResolvedValueOnce({ data: null, error: { message: "offline" } });
     expect((await POST(signedRequest({ event: DELETED_EVENT }))).status).toBeGreaterThanOrEqual(500);
