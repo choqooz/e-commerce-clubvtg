@@ -2,44 +2,23 @@
 // Creates profiles in Supabase when users sign up via Clerk
 // Assigns 2 credits when email is verified
 
-import type { WebhookEvent } from "@clerk/nextjs/server";
-import { headers } from "next/headers";
-import { Webhook } from "svix";
+import { type WebhookEvent, verifyWebhook } from "@clerk/nextjs/webhooks";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
-export async function POST(req: Request) {
-  const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
+export async function POST(request: Request) {
+  const signingSecret = process.env.CLERK_WEBHOOK_SECRET;
 
-  if (!WEBHOOK_SECRET) {
+  if (!signingSecret) {
     console.error("[webhook] CLERK_WEBHOOK_SECRET not configured");
     return new Response("CLERK_WEBHOOK_SECRET not configured", { status: 500 });
   }
 
-  // Get svix headers
-  const headerPayload = await headers();
-  const svix_id = headerPayload.get("svix-id");
-  const svix_timestamp = headerPayload.get("svix-timestamp");
-  const svix_signature = headerPayload.get("svix-signature");
-
-  if (!svix_id || !svix_timestamp || !svix_signature) {
-    console.error("[webhook] Missing svix headers");
-    return new Response("Missing svix headers", { status: 400 });
-  }
-
-  // Verify webhook
-  const payload = await req.json();
-  const body = JSON.stringify(payload);
-  const wh = new Webhook(WEBHOOK_SECRET);
   let evt: WebhookEvent;
 
   try {
-    evt = wh.verify(body, {
-      "svix-id": svix_id,
-      "svix-timestamp": svix_timestamp,
-      "svix-signature": svix_signature,
-    }) as WebhookEvent;
-  } catch (err: unknown) {
-    console.error("[webhook] Verification failed:", err);
+    evt = await verifyWebhook(request as Parameters<typeof verifyWebhook>[0], { signingSecret });
+  } catch {
+    console.error("[webhook] Clerk verification failed");
     return new Response("Webhook verification failed", { status: 400 });
   }
 
@@ -152,6 +131,10 @@ export async function POST(req: Request) {
       console.error(`[webhook] ❌ Failed to clean up user ${userId}:`, err);
       return new Response("Failed to delete user data", { status: 500 });
     }
+  }
+
+  if (eventType !== "user.created" && eventType !== "user.updated" && eventType !== "user.deleted") {
+    console.info("[webhook] Unsupported Clerk event", { eventType });
   }
 
   return new Response("OK", { status: 200 });
