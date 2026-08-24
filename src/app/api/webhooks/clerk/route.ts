@@ -4,6 +4,7 @@
 
 import { type WebhookEvent, verifyWebhook } from "@clerk/nextjs/webhooks";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { synchronizeClerkUser } from "./lifecycle";
 
 export async function POST(request: Request) {
   const signingSecret = process.env.CLERK_WEBHOOK_SECRET;
@@ -24,63 +25,12 @@ export async function POST(request: Request) {
 
   const eventType = evt.type;
 
-  // ── user.created → Create profile with 0 credits ──
-  if (eventType === "user.created") {
-    const { id, email_addresses, first_name, last_name } = evt.data;
-    const email = email_addresses?.[0]?.email_address;
-
-    if (!email) {
-      console.error("[webhook] No email found in event data");
-      return new Response("No email found", { status: 400 });
-    }
-
-    const fullName = [first_name, last_name].filter(Boolean).join(" ") || null;
-
-    const { error } = await supabaseAdmin.from("profiles").upsert(
-      {
-        id,
-        email,
-        full_name: fullName,
-        credits: 0,
-        is_admin: email === process.env.ADMIN_EMAIL,
-      },
-      { onConflict: "id" },
-    );
-
-    if (error) {
-      console.error("[webhook] ❌ Supabase upsert failed:", JSON.stringify(error));
-      return new Response(`Failed to create profile: ${error.message}`, { status: 500 });
-    }
-  }
-
-  // ── user.updated → Check email verification → assign 2 credits ──
-  if (eventType === "user.updated") {
-    const { id, email_addresses } = evt.data;
-    const primaryEmail = email_addresses?.find((e) => e.id === evt.data.primary_email_address_id);
-
-    if (primaryEmail?.verification?.status === "verified") {
-      const { data: profile } = await supabaseAdmin
-        .from("profiles")
-        .select("credits")
-        .eq("id", id)
-        .single();
-
-      if (profile && profile.credits === 0) {
-        const { error: updateError } = await supabaseAdmin
-          .from("profiles")
-          .update({ credits: 2, updated_at: new Date().toISOString() })
-          .eq("id", id);
-
-        if (!updateError) {
-          await supabaseAdmin.from("credit_transactions").insert({
-            user_id: id,
-            amount: 2,
-            reason: "registration_bonus",
-          });
-        } else {
-          console.error("[webhook] ❌ Failed to assign credits:", updateError);
-        }
-      }
+  if (evt.type === "user.created" || evt.type === "user.updated") {
+    try {
+      await synchronizeClerkUser(evt);
+    } catch {
+      console.error("[webhook] Clerk lifecycle synchronization failed", { eventType });
+      return new Response("Clerk lifecycle synchronization failed", { status: 500 });
     }
   }
 
