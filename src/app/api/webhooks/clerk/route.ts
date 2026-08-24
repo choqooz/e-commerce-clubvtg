@@ -1,6 +1,5 @@
 // ── Clerk Webhook Handler ──
-// Creates profiles in Supabase when users sign up via Clerk
-// Assigns 2 credits when email is verified
+// Synchronizes verified Clerk lifecycle events through database-owned authorities.
 
 import { type WebhookEvent, verifyWebhook } from "@clerk/nextjs/webhooks";
 import { deleteClerkUser, synchronizeClerkUser } from "./lifecycle";
