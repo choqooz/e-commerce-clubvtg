@@ -1,7 +1,7 @@
 // ── Canonical Domain Types ──
 // Single source of truth for all domain types.
 // Field names match the Supabase DB schema (snake_case).
-// Last synced with: migrations 001 + 004 + 005 + 006 + 007 + 009
+// Last synced with: migrations 001 + 004 + 005 + 006 + 007 + 009 + 020
 
 // ── Product ──
 
@@ -42,8 +42,8 @@ export type OrderStatus = "pending" | "paid" | "shipped" | "cancelled";
 export interface Order {
   id: string;
   user_id: string | null;
-  customer_email: string;
-  customer_name: string;
+  customer_email: string | null;
+  customer_name: string | null;
   status: OrderStatus;
   total_amount: number;
   shipping_fee: number;
@@ -54,6 +54,7 @@ export interface Order {
   shipped_at: string | null;
   created_at: string;
   updated_at: string;
+  clerk_anonymized_at: string | null;
 }
 
 export interface OrderItem {
@@ -94,11 +95,12 @@ export interface AiTryonLog {
 
 export interface CreditTransaction {
   id: string;
-  user_id: string;
+  user_id: string | null;
   amount: number;
   reason: string;
   mp_payment_id: string | null;
   created_at: string;
+  clerk_anonymized_at: string | null;
 }
 
 export const CREDIT_PURCHASE_INTENT_STATUS = {
@@ -112,9 +114,11 @@ export type CreditPurchaseIntentStatus =
 
 export interface CreditPurchaseIntent {
   id: string;
+  user_id: string | null;
   reference: string;
   expires_at: string;
   status: CreditPurchaseIntentStatus;
+  clerk_anonymized_at: string | null;
 }
 
 // SSE event types for try-on generation
