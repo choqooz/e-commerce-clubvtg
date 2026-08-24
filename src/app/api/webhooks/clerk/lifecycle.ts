@@ -1,0 +1,51 @@
+import type { UserWebhookEvent } from "@clerk/nextjs/webhooks";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+
+const BONUS_RESULT = {
+  ALREADY_GRANTED: "already_granted",
+  GRANTED: "granted",
+  INACTIVE: "inactive",
+  INELIGIBLE: "ineligible",
+} as const;
+
+type BonusResult = (typeof BONUS_RESULT)[keyof typeof BONUS_RESULT];
+type SynchronizationEvent = Exclude<UserWebhookEvent, { type: "user.deleted" }>;
+
+interface ProfileIdentity {
+  email: string;
+  fullName: string | null;
+}
+
+function resolvePrimaryIdentity(event: SynchronizationEvent): ProfileIdentity {
+  const primaryEmailId = event.data.primary_email_address_id;
+  if (!primaryEmailId) throw new Error("missing_primary_email_id");
+
+  const matches = event.data.email_addresses.filter((email) => email.id === primaryEmailId);
+  if (matches.length !== 1) throw new Error("ambiguous_primary_email");
+
+  const email = matches[0].email_address.trim().toLowerCase();
+  if (!email) throw new Error("missing_primary_email_address");
+
+  const fullName = [event.data.first_name, event.data.last_name].filter(Boolean).join(" ").trim() || null;
+  return { email, fullName };
+}
+
+function isBonusResult(value: unknown): value is BonusResult {
+  return typeof value === "string" && Object.values(BONUS_RESULT).includes(value as BonusResult);
+}
+
+export async function synchronizeClerkUser(event: SynchronizationEvent) {
+  const identity = resolvePrimaryIdentity(event);
+  const { error: upsertError } = await supabaseAdmin.from("profiles").upsert(
+    { email: identity.email, full_name: identity.fullName, id: event.data.id },
+    { onConflict: "id" },
+  );
+
+  if (upsertError) throw new Error("profile_sync_failed");
+
+  const { data, error: bonusError } = await supabaseAdmin.rpc("apply_clerk_registration_bonus", {
+    p_event_time: new Date(event.data.created_at).toISOString(),
+    p_user_id: event.data.id,
+  });
+  if (bonusError || !isBonusResult(data)) throw new Error("registration_bonus_failed");
+}
