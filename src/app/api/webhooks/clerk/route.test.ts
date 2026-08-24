@@ -5,12 +5,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   from: vi.fn(),
   headers: new Headers(),
+  listV2: vi.fn(),
+  remove: vi.fn(),
   rpc: vi.fn(),
+  storageFrom: vi.fn(),
   upsert: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/admin", () => ({
-  supabaseAdmin: { from: mocks.from, rpc: mocks.rpc },
+  supabaseAdmin: { from: mocks.from, rpc: mocks.rpc, storage: { from: mocks.storageFrom } },
 }));
 
 vi.mock("next/headers", () => ({
@@ -34,6 +37,20 @@ const CREATED_EVENT = {
   object: "event",
   type: "user.created",
 };
+
+const DELETED_EVENT = { data: { id: "user_123" }, object: "event", type: "user.deleted" };
+
+function storagePage(names: string[] = [], hasNext = false, nextCursor?: string) {
+  return {
+    data: {
+      folders: [],
+      hasNext,
+      nextCursor,
+      objects: names.map((name) => ({ key: `user_123/${name}`, name })),
+    },
+    error: null,
+  };
+}
 
 function signedRequest({
   event = CREATED_EVENT,
@@ -75,10 +92,16 @@ beforeEach(() => {
   vi.setSystemTime(TEST_TIME);
   process.env.CLERK_WEBHOOK_SECRET = SIGNING_SECRET;
   mocks.from.mockReset();
+  mocks.listV2.mockReset();
+  mocks.remove.mockReset();
   mocks.rpc.mockReset();
+  mocks.storageFrom.mockReset();
   mocks.upsert.mockReset();
   mocks.from.mockReturnValue({ upsert: mocks.upsert });
+  mocks.listV2.mockResolvedValue(storagePage());
+  mocks.remove.mockResolvedValue({ data: [], error: null });
   mocks.rpc.mockResolvedValue({ data: "inactive", error: null });
+  mocks.storageFrom.mockReturnValue({ listV2: mocks.listV2, remove: mocks.remove });
   mocks.upsert.mockResolvedValue({ error: null });
 });
 
@@ -218,5 +241,68 @@ describe("Clerk lifecycle synchronization", () => {
 
     mocks.rpc.mockResolvedValueOnce({ data: null, error: { message: "offline" } });
     expect((await POST(signedRequest())).status).toBeGreaterThanOrEqual(500);
+  });
+});
+
+describe("Clerk lifecycle deletion", () => {
+  it("paginates exact scoped Storage paths, verifies cleanup, then anonymizes", async () => {
+    mocks.listV2
+      .mockResolvedValueOnce(storagePage(["one.png", "two.png"], true, "uploads-next"))
+      .mockResolvedValueOnce(storagePage(["nested/three.png"]))
+      .mockResolvedValueOnce(storagePage())
+      .mockResolvedValueOnce(storagePage(["result.png"], true, "results-next"))
+      .mockResolvedValueOnce(storagePage(["nested/final.png"]))
+      .mockResolvedValueOnce(storagePage());
+    mocks.rpc.mockResolvedValue({ data: "anonymized", error: null });
+
+    expect((await POST(signedRequest({ event: DELETED_EVENT }))).status).toBe(200);
+
+    expect(mocks.storageFrom).toHaveBeenCalledWith("user-uploads");
+    expect(mocks.storageFrom).toHaveBeenCalledWith("ai-results");
+    expect(mocks.listV2).toHaveBeenCalledWith({ limit: 100, prefix: "user_123/" });
+    expect(mocks.listV2).toHaveBeenCalledWith({ cursor: "uploads-next", limit: 100, prefix: "user_123/" });
+    expect(mocks.remove).toHaveBeenNthCalledWith(1, ["user_123/one.png", "user_123/two.png", "user_123/nested/three.png"]);
+    expect(mocks.remove).toHaveBeenNthCalledWith(2, ["user_123/result.png", "user_123/nested/final.png"]);
+    expect(mocks.remove.mock.invocationCallOrder.at(-1)).toBeLessThan(mocks.rpc.mock.invocationCallOrder[0]);
+    expect(mocks.rpc).toHaveBeenCalledWith("anonymize_clerk_user", { p_user_id: "user_123" });
+  });
+
+  it.each([
+    ["listing", () => mocks.listV2.mockResolvedValueOnce({ data: null, error: { message: "offline" } })],
+    ["removal", () => {
+      mocks.listV2.mockResolvedValueOnce(storagePage(["one.png"]));
+      mocks.remove.mockResolvedValueOnce({ data: null, error: { message: "offline" } });
+    }],
+    ["residual objects", () => {
+      mocks.listV2.mockResolvedValueOnce(storagePage(["one.png"])).mockResolvedValueOnce(storagePage(["one.png"]));
+    }],
+    ["database anonymization", () => mocks.rpc.mockResolvedValueOnce({ data: null, error: { message: "offline" } })],
+    ["inactive anonymization", () => mocks.rpc.mockResolvedValueOnce({ data: "inactive", error: null })],
+    ["malformed anonymization", () => mocks.rpc.mockResolvedValueOnce({ data: "done", error: null })],
+  ])("keeps %s failures retryable without false completion", async (_name, arrange) => {
+    arrange();
+
+    expect((await POST(signedRequest({ event: DELETED_EVENT }))).status).toBeGreaterThanOrEqual(500);
+  });
+
+  it("converges partial retries and already-clean anonymized deliveries without financial deletes", async () => {
+    mocks.listV2.mockResolvedValueOnce(storagePage(["one.png"]));
+    mocks.remove.mockResolvedValueOnce({ data: null, error: { message: "offline" } });
+    expect((await POST(signedRequest({ event: DELETED_EVENT }))).status).toBeGreaterThanOrEqual(500);
+
+    mocks.rpc.mockResolvedValue({ data: "already_anonymized", error: null });
+    expect((await POST(signedRequest({ event: DELETED_EVENT }))).status).toBe(200);
+    expect((await POST(signedRequest({ event: DELETED_EVENT }))).status).toBe(200);
+    expect(mocks.from).not.toHaveBeenCalledWith("orders");
+    expect(mocks.from).not.toHaveBeenCalledWith("credit_transactions");
+    expect(mocks.from).not.toHaveBeenCalledWith("order_items");
+  });
+
+  it.each([null, "", "profile_123"])('rejects deleted user identity %s without mutation', async (id) => {
+    const event = { ...DELETED_EVENT, data: { id } };
+
+    expect((await POST(signedRequest({ event }))).status).toBeGreaterThanOrEqual(400);
+    expect(mocks.storageFrom).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalled();
   });
 });
