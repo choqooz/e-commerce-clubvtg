@@ -8,8 +8,19 @@ const BONUS_RESULT = {
   INELIGIBLE: "ineligible",
 } as const;
 
+const ANONYMIZATION_RESULT = {
+  ALREADY_ANONYMIZED: "already_anonymized",
+  ANONYMIZED: "anonymized",
+} as const;
+
+const USER_STORAGE_BUCKETS = ["user-uploads", "ai-results"] as const;
+const STORAGE_PAGE_SIZE = 100;
+const STORAGE_REMOVE_BATCH_SIZE = 100;
+
 type BonusResult = (typeof BONUS_RESULT)[keyof typeof BONUS_RESULT];
+type AnonymizationResult = (typeof ANONYMIZATION_RESULT)[keyof typeof ANONYMIZATION_RESULT];
 type SynchronizationEvent = Exclude<UserWebhookEvent, { type: "user.deleted" }>;
+type DeletionEvent = Extract<UserWebhookEvent, { type: "user.deleted" }>;
 
 interface ProfileIdentity {
   email: string;
@@ -34,6 +45,42 @@ function isBonusResult(value: unknown): value is BonusResult {
   return typeof value === "string" && Object.values(BONUS_RESULT).includes(value as BonusResult);
 }
 
+function isAnonymizationResult(value: unknown): value is AnonymizationResult {
+  return typeof value === "string" && Object.values(ANONYMIZATION_RESULT).includes(value as AnonymizationResult);
+}
+
+function storagePath(prefix: string, object: { key?: string; name: string }) {
+  const path = object.key ?? `${prefix}${object.name}`;
+  if (!path.startsWith(prefix)) throw new Error("storage_path_outside_user_scope");
+  return path;
+}
+
+async function listStoragePaths(bucket: (typeof USER_STORAGE_BUCKETS)[number], prefix: string) {
+  const storage = supabaseAdmin.storage.from(bucket);
+  const paths: string[] = [];
+  let cursor: string | undefined;
+
+  do {
+    const { data, error } = await storage.listV2({ cursor, limit: STORAGE_PAGE_SIZE, prefix });
+    if (error || !data) throw new Error("storage_list_failed");
+    paths.push(...data.objects.map((object) => storagePath(prefix, object)));
+    if (data.hasNext && !data.nextCursor) throw new Error("storage_cursor_missing");
+    cursor = data.hasNext ? data.nextCursor : undefined;
+  } while (cursor);
+
+  return { paths, storage };
+}
+
+async function removeUserStorage(bucket: (typeof USER_STORAGE_BUCKETS)[number], prefix: string) {
+  const { paths, storage } = await listStoragePaths(bucket, prefix);
+  for (let index = 0; index < paths.length; index += STORAGE_REMOVE_BATCH_SIZE) {
+    const { error } = await storage.remove(paths.slice(index, index + STORAGE_REMOVE_BATCH_SIZE));
+    if (error) throw new Error("storage_remove_failed");
+  }
+
+  if ((await listStoragePaths(bucket, prefix)).paths.length > 0) throw new Error("storage_cleanup_incomplete");
+}
+
 export async function synchronizeClerkUser(event: SynchronizationEvent) {
   const identity = resolvePrimaryIdentity(event);
   const { error: upsertError } = await supabaseAdmin.from("profiles").upsert(
@@ -48,4 +95,17 @@ export async function synchronizeClerkUser(event: SynchronizationEvent) {
     p_user_id: event.data.id,
   });
   if (bonusError || !isBonusResult(data)) throw new Error("registration_bonus_failed");
+}
+
+export async function deleteClerkUser(event: DeletionEvent) {
+  const userId = event.data.id;
+  if (typeof userId !== "string" || !/^user_[A-Za-z0-9_]+$/.test(userId)) {
+    throw new Error("invalid_deleted_user_id");
+  }
+
+  const prefix = `${userId}/`;
+  for (const bucket of USER_STORAGE_BUCKETS) await removeUserStorage(bucket, prefix);
+
+  const { data, error } = await supabaseAdmin.rpc("anonymize_clerk_user", { p_user_id: userId });
+  if (error || !isAnonymizationResult(data)) throw new Error("clerk_anonymization_failed");
 }
