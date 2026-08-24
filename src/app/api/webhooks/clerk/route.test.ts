@@ -1,4 +1,5 @@
 /* eslint-disable import/order -- The route import follows dependency mocks. */
+import { createHash } from "node:crypto";
 import { Webhook } from "svix";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
@@ -17,7 +18,7 @@ vi.mock("next/headers", () => ({
 
 import { POST } from "./route";
 
-const SIGNING_SECRET = "whsec_dGVzdF9jbGVya193ZWJob29rX3NpZ25pbmdfc2VjcmV0";
+const SIGNING_SECRET = `whsec_${createHash("sha256").update("clerk-webhook-route-test-signing-key").digest("base64")}`;
 const TEST_TIME = new Date("2026-08-24T12:00:00.000Z");
 
 const CREATED_EVENT = {
