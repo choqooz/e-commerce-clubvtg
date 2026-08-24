@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { runNewlyAppliedProductPaymentEffects } from "@/lib/payments/first-effects";
-import { PROCESS_PAYMENT_RESULT, isCandidatePaymentId, processProductPaymentDetails } from "../../../../lib/payments/mercadopago";
+import { PROCESS_PAYMENT_RESULT, isCandidatePaymentId, processPaymentDetails } from "../../../../lib/payments/mercadopago";
 
 const RETRY_AFTER_SECONDS = "60";
 const CANONICAL_HEX = /^[0-9a-f]+$/;
@@ -21,7 +21,7 @@ function reject(error: string, status: 400 | 401) {
 function temporarilyUnavailable() {
   return NextResponse.json(
     {
-      error: "Product payment settlement is temporarily unavailable",
+      error: "Payment settlement is temporarily unavailable",
       retryable: true,
     },
     {
@@ -98,9 +98,9 @@ export async function POST(request: Request) {
     return reject("Invalid webhook signature", 401);
   }
 
-  const processing = await processProductPaymentDetails(paymentId);
+  const processing = await processPaymentDetails(paymentId);
   if (processing.result === PROCESS_PAYMENT_RESULT.ACKNOWLEDGED) {
-    if (processing.settlement?.newlyApplied && processing.settlement.orderId) {
+    if (processing.settlement?.kind === "product" && processing.settlement.newlyApplied && processing.settlement.orderId) {
       await runNewlyAppliedProductPaymentEffects(processing.settlement.orderId);
     }
     return NextResponse.json({ received: true });

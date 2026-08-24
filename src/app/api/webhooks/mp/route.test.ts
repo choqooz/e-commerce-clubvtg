@@ -2,11 +2,11 @@
 // @ts-nocheck -- This contract intentionally mutates request headers with malformed values.
 import { createHmac } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ processProductPaymentDetails: vi.fn(), runNewlyAppliedProductPaymentEffects: vi.fn() }));
+const mocks = vi.hoisted(() => ({ processPaymentDetails: vi.fn(), runNewlyAppliedProductPaymentEffects: vi.fn() }));
 vi.mock("../../../../lib/payments/mercadopago", () => ({
   PROCESS_PAYMENT_RESULT: { ACKNOWLEDGED: "acknowledged", INVALID: "invalid", RETRY: "retry" },
   isCandidatePaymentId: (value: string | null) => value !== null && /^[1-9]\d{0,17}$/.test(value),
-  processProductPaymentDetails: mocks.processProductPaymentDetails,
+  processPaymentDetails: mocks.processPaymentDetails,
 }));
 vi.mock("@/lib/payments/first-effects", () => ({
   runNewlyAppliedProductPaymentEffects: mocks.runNewlyAppliedProductPaymentEffects,
@@ -34,7 +34,7 @@ describe("MercadoPago product webhook activation", () => {
   it("gates every provider and database call behind a valid signature", async () => {
     process.env.MP_WEBHOOK_SECRET = secret;
     expect((await POST(signedRequest({ signature: false }))).status).toBe(401);
-    expect(mocks.processProductPaymentDetails).not.toHaveBeenCalled();
+    expect(mocks.processPaymentDetails).not.toHaveBeenCalled();
   });
 
   it.each([null, "ts=1710000000,v1=bad", "ts=1710000000,v1=a"])("rejects missing, bad, and unequal-length signatures", async (signature) => {
@@ -43,7 +43,7 @@ describe("MercadoPago product webhook activation", () => {
     if (signature === null) request.headers.delete("x-signature");
     else request.headers.set("x-signature", signature);
     expect((await POST(request)).status).toBe(401);
-    expect(mocks.processProductPaymentDetails).not.toHaveBeenCalled();
+    expect(mocks.processPaymentDetails).not.toHaveBeenCalled();
   });
 
   it("rejects a valid digest with a non-hex suffix without downstream effects", async () => {
@@ -53,7 +53,7 @@ describe("MercadoPago product webhook activation", () => {
     request.headers.set("x-signature", `${signature}not-hex`);
 
     expect((await POST(request)).status).toBe(401);
-    expect(mocks.processProductPaymentDetails).not.toHaveBeenCalled();
+    expect(mocks.processPaymentDetails).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -65,24 +65,24 @@ describe("MercadoPago product webhook activation", () => {
   ])("rejects %s without side effects", async (_name, request) => {
     process.env.MP_WEBHOOK_SECRET = secret;
     expect((await POST(request)).status).toBe(400);
-    expect(mocks.processProductPaymentDetails).not.toHaveBeenCalled();
+    expect(mocks.processPaymentDetails).not.toHaveBeenCalled();
   });
 
   it("uses only the signed candidate id without PR5 side effects", async () => {
     process.env.MP_WEBHOOK_SECRET = secret;
-    mocks.processProductPaymentDetails.mockResolvedValueOnce({ result: "acknowledged", settlement: { newlyApplied: false, orderId: null } });
+    mocks.processPaymentDetails.mockResolvedValueOnce({ result: "acknowledged", settlement: { kind: "product", newlyApplied: false, orderId: null } });
     const response = await POST(signedRequest({ body: { amount: 1, currency: "USD", data: { id: "123" }, external_reference: "order:forged", payer: { id: "attacker" }, type: "payment" } }));
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ received: true });
-    expect(mocks.processProductPaymentDetails).toHaveBeenCalledWith("123");
+    expect(mocks.processPaymentDetails).toHaveBeenCalledWith("123");
     expect(mocks.runNewlyAppliedProductPaymentEffects).not.toHaveBeenCalled();
   });
 
   it("runs first-only effects once for a newly applied settlement and not for its replay", async () => {
     process.env.MP_WEBHOOK_SECRET = secret;
-    mocks.processProductPaymentDetails
-      .mockResolvedValueOnce({ result: "acknowledged", settlement: { newlyApplied: true, orderId: "123e4567-e89b-12d3-a456-426614174000" } })
-      .mockResolvedValueOnce({ result: "acknowledged", settlement: { newlyApplied: false, orderId: "123e4567-e89b-12d3-a456-426614174000" } });
+    mocks.processPaymentDetails
+      .mockResolvedValueOnce({ result: "acknowledged", settlement: { kind: "product", newlyApplied: true, orderId: "123e4567-e89b-12d3-a456-426614174000" } })
+      .mockResolvedValueOnce({ result: "acknowledged", settlement: { kind: "product", newlyApplied: false, orderId: "123e4567-e89b-12d3-a456-426614174000" } });
 
     expect((await POST(signedRequest())).status).toBe(200);
     expect((await POST(signedRequest())).status).toBe(200);
@@ -95,9 +95,19 @@ describe("MercadoPago product webhook activation", () => {
 
   it("returns retryable 503 responses for provider and database failures", async () => {
     process.env.MP_WEBHOOK_SECRET = secret;
-    mocks.processProductPaymentDetails.mockResolvedValueOnce({ result: "retry", settlement: null });
+    mocks.processPaymentDetails.mockResolvedValueOnce({ result: "retry", settlement: null });
     const response = await POST(signedRequest());
     expect(response.status).toBe(503);
     expect(response.headers.get("Retry-After")).toBe("60");
+  });
+
+  it("routes a signed credit settlement without product first-effects", async () => {
+    process.env.MP_WEBHOOK_SECRET = secret;
+    mocks.processPaymentDetails.mockResolvedValueOnce({ result: "acknowledged", settlement: { intentId: "123e4567-e89b-12d3-a456-426614174000", kind: "credits", newlyApplied: true } });
+
+    const response = await POST(signedRequest());
+    expect(response.status).toBe(200);
+    expect(mocks.processPaymentDetails).toHaveBeenCalledWith("123");
+    expect(mocks.runNewlyAppliedProductPaymentEffects).not.toHaveBeenCalled();
   });
 });

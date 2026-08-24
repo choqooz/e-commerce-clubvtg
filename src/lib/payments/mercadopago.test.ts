@@ -1,10 +1,12 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck -- This isolated provider contract uses Vitest doubles for server-only dependencies.
 import { describe, expect, it, vi } from "vitest";
-import { PROCESS_PAYMENT_RESULT, processProductPayment } from "./mercadopago";
+import { PROCESS_PAYMENT_RESULT, processPaymentDetails, processProductPayment } from "./mercadopago";
 vi.mock("server-only", () => ({}));
 
 const reference = "order:123e4567-e89b-12d3-a456-426614174000";
+const creditReference = "credits:123e4567-e89b-12d3-a456-426614174000";
+const creditIntent = { amount: 2500, currency: "ARS", id: "123e4567-e89b-12d3-a456-426614174000", pack_id: "popular", user_id: "user_123" };
 
 function payment(status = "approved", overrides: Record<string, unknown> = {}) {
   return { currency_id: "ARS", external_reference: reference, id: 123, payer: { id: "attacker" }, status, transaction_amount: 2500, ...overrides };
@@ -13,6 +15,20 @@ function payment(status = "approved", overrides: Record<string, unknown> = {}) {
 function dependencies(providerPayment: unknown = payment(), rpcData: unknown = [{ newly_applied: true, result: "applied" }]) {
   const provider = { get: vi.fn().mockResolvedValue(providerPayment) };
   const settlement = { rpc: vi.fn().mockResolvedValue({ data: rpcData, error: null }) };
+  return { provider, settlement };
+}
+
+function creditDependencies(
+  providerPayment: unknown = payment("approved", { additional_info: { items: [{ id: "credit-pack-popular", quantity: 1 }] }, external_reference: creditReference }),
+  intent: unknown = creditIntent,
+  rpcData: unknown = [{ intent_id: creditIntent.id, newly_applied: true, result: "applied" }],
+) {
+  const provider = { get: vi.fn().mockResolvedValue(providerPayment) };
+  const maybeSingle = vi.fn().mockResolvedValue({ data: intent, error: null });
+  const eq = vi.fn().mockReturnValue({ maybeSingle });
+  const select = vi.fn().mockReturnValue({ eq });
+  const from = vi.fn().mockReturnValue({ select });
+  const settlement = { from, rpc: vi.fn().mockResolvedValue({ data: rpcData, error: null }) };
   return { provider, settlement };
 }
 
@@ -76,5 +92,51 @@ describe("MercadoPago product payment contract", () => {
     ["unknown RPC result", () => dependencies(payment(), [{ newly_applied: false, result: "unexpected" }])],
   ])("keeps %s retryable", async (_name, makeDependencies) => {
     expect(await processProductPayment("123", makeDependencies())).toBe(PROCESS_PAYMENT_RESULT.RETRY);
+  });
+});
+
+describe("MercadoPago credit payment contract", () => {
+  it("settles verified credit facts once through the immutable intent RPC", async () => {
+    const deps = creditDependencies();
+
+    await expect(processPaymentDetails("123", deps)).resolves.toEqual({
+      result: PROCESS_PAYMENT_RESULT.ACKNOWLEDGED,
+      settlement: { intentId: creditIntent.id, kind: "credits", newlyApplied: true },
+    });
+    expect(deps.provider.get).toHaveBeenCalledOnce();
+    expect(deps.settlement.from).toHaveBeenCalledWith("credit_purchase_intents");
+    expect(deps.settlement.rpc).toHaveBeenCalledTimes(1);
+    expect(deps.settlement.rpc).toHaveBeenCalledWith("settle_credit_payment", {
+      p_amount: 2500, p_currency: "ARS", p_payment_id: "123", p_provider: "mercadopago", p_reference: creditReference, p_user_id: "user_123",
+    });
+    expect(deps.settlement.from).not.toHaveBeenCalledWith("profiles");
+  });
+
+  it.each([
+    ["malformed reference", payment("approved", { external_reference: "credits:forged" }), creditIntent],
+    ["wrong pack item", payment("approved", { additional_info: { items: [{ id: "credit-pack-basic", quantity: 1 }] }, external_reference: creditReference }), creditIntent],
+    ["wrong item quantity", payment("approved", { additional_info: { items: [{ id: "credit-pack-popular", quantity: 2 }] }, external_reference: creditReference }), creditIntent],
+    ["mismatched amount", payment("approved", { external_reference: creditReference, transaction_amount: 100 }), creditIntent],
+    ["wrong currency", payment("approved", { currency_id: "USD", external_reference: creditReference }), creditIntent],
+    ["unknown user", payment("approved", { external_reference: creditReference }), { ...creditIntent, user_id: null }, PROCESS_PAYMENT_RESULT.ACKNOWLEDGED],
+    ["unknown intent", payment("approved", { external_reference: creditReference }), null, PROCESS_PAYMENT_RESULT.ACKNOWLEDGED],
+    ["unsupported status", payment("in_process", { external_reference: creditReference }), creditIntent],
+  ])("handles %s without a credit mutation", async (_name, providerPayment, intent, expected = PROCESS_PAYMENT_RESULT.INVALID) => {
+    const deps = creditDependencies(providerPayment, intent);
+    await expect(processPaymentDetails("123", deps)).resolves.toMatchObject({ result: expected });
+    expect(deps.settlement.rpc).not.toHaveBeenCalled();
+    expect(deps.settlement.from).not.toHaveBeenCalledWith("profiles");
+  });
+
+  it.each([
+    ["duplicate", [{ intent_id: creditIntent.id, newly_applied: false, result: "duplicate_payment" }], PROCESS_PAYMENT_RESULT.ACKNOWLEDGED],
+    ["RPC transport failure", new Error("db"), PROCESS_PAYMENT_RESULT.RETRY],
+    ["malformed RPC result", [{ intent_id: creditIntent.id, newly_applied: "yes", result: "applied" }], PROCESS_PAYMENT_RESULT.RETRY],
+  ])("handles %s deterministically", async (_name, response, expected) => {
+    const deps = creditDependencies();
+    if (response instanceof Error) deps.settlement.rpc.mockRejectedValueOnce(response);
+    else deps.settlement.rpc.mockResolvedValueOnce({ data: response, error: null });
+    await expect(processPaymentDetails("123", deps)).resolves.toMatchObject({ result: expected });
+    expect(deps.settlement.rpc).toHaveBeenCalledOnce();
   });
 });
