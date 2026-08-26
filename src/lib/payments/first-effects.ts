@@ -5,6 +5,7 @@ import { ReceiptEmail } from "@/components/emails/receipt-email";
 import { getPostHogServer } from "@/lib/posthog";
 import { getResendMailer } from "@/lib/resend";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import type { AppliedCreditSettlement } from "./mercadopago";
 
 interface PaidOrder { customer_email: string; customer_name: string; id: string; purchase_user_id: string; total_amount: number }
 
@@ -54,4 +55,26 @@ export async function runNewlyAppliedProductPaymentEffects(orderId: string): Pro
 
   revalidatePath("/");
   revalidatePath("/orders");
+}
+
+export async function runNewlyAppliedCreditPaymentEffects(settlement: AppliedCreditSettlement): Promise<void> {
+  try {
+    const posthog = getPostHogServer();
+    if (posthog) {
+      posthog.capture({
+        distinctId: settlement.purchaseUserId,
+        event: "credit_payment_settled",
+        properties: {
+          credits: settlement.credits,
+          intentId: settlement.intentId,
+          mpPaymentId: settlement.mpPaymentId,
+          packId: settlement.packId,
+          totalAmount: settlement.totalAmount,
+        },
+      });
+      await posthog.shutdown();
+    }
+  } catch (error: unknown) {
+    console.error("[payments] analytics delivery failed:", error);
+  }
 }

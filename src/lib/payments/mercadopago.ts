@@ -88,21 +88,44 @@ interface ProductSettlement {
   orderId: string | null;
 }
 
-interface CreditSettlement {
-  intentId: string | null;
+export interface AppliedCreditSettlement {
+  credits: number;
+  intentId: string;
   kind: "credits";
-  newlyApplied: boolean;
+  mpPaymentId: string;
+  newlyApplied: true;
+  packId: string;
+  purchaseUserId: string;
+  totalAmount: number;
 }
 
+interface CreditSettlementNoop {
+  kind: "credits";
+  newlyApplied: false;
+}
+
+type CreditSettlement = AppliedCreditSettlement | CreditSettlementNoop;
 type PersistedSettlement = ProductSettlement | CreditSettlement;
 
+export const PAYMENT_PROCESSING_ISSUE = {
+  CREDIT_INTENT_LOOKUP: "credit_intent_lookup",
+  CREDIT_SETTLEMENT: "credit_settlement",
+  INVALID_PROVIDER_FACTS: "invalid_provider_facts",
+  PRODUCT_SETTLEMENT: "product_settlement",
+  PROVIDER_FETCH: "provider_fetch",
+} as const;
+
+type PaymentProcessingIssue = (typeof PAYMENT_PROCESSING_ISSUE)[keyof typeof PAYMENT_PROCESSING_ISSUE];
+
 interface PaymentProcessing {
+  issue?: PaymentProcessingIssue;
   result: ProcessPaymentResult;
   settlement: PersistedSettlement | null;
 }
 
 interface CreditIntent {
   amount: number;
+  credits: number;
   currency: "ARS";
   id: string;
   packId: string;
@@ -175,9 +198,12 @@ function creditIntent(value: unknown): CreditIntent | null {
     typeof intent.amount === "number" &&
     Number.isFinite(intent.amount) &&
     intent.amount > 0 &&
+    typeof intent.credits === "number" &&
+    Number.isSafeInteger(intent.credits) &&
+    intent.credits > 0 &&
     intent.currency === "ARS"
   )
-    ? { amount: intent.amount, currency: "ARS", id: intent.id, packId: intent.pack_id, userId: intent.user_id }
+    ? { amount: intent.amount, credits: intent.credits, currency: "ARS", id: intent.id, packId: intent.pack_id, userId: intent.user_id }
     : null;
 }
 
@@ -195,7 +221,7 @@ function creditPackMatches(payment: unknown, packId: string): boolean {
   }).length === 1;
 }
 
-function acknowledgedCreditSettlement(data: unknown): CreditSettlement | null {
+function acknowledgedCreditSettlement(data: unknown): { newlyApplied: boolean } | null {
   if (!Array.isArray(data) || data.length !== 1) return null;
   const result = data[0];
   if (
@@ -204,12 +230,11 @@ function acknowledgedCreditSettlement(data: unknown): CreditSettlement | null {
     typeof (result as Record<string, unknown>).newly_applied !== "boolean" ||
     !["applied", "duplicate_payment", "unknown_intent", "intent_mismatch", "invalid_payment"].includes((result as Record<string, unknown>).result as string)
   ) return null;
-  const intentId = (result as Record<string, unknown>).intent_id;
-  return { intentId: typeof intentId === "string" ? intentId : null, kind: "credits", newlyApplied: (result as Record<string, boolean>).newly_applied };
+  return { newlyApplied: (result as Record<string, boolean>).newly_applied };
 }
 
 function acknowledgedCreditNoop(): PaymentProcessing {
-  return { result: PROCESS_PAYMENT_RESULT.ACKNOWLEDGED, settlement: { intentId: null, kind: "credits", newlyApplied: false } };
+  return { result: PROCESS_PAYMENT_RESULT.ACKNOWLEDGED, settlement: { kind: "credits", newlyApplied: false } };
 }
 
 async function defaultDependencies(): Promise<PaymentDependencies> {
@@ -237,9 +262,11 @@ async function settleProduct(facts: PaymentFacts, deps: PaymentDependencies): Pr
       p_amount: facts.amount, p_currency: facts.currency, p_event_class: facts.eventClass, p_payment_id: facts.paymentId, p_provider: "mercadopago", p_reference: facts.reference,
     });
     const settlement = acknowledgedProductSettlement(data);
-    return error || !settlement ? { result: PROCESS_PAYMENT_RESULT.RETRY, settlement: null } : { result: PROCESS_PAYMENT_RESULT.ACKNOWLEDGED, settlement };
+    return error || !settlement
+      ? { issue: PAYMENT_PROCESSING_ISSUE.PRODUCT_SETTLEMENT, result: PROCESS_PAYMENT_RESULT.RETRY, settlement: null }
+      : { result: PROCESS_PAYMENT_RESULT.ACKNOWLEDGED, settlement };
   } catch {
-    return { result: PROCESS_PAYMENT_RESULT.RETRY, settlement: null };
+    return { issue: PAYMENT_PROCESSING_ISSUE.PRODUCT_SETTLEMENT, result: PROCESS_PAYMENT_RESULT.RETRY, settlement: null };
   }
 }
 
@@ -247,20 +274,20 @@ async function settleCredits(facts: PaymentFacts, payment: unknown, deps: Paymen
   if (facts.eventClass !== PAYMENT_EVENT_CLASS.APPROVED) return { result: PROCESS_PAYMENT_RESULT.INVALID, settlement: null };
   let response: { data: unknown; error: unknown };
   try {
-    response = await deps.settlement.from("credit_purchase_intents").select("id, user_id, pack_id, amount, currency").eq("reference", facts.reference).maybeSingle();
+    response = await deps.settlement.from("credit_purchase_intents").select("id, user_id, pack_id, credits, amount, currency").eq("reference", facts.reference).maybeSingle();
   } catch {
-    return { result: PROCESS_PAYMENT_RESULT.RETRY, settlement: null };
+    return { issue: PAYMENT_PROCESSING_ISSUE.CREDIT_INTENT_LOOKUP, result: PROCESS_PAYMENT_RESULT.RETRY, settlement: null };
   }
-  if (response.error) return { result: PROCESS_PAYMENT_RESULT.RETRY, settlement: null };
+  if (response.error) return { issue: PAYMENT_PROCESSING_ISSUE.CREDIT_INTENT_LOOKUP, result: PROCESS_PAYMENT_RESULT.RETRY, settlement: null };
   if (response.data === null) return acknowledgedCreditNoop();
   const intent = creditIntent(response.data);
   if (!intent) {
     return typeof response.data === "object" && response.data !== null && (response.data as Record<string, unknown>).user_id === null
       ? acknowledgedCreditNoop()
-      : { result: PROCESS_PAYMENT_RESULT.RETRY, settlement: null };
+      : { issue: PAYMENT_PROCESSING_ISSUE.CREDIT_INTENT_LOOKUP, result: PROCESS_PAYMENT_RESULT.RETRY, settlement: null };
   }
   if (intent.amount !== facts.amount || intent.currency !== facts.currency || !creditPackMatches(payment, intent.packId)) {
-    return { result: PROCESS_PAYMENT_RESULT.INVALID, settlement: null };
+    return { issue: PAYMENT_PROCESSING_ISSUE.INVALID_PROVIDER_FACTS, result: PROCESS_PAYMENT_RESULT.INVALID, settlement: null };
   }
 
   try {
@@ -268,18 +295,35 @@ async function settleCredits(facts: PaymentFacts, payment: unknown, deps: Paymen
       p_amount: facts.amount, p_currency: facts.currency, p_payment_id: facts.paymentId, p_provider: "mercadopago", p_reference: facts.reference, p_user_id: intent.userId,
     });
     const settlement = acknowledgedCreditSettlement(data);
-    return error || !settlement ? { result: PROCESS_PAYMENT_RESULT.RETRY, settlement: null } : { result: PROCESS_PAYMENT_RESULT.ACKNOWLEDGED, settlement };
+    if (error || !settlement) {
+      return { issue: PAYMENT_PROCESSING_ISSUE.CREDIT_SETTLEMENT, result: PROCESS_PAYMENT_RESULT.RETRY, settlement: null };
+    }
+    return settlement.newlyApplied
+      ? {
+        result: PROCESS_PAYMENT_RESULT.ACKNOWLEDGED,
+        settlement: {
+          credits: intent.credits,
+          intentId: intent.id,
+          kind: "credits",
+          mpPaymentId: facts.paymentId,
+          newlyApplied: true,
+          packId: intent.packId,
+          purchaseUserId: intent.userId,
+          totalAmount: facts.amount,
+        },
+      }
+      : acknowledgedCreditNoop();
   } catch {
-    return { result: PROCESS_PAYMENT_RESULT.RETRY, settlement: null };
+    return { issue: PAYMENT_PROCESSING_ISSUE.CREDIT_SETTLEMENT, result: PROCESS_PAYMENT_RESULT.RETRY, settlement: null };
   }
 }
 
 export async function processPaymentDetails(candidateId: string, dependencies?: PaymentDependencies): Promise<PaymentProcessing> {
   if (!isCandidatePaymentId(candidateId)) return { result: PROCESS_PAYMENT_RESULT.INVALID, settlement: null };
   const loaded = await loadPayment(candidateId, dependencies);
-  if (!loaded) return { result: PROCESS_PAYMENT_RESULT.RETRY, settlement: null };
+  if (!loaded) return { issue: PAYMENT_PROCESSING_ISSUE.PROVIDER_FETCH, result: PROCESS_PAYMENT_RESULT.RETRY, settlement: null };
   const facts = paymentFacts(candidateId, loaded.payment);
-  if (!facts) return { result: PROCESS_PAYMENT_RESULT.INVALID, settlement: null };
+  if (!facts) return { issue: PAYMENT_PROCESSING_ISSUE.INVALID_PROVIDER_FACTS, result: PROCESS_PAYMENT_RESULT.INVALID, settlement: null };
   return ORDER_REFERENCE.test(facts.reference) ? settleProduct(facts, loaded.deps) : settleCredits(facts, loaded.payment, loaded.deps);
 }
 
