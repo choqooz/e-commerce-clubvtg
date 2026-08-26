@@ -2,6 +2,7 @@
 
 import { usePostHog } from "posthog-js/react";
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { productAddedToCartEvent } from "@/lib/analytics-events";
 import type { Product, CartItem } from "@/lib/types";
 
 interface CartContextValue {
@@ -57,13 +58,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         return [...prev, { product, quantity: 1 }];
       });
       setIsOpen(true);
-      posthog?.capture("product_added_to_cart", {
-        productId: product.id,
-        productName: product.title,
-        productCategory: product.category,
-        productPrice: product.price,
-        productSlug: product.slug,
-      });
+      const event = productAddedToCartEvent(product);
+      posthog?.capture(event.event, event.properties);
     },
     [posthog],
   );

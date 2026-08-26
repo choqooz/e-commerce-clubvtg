@@ -61,6 +61,23 @@ describe("newly applied payment analytics effects", () => {
     ["construction", () => { getPostHogServer.mockImplementation(() => { throw new Error("missing key"); }); }],
     ["capture", () => { getPostHogServer.mockReturnValue({ capture: vi.fn(() => { throw new Error("offline"); }), shutdown: vi.fn() }); }],
     ["shutdown", () => { getPostHogServer.mockReturnValue({ capture: vi.fn(), shutdown: vi.fn().mockRejectedValue(new Error("offline")) }); }],
+  ])("keeps product settlement intact when analytics %s fails", async (_name, arrange) => {
+    const maybeSingle = vi.fn().mockResolvedValue({ data: { customer_email: "", customer_name: "Buyer", id: "order_123", purchase_user_id: "user_123", total_amount: 2500 }, error: null });
+    const statusEq = vi.fn().mockReturnValue({ maybeSingle });
+    const integrityEq = vi.fn().mockReturnValue({ eq: statusEq });
+    from.mockReturnValue({ select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: integrityEq }) }) });
+    arrange();
+
+    await expect(runNewlyAppliedProductPaymentEffects("order_123")).resolves.toBeUndefined();
+
+    expect(revalidatePath).toHaveBeenNthCalledWith(1, "/");
+    expect(revalidatePath).toHaveBeenNthCalledWith(2, "/orders");
+  });
+
+  it.each([
+    ["construction", () => { getPostHogServer.mockImplementation(() => { throw new Error("missing key"); }); }],
+    ["capture", () => { getPostHogServer.mockReturnValue({ capture: vi.fn(() => { throw new Error("offline"); }), shutdown: vi.fn() }); }],
+    ["shutdown", () => { getPostHogServer.mockReturnValue({ capture: vi.fn(), shutdown: vi.fn().mockRejectedValue(new Error("offline")) }); }],
   ])("does not throw when credit analytics %s fails", async (_name, arrange) => {
     arrange();
 

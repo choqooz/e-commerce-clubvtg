@@ -3,6 +3,7 @@ import { runContentGuard } from "@/lib/ai/content-guard";
 import { validateImage, processUserImage } from "@/lib/ai/image-processing";
 import { getOpenAI, generateTryOn } from "@/lib/ai/openai";
 import { buildTryOnPrompt } from "@/lib/ai/prompts";
+import { tryOnGeneratedEvent } from "@/lib/analytics-events";
 import { getPostHogServer } from "@/lib/posthog";
 import { rateLimiter } from "@/lib/rate-limit";
 import { captureExceptionSafely } from "@/lib/sentry";
@@ -381,16 +382,13 @@ export async function POST(req: Request) {
         try {
           const ph = getPostHogServer();
           if (ph) {
-            ph.capture({
-              distinctId: posthogPayload.distinctId,
-              event: "tryon_generated",
-              properties: {
-                productId: posthogPayload.productId,
-                productSlug: posthogPayload.productSlug,
-                logId: posthogPayload.logId,
-                userId: posthogPayload.distinctId,
-              },
-            });
+            const event = tryOnGeneratedEvent(
+              posthogPayload.productId,
+              posthogPayload.productSlug,
+              posthogPayload.logId,
+              posthogPayload.distinctId,
+            );
+            ph.capture({ distinctId: posthogPayload.distinctId, ...event });
             await ph.shutdown();
           }
         } catch (phError) {

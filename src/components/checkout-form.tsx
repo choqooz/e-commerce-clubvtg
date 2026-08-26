@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { useCart } from "@/contexts/cart-context";
 import { createCheckoutPreference } from "@/lib/actions/checkout";
+import { checkoutStartedEvent } from "@/lib/analytics-events";
 import { checkoutSchema, type CheckoutFormValues } from "@/lib/validations/checkout";
 
 export function CheckoutForm() {
@@ -39,10 +40,8 @@ export function CheckoutForm() {
 
     setIsSubmitting(true);
     try {
-      posthog?.capture("checkout_started", {
-        cartItemCount: items.length,
-        cartTotal: totalPrice,
-      });
+      const event = checkoutStartedEvent(items.length, totalPrice);
+      posthog?.capture(event.event, event.properties);
       // Create Order and MP Preference
       const res = await createCheckoutPreference(data, items);
 
