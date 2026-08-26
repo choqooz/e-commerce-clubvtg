@@ -138,6 +138,9 @@ supabase/
 | Variable | Requerida | Descripcion |
 |----------|-----------|-------------|
 | `RESEND_API_KEY` | Si | API key de Resend |
+| `RESEND_FROM_EMAIL` | Si | Verified sender identity, for example `ClubVTG <orders@your-domain.example>` |
+
+Configure `RESEND_FROM_EMAIL` with a sender identity verified in Resend. The application does not use a development sender when this value is unavailable or invalid.
 
 ### App
 

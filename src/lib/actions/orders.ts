@@ -3,6 +3,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/actions/auth";
+import { getResendMailer } from "@/lib/resend";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { OrderStatus } from "@/lib/types";
 
@@ -72,12 +73,11 @@ export async function shipOrder(orderId: string, trackingNumber: string) {
 
   if (order?.customer_email) {
     try {
-      const { Resend } = await import("resend");
-      const resend = new Resend(process.env.RESEND_API_KEY);
+      const { client, from } = getResendMailer();
       const { DispatchEmail } = await import("@/components/emails/dispatch-email");
 
-      await resend.emails.send({
-        from: "ClubVTG <onboarding@resend.dev>",
+      await client.emails.send({
+        from,
         to: order.customer_email,
         subject: `Tu pedido #${orderId.slice(0, 8)} está en camino`,
         react: DispatchEmail({
