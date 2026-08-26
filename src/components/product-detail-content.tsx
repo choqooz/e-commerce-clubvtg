@@ -12,6 +12,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { TryOnSection } from "@/components/try-on-section";
 import { useCart } from "@/contexts/cart-context";
+import { productViewedEvent } from "@/lib/analytics-events";
 import { formatPrice } from "@/lib/config";
 import { COLOR_MAP } from "@/lib/constants";
 import type { Product } from "@/lib/types";
@@ -30,13 +31,8 @@ export function ProductDetailContent({
   );
 
   useEffect(() => {
-    posthog?.capture("product_viewed", {
-      productId: product.id,
-      productName: product.title,
-      productCategory: product.category,
-      productPrice: product.price,
-      productSlug: product.slug,
-    });
+    const event = productViewedEvent(product);
+    posthog?.capture(event.event, event.properties);
   }, [product.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAddToCart = () => {

@@ -149,6 +149,28 @@ Configure `RESEND_FROM_EMAIL` with a sender identity verified in Resend. The app
 | `NEXT_PUBLIC_APP_URL` | Produccion | URL base de la app |
 | `NEXT_PUBLIC_NGROK_URL` | Solo dev | URL de ngrok para webhooks |
 
+### Configuracion de tienda
+
+| Variable | Requerida | Descripcion |
+|----------|-----------|-------------|
+| `SHIPPING_FLAT_FEE` | No | Tarifa de envio; por defecto `5000` |
+| `CREDIT_PACK_BASIC_AMOUNT` | No | Creditos del pack Basic; por defecto `3` |
+| `CREDIT_PACK_BASIC_PRICE` | No | Precio del pack Basic; por defecto `1500` |
+| `CREDIT_PACK_POPULAR_AMOUNT` | No | Creditos del pack Popular; por defecto `7` |
+| `CREDIT_PACK_POPULAR_PRICE` | No | Precio del pack Popular; por defecto `3000` |
+| `CREDIT_PACK_PRO_AMOUNT` | No | Creditos del pack Pro; por defecto `15` |
+| `CREDIT_PACK_PRO_PRICE` | No | Precio del pack Pro; por defecto `5500` |
+
+### Observabilidad opcional
+
+| Variable | Requerida | Descripcion |
+|----------|-----------|-------------|
+| `NEXT_PUBLIC_SENTRY_DSN` | No | Habilita Sentry con muestreo de trazas de `0.1` |
+| `NEXT_PUBLIC_POSTHOG_KEY` | No | Habilita eventos PostHog con persistencia en memoria |
+| `NEXT_PUBLIC_POSTHOG_HOST` | No | Host opcional de PostHog; usa el valor predeterminado si esta vacio |
+
+Sin `NEXT_PUBLIC_SENTRY_DSN` o `NEXT_PUBLIC_POSTHOG_KEY`, la aplicacion sigue funcionando y no envia telemetria.
+
 ## Setup
 
 ### Requisitos
@@ -160,29 +182,15 @@ Configure `RESEND_FROM_EMAIL` with a sender identity verified in Resend. The app
 
 ```bash
 npm install
-cp .env.example .env  # Configurar variables
+cp .env.local.example .env.local  # Completar solo valores locales
 npm run dev
 ```
 
-### Base de Datos
+### Limites locales y webhooks
 
-Ejecutar las migraciones de Supabase en orden:
+La autoridad de produccion es exclusivamente la base de datos; la aplicacion local es un cliente de esa autoridad cuando recibe credenciales aprobadas. Esta guia no cubre cambios de infraestructura remota.
 
-```
-001_initial_schema.sql      # Tablas base, profiles, AI logs, RPCs
-002_rls_policies.sql        # Row Level Security
-004_extend_products_schema.sql  # Campos extendidos de productos
-005_orders_schema.sql       # Ordenes y items
-006_drop_color_hex.sql      # Cleanup columna muerta
-007_storage_buckets.sql     # Buckets de Storage (user-uploads, ai-results)
-```
-
-### Buckets de Supabase Storage
-
-Crear manualmente si no existen:
-- `product-images` (publico)
-- `user-uploads` (privado)
-- `ai-results` (privado)
+**Advertencia MercadoPago:** mantené `MP_WEBHOOK_SECRET` fuera del repositorio. `NEXT_PUBLIC_NGROK_URL` es solo un tunel temporal de desarrollo; nunca dirijas un webhook de produccion a una URL local o temporal.
 
 ## Scripts
 
