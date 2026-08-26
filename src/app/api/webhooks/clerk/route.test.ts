@@ -164,6 +164,17 @@ describe("Clerk webhook request-verification boundary", () => {
     expect(response.status).toBeGreaterThanOrEqual(500);
     expect(mocks.upsert).toHaveBeenCalledTimes(1);
   });
+
+  it("logs only the recognized event label when a sensitive payload fails", async () => {
+    const sensitive = { ...CREATED_EVENT, data: { ...CREATED_EVENT.data, private_metadata: { token: "secret-token" }, phone_numbers: [{ phone_number: "+15555550123" }], unsafe_metadata: { email: "private@example.com" } } };
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mocks.upsert.mockResolvedValueOnce({ error: { message: "offline" } });
+
+    expect((await POST(signedRequest({ event: sensitive }))).status).toBeGreaterThanOrEqual(500);
+    expect(error).toHaveBeenCalledWith("[webhook] Clerk lifecycle synchronization failed", { eventType: "user.created" });
+    expect(JSON.stringify(error.mock.calls)).not.toContain("secret-token");
+    expect(JSON.stringify(error.mock.calls)).not.toContain("private@example.com");
+  });
 });
 
 describe("Clerk lifecycle synchronization", () => {
