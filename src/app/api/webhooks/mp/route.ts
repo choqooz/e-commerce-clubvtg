@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import * as Sentry from "@sentry/nextjs";
 import { NextResponse } from "next/server";
-import { runNewlyAppliedProductPaymentEffects } from "@/lib/payments/first-effects";
+import { runNewlyAppliedCreditPaymentEffects, runNewlyAppliedProductPaymentEffects } from "@/lib/payments/first-effects";
 import { PROCESS_PAYMENT_RESULT, isCandidatePaymentId, processPaymentDetails } from "../../../../lib/payments/mercadopago";
 
 const RETRY_AFTER_SECONDS = "60";
@@ -33,6 +34,20 @@ function temporarilyUnavailable() {
 
 function stringValue(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function reportProcessingIssue(paymentId: string, processing: Awaited<ReturnType<typeof processPaymentDetails>>) {
+  if (!processing.issue) return;
+  try {
+    Sentry.captureMessage("MercadoPago payment processing issue", {
+      level: "warning",
+      tags: {
+        payment_id: paymentId,
+        payment_issue: processing.issue,
+        payment_result: processing.result,
+      },
+    });
+  } catch {}
 }
 
 function verifyMPSignature(
@@ -99,9 +114,13 @@ export async function POST(request: Request) {
   }
 
   const processing = await processPaymentDetails(paymentId);
+  reportProcessingIssue(paymentId, processing);
   if (processing.result === PROCESS_PAYMENT_RESULT.ACKNOWLEDGED) {
     if (processing.settlement?.kind === "product" && processing.settlement.newlyApplied && processing.settlement.orderId) {
       await runNewlyAppliedProductPaymentEffects(processing.settlement.orderId);
+    }
+    if (processing.settlement?.kind === "credits" && processing.settlement.newlyApplied) {
+      await runNewlyAppliedCreditPaymentEffects(processing.settlement);
     }
     return NextResponse.json({ received: true });
   }

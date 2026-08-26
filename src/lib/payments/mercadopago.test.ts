@@ -6,7 +6,7 @@ vi.mock("server-only", () => ({}));
 
 const reference = "order:123e4567-e89b-12d3-a456-426614174000";
 const creditReference = "credits:123e4567-e89b-12d3-a456-426614174000";
-const creditIntent = { amount: 2500, currency: "ARS", id: "123e4567-e89b-12d3-a456-426614174000", pack_id: "popular", user_id: "user_123" };
+const creditIntent = { amount: 2500, credits: 50, currency: "ARS", id: "123e4567-e89b-12d3-a456-426614174000", pack_id: "popular", user_id: "user_123" };
 
 function payment(status = "approved", overrides: Record<string, unknown> = {}) {
   return { currency_id: "ARS", external_reference: reference, id: 123, payer: { id: "attacker" }, status, transaction_amount: 2500, ...overrides };
@@ -93,6 +93,17 @@ describe("MercadoPago product payment contract", () => {
   ])("keeps %s retryable", async (_name, makeDependencies) => {
     expect(await processProductPayment("123", makeDependencies())).toBe(PROCESS_PAYMENT_RESULT.RETRY);
   });
+
+  it.each([
+    ["provider fetch", () => { const deps = dependencies(); deps.provider.get.mockRejectedValueOnce(new Error("network")); return deps; }, "provider_fetch"],
+    ["product settlement", () => { const deps = dependencies(); deps.settlement.rpc.mockResolvedValueOnce({ data: null, error: new Error("db") }); return deps; }, "product_settlement"],
+  ])("returns a typed issue for %s retries", async (_name, makeDependencies, issue) => {
+    await expect(processPaymentDetails("123", makeDependencies())).resolves.toMatchObject({
+      issue,
+      result: PROCESS_PAYMENT_RESULT.RETRY,
+      settlement: null,
+    });
+  });
 });
 
 describe("MercadoPago credit payment contract", () => {
@@ -101,7 +112,16 @@ describe("MercadoPago credit payment contract", () => {
 
     await expect(processPaymentDetails("123", deps)).resolves.toEqual({
       result: PROCESS_PAYMENT_RESULT.ACKNOWLEDGED,
-      settlement: { intentId: creditIntent.id, kind: "credits", newlyApplied: true },
+      settlement: {
+        credits: 50,
+        intentId: creditIntent.id,
+        kind: "credits",
+        mpPaymentId: "123",
+        newlyApplied: true,
+        packId: "popular",
+        purchaseUserId: "user_123",
+        totalAmount: 2500,
+      },
     });
     expect(deps.provider.get).toHaveBeenCalledOnce();
     expect(deps.settlement.from).toHaveBeenCalledWith("credit_purchase_intents");
@@ -138,5 +158,16 @@ describe("MercadoPago credit payment contract", () => {
     else deps.settlement.rpc.mockResolvedValueOnce({ data: response, error: null });
     await expect(processPaymentDetails("123", deps)).resolves.toMatchObject({ result: expected });
     expect(deps.settlement.rpc).toHaveBeenCalledOnce();
+  });
+
+  it("returns a typed issue when the credit settlement is unavailable", async () => {
+    const deps = creditDependencies();
+    deps.settlement.rpc.mockResolvedValueOnce({ data: null, error: new Error("db") });
+
+    await expect(processPaymentDetails("123", deps)).resolves.toMatchObject({
+      issue: "credit_settlement",
+      result: PROCESS_PAYMENT_RESULT.RETRY,
+      settlement: null,
+    });
   });
 });
