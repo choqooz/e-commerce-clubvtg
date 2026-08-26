@@ -1,10 +1,10 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import * as Sentry from "@sentry/nextjs";
 import { Preference } from "mercadopago";
 import { SHIPPING_FEE } from "@/lib/config";
 import { mpClient } from "@/lib/mercadopago";
+import { captureExceptionSafely } from "@/lib/sentry";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { releaseExpiredReservations } from "@/lib/supabase/release-reservations";
 import type { CartItem } from "@/lib/types";
@@ -97,7 +97,7 @@ export async function createCheckoutPreference(
     }
   } catch (error: unknown) {
     console.error("Checkout action error:", error);
-    Sentry.captureException(error);
+    captureExceptionSafely(error);
     return { success: false, error: error instanceof Error ? error.message : "Error procesando el checkout" };
   }
 }
