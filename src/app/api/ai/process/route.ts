@@ -1,11 +1,11 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
-import * as Sentry from "@sentry/nextjs";
 import { runContentGuard } from "@/lib/ai/content-guard";
 import { validateImage, processUserImage } from "@/lib/ai/image-processing";
 import { getOpenAI, generateTryOn } from "@/lib/ai/openai";
 import { buildTryOnPrompt } from "@/lib/ai/prompts";
 import { getPostHogServer } from "@/lib/posthog";
 import { rateLimiter } from "@/lib/rate-limit";
+import { captureExceptionSafely } from "@/lib/sentry";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { TryOnSSEEvent, TryOnErrorEvent } from "@/lib/types";
 
@@ -343,7 +343,7 @@ export async function POST(req: Request) {
         };
       } catch (error: unknown) {
         console.error("AI process pipeline error:", error);
-        Sentry.captureException(error);
+        captureExceptionSafely(error);
 
         // If credit was deducted, refund and mark log as failed.
         // Order is critical: update status to "failed" FIRST so the

@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({ auth: mocks.auth, currentUser: mocks.currentUser }));
+vi.mock("server-only", () => ({}));
 vi.mock("@sentry/nextjs", () => ({ captureException: mocks.captureException }));
 vi.mock("@/lib/ai/content-guard", () => ({ runContentGuard: mocks.runContentGuard }));
 vi.mock("@/lib/ai/image-processing", () => ({ processUserImage: mocks.processUserImage, validateImage: mocks.validateImage }));
@@ -53,6 +54,9 @@ describe("AI process failure and analytics runtime boundary", () => {
     const outcomes = ["refunded", "already_refunded"];
     const refundResults: string[] = [];
     mocks.generateTryOn.mockRejectedValue(new Error("provider unavailable"));
+    mocks.captureException.mockImplementation(() => {
+      throw new Error("Sentry unavailable");
+    });
     mocks.rpc.mockImplementation((name) => {
       const data = name === "use_ai_credit" ? "log_123" : outcomes.shift();
       if (name === "refund_ai_credit") refundResults.push(data);
