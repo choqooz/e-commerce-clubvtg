@@ -57,8 +57,9 @@ describe("email callers", () => {
     const select = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: order }) }) });
     from.mockReturnValue({ select, update });
     requireAdmin.mockResolvedValue(null);
+    const send = vi.fn().mockRejectedValue(new Error("delivery unavailable"));
     getResendMailer.mockReturnValue({
-      client: { emails: { send: vi.fn().mockRejectedValue(new Error("delivery unavailable")) } },
+      client: { emails: { send } },
       from: "ClubVTG <orders@example.com>",
     });
 
@@ -66,6 +67,7 @@ describe("email callers", () => {
 
     expect(update).toHaveBeenCalledOnce();
     expect(getResendMailer).toHaveBeenCalledOnce();
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ from: "ClubVTG <orders@example.com>" }));
     expect(revalidatePath).toHaveBeenCalledWith("/admin/orders");
   });
 });
