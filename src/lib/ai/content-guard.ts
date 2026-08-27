@@ -7,10 +7,26 @@ const contentGuardSchema = z.object({
   reason: z.string(),
 });
 
+export const CONTENT_GUARD_OUTCOME = {
+  APPROVED: "approved",
+  REJECTED: "rejected",
+  UNAVAILABLE: "unavailable",
+} as const;
+
+const CONTENT_GUARD_CODE = {
+  INAPPROPRIATE_IMAGE: "inappropriate_image",
+  NO_PERSON_DETECTED: "no_person_detected",
+  NSFW_CONTENT: "nsfw_content",
+  UNAVAILABLE: "content_guard_unavailable",
+} as const;
+
+type ContentGuardCode = (typeof CONTENT_GUARD_CODE)[keyof typeof CONTENT_GUARD_CODE];
+type ContentGuardOutcome = (typeof CONTENT_GUARD_OUTCOME)[keyof typeof CONTENT_GUARD_OUTCOME];
+
 export interface ContentGuardResult {
-  approved: boolean;
+  outcome: ContentGuardOutcome;
   reason?: string;
-  code?: "nsfw_content" | "no_person_detected" | "inappropriate_image";
+  code?: ContentGuardCode;
 }
 
 /**
@@ -20,6 +36,7 @@ export interface ContentGuardResult {
 async function moderateImage(
   openai: OpenAI,
   imageBase64: string,
+  imageMimeType: string,
 ): Promise<{ flagged: boolean; categories?: string[] }> {
   const response = await openai.moderations.create({
     model: "omni-moderation-latest",
@@ -27,14 +44,16 @@ async function moderateImage(
       {
         type: "image_url",
         image_url: {
-          url: `data:image/jpeg;base64,${imageBase64}`,
+          url: `data:${imageMimeType};base64,${imageBase64}`,
         },
       },
     ],
   });
 
   const result = response.results[0];
-  if (!result) return { flagged: false };
+  if (!result) {
+    throw new Error("Content moderation response did not contain a result.");
+  }
 
   if (result.flagged) {
     const flaggedCategories = Object.entries(result.categories)
@@ -53,6 +72,7 @@ async function moderateImage(
 async function validatePersonInImage(
   openai: OpenAI,
   imageBase64: string,
+  imageMimeType: string,
 ): Promise<ContentGuardResult> {
   const response = await openai.chat.completions.create({
     model: "gpt-4o-mini",
@@ -73,7 +93,7 @@ async function validatePersonInImage(
           {
             type: "image_url",
             image_url: {
-              url: `data:image/jpeg;base64,${imageBase64}`,
+              url: `data:${imageMimeType};base64,${imageBase64}`,
             },
           },
         ],
@@ -83,8 +103,10 @@ async function validatePersonInImage(
 
   const content = response.choices[0]?.message?.content?.trim();
   if (!content) {
-    // Fail open — don't block legitimate users if the guard itself errors
-    return { approved: true };
+    return {
+      outcome: CONTENT_GUARD_OUTCOME.UNAVAILABLE,
+      code: CONTENT_GUARD_CODE.UNAVAILABLE,
+    };
   }
 
   try {
@@ -93,53 +115,57 @@ async function validatePersonInImage(
 
     if (!parsed.has_person) {
       return {
-        approved: false,
+        outcome: CONTENT_GUARD_OUTCOME.REJECTED,
         reason: parsed.reason || "No se detectó una persona en la imagen",
-        code: "no_person_detected",
+        code: CONTENT_GUARD_CODE.NO_PERSON_DETECTED,
       };
     }
 
     if (!parsed.appropriate) {
       return {
-        approved: false,
+        outcome: CONTENT_GUARD_OUTCOME.REJECTED,
         reason: parsed.reason || "La imagen no es apropiada para el probador virtual",
-        code: "inappropriate_image",
+        code: CONTENT_GUARD_CODE.INAPPROPRIATE_IMAGE,
       };
     }
 
-    return { approved: true };
+    return { outcome: CONTENT_GUARD_OUTCOME.APPROVED };
   } catch {
-    // Fail open on JSON parse error
-    return { approved: true };
+    return {
+      outcome: CONTENT_GUARD_OUTCOME.UNAVAILABLE,
+      code: CONTENT_GUARD_CODE.UNAVAILABLE,
+    };
   }
 }
 
 /**
  * Combined content guard: Moderation (free) → Person detection (~$0.004).
- * Fails open — if the guard itself throws, it returns approved: true.
  */
 export async function runContentGuard(
   openai: OpenAI,
   imageBuffer: Buffer,
+  imageMimeType = "image/jpeg",
 ): Promise<ContentGuardResult> {
   try {
     const imageBase64 = imageBuffer.toString("base64");
 
     // Step 1: Free moderation check
-    const moderation = await moderateImage(openai, imageBase64);
+    const moderation = await moderateImage(openai, imageBase64, imageMimeType);
     if (moderation.flagged) {
       return {
-        approved: false,
+        outcome: CONTENT_GUARD_OUTCOME.REJECTED,
         reason: `Imagen bloqueada: contenido inapropiado detectado (${moderation.categories?.join(", ")})`,
-        code: "nsfw_content",
+        code: CONTENT_GUARD_CODE.NSFW_CONTENT,
       };
     }
 
     // Step 2: Person detection (~$0.004)
-    return await validatePersonInImage(openai, imageBase64);
+    return await validatePersonInImage(openai, imageBase64, imageMimeType);
   } catch (error) {
-    // Fail open — guard infrastructure failure should not block users
-    console.error("Content guard error (failing open):", error);
-    return { approved: true };
+    console.error("Content guard unavailable:", error);
+    return {
+      outcome: CONTENT_GUARD_OUTCOME.UNAVAILABLE,
+      code: CONTENT_GUARD_CODE.UNAVAILABLE,
+    };
   }
 }

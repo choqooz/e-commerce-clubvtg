@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { fileURLToPath, URL } = require("node:url");
-const { defineConfig } = require("vitest/config");
+const { configDefaults, defineConfig } = require("vitest/config");
 
 module.exports = defineConfig({
   resolve: {
@@ -10,5 +10,6 @@ module.exports = defineConfig({
   },
   test: {
     environment: "node",
+    exclude: [...configDefaults.exclude, "tests/**"],
   },
 });
