@@ -12,6 +12,7 @@ import { SiteHeader } from "@/components/site-header";
 import { GenerationProgress } from "@/components/try-on/generation-progress";
 import { ImageUploader } from "@/components/try-on/image-uploader";
 import { ResultViewer } from "@/components/try-on/result-viewer";
+import { parseSSEErrorEvent } from "@/components/try-on/sse";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/config";
 import type { Product, TryOnSSEEvent, TryOnStep } from "@/lib/types";
@@ -60,10 +61,19 @@ export function TryOnPageContent({ product, initialCredits }: TryOnPageContentPr
           body: formData,
         });
 
-        if (!response.ok || !response.body) {
+        if (!response.body) {
           setState({
             phase: "error",
             message: "Error de conexión con el servidor",
+          });
+          return;
+        }
+
+        if (!response.ok) {
+          const event = parseSSEErrorEvent(await response.text());
+          setState({
+            phase: "error",
+            message: event?.message ?? "Error de conexión con el servidor",
           });
           return;
         }

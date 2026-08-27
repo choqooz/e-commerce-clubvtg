@@ -11,7 +11,14 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@clerk/nextjs/server", () => ({ auth: mocks.auth, currentUser: mocks.currentUser }));
 vi.mock("server-only", () => ({}));
 vi.mock("@sentry/nextjs", () => ({ captureException: mocks.captureException }));
-vi.mock("@/lib/ai/content-guard", () => ({ runContentGuard: mocks.runContentGuard }));
+vi.mock("@/lib/ai/content-guard", () => ({
+  CONTENT_GUARD_OUTCOME: {
+    APPROVED: "approved",
+    REJECTED: "rejected",
+    UNAVAILABLE: "unavailable",
+  },
+  runContentGuard: mocks.runContentGuard,
+}));
 vi.mock("@/lib/ai/image-processing", () => ({ processUserImage: mocks.processUserImage, validateImage: mocks.validateImage }));
 vi.mock("@/lib/ai/openai", () => ({ generateTryOn: mocks.generateTryOn, getOpenAI: vi.fn() }));
 vi.mock("@/lib/ai/prompts", () => ({ buildTryOnPrompt: vi.fn(() => "prompt") }));
@@ -34,7 +41,7 @@ function prepare() {
   mocks.rateLimit.mockResolvedValue({ success: true });
   mocks.validateImage.mockResolvedValue({ valid: true });
   mocks.processUserImage.mockResolvedValue({ buffer: Buffer.from("image"), height: 100, width: 100 });
-  mocks.runContentGuard.mockResolvedValue({ approved: true });
+  mocks.runContentGuard.mockResolvedValue({ outcome: "approved" });
   mocks.profileSingle.mockResolvedValue({ data: { credits: 2 }, error: null });
   mocks.createSignedUrl.mockResolvedValue({ data: { signedUrl: "https://signed.test/image" }, error: null });
   mocks.logUpdate.mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) });
@@ -50,6 +57,35 @@ beforeEach(() => { vi.clearAllMocks(); prepare(); });
 afterEach(() => vi.restoreAllMocks());
 
 describe("AI process failure and analytics runtime boundary", () => {
+  it("returns a retryable guard-unavailable response without charging a credit or generating an image", async () => {
+    mocks.runContentGuard.mockResolvedValue({ code: "content_guard_unavailable", outcome: "unavailable" });
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(503);
+    await expect(response.text()).resolves.toContain('"code":"content_guard_unavailable"');
+    expect(mocks.processUserImage).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalled();
+    expect(mocks.generateTryOn).not.toHaveBeenCalled();
+  });
+
+  it("deducts one credit for a user-content rejection without generating an image", async () => {
+    mocks.runContentGuard.mockResolvedValue({ code: "no_person_detected", outcome: "rejected", reason: "No hay persona" });
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(200);
+    await expect(response.text()).resolves.toContain('"code":"no_person_detected"');
+    expect(mocks.processUserImage).toHaveBeenCalledOnce();
+    expect(mocks.rpc).toHaveBeenCalledTimes(1);
+    expect(mocks.rpc).toHaveBeenCalledWith("use_ai_credit", {
+      p_product_id: "product_123",
+      p_user_id: "user_123",
+      p_user_image_url: expect.any(String),
+    });
+    expect(mocks.generateTryOn).not.toHaveBeenCalled();
+  });
+
   it("records failure before the idempotent refund RPC and replays the same log without a second applied refund", async () => {
     const outcomes = ["refunded", "already_refunded"];
     const refundResults: string[] = [];

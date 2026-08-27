@@ -155,7 +155,8 @@ export interface TryOnErrorEvent {
     | "server_error"
     | "nsfw_content"
     | "no_person_detected"
-    | "inappropriate_image";
+    | "inappropriate_image"
+    | "content_guard_unavailable";
 }
 
 export type TryOnSSEEvent = TryOnProgressEvent | TryOnCompleteEvent | TryOnErrorEvent;
