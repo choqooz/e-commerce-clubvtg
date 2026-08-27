@@ -1,5 +1,5 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { runContentGuard } from "@/lib/ai/content-guard";
+import { CONTENT_GUARD_OUTCOME, runContentGuard } from "@/lib/ai/content-guard";
 import { validateImage, processUserImage } from "@/lib/ai/image-processing";
 import { getOpenAI, generateTryOn } from "@/lib/ai/openai";
 import { buildTryOnPrompt } from "@/lib/ai/prompts";
@@ -20,15 +20,26 @@ const SSE_HEADERS = {
   Connection: "keep-alive",
 } as const;
 
+function imageMimeType(format: string | undefined): string {
+  if (format === "png") return "image/png";
+  if (format === "webp") return "image/webp";
+  if (format === "gif") return "image/gif";
+  return "image/jpeg";
+}
+
 function sseResponse(stream: ReadableStream): Response {
   return new Response(stream, { headers: SSE_HEADERS });
 }
 
 /** Quick bail-out for pre-stream errors (auth, rate-limit, etc.) */
-function createErrorSSE(message: string, code: TryOnErrorEvent["code"]): Response {
+function createErrorSSE(
+  message: string,
+  code: TryOnErrorEvent["code"],
+  status = 200,
+): Response {
   const event: TryOnErrorEvent = { type: "error", message, code };
   const body = `data: ${JSON.stringify(event)}\n\n`;
-  return new Response(body, { headers: SSE_HEADERS });
+  return new Response(body, { headers: SSE_HEADERS, status });
 }
 
 // ── POST Handler ──
@@ -71,7 +82,26 @@ export async function POST(req: Request) {
     return createErrorSSE("Faltan datos requeridos (productSlug, image)", "server_error");
   }
 
-  // ── 5-12: SSE Pipeline ──
+  const imageBuffer = Buffer.from(await imageFile.arrayBuffer());
+  const validation = await validateImage(imageBuffer);
+  if (!validation.valid) {
+    return createErrorSSE(validation.error ?? "Imagen no válida", "invalid_image");
+  }
+
+  const guardResult = await runContentGuard(
+    getOpenAI(),
+    imageBuffer,
+    imageMimeType(validation.metadata?.format),
+  );
+  if (guardResult.outcome === CONTENT_GUARD_OUTCOME.UNAVAILABLE) {
+    return createErrorSSE(
+      "No se pudo verificar el contenido de la imagen. Intentá de nuevo.",
+      "content_guard_unavailable",
+      503,
+    );
+  }
+
+  // ── 5-10: SSE Pipeline ──
   const stream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
@@ -89,28 +119,9 @@ export async function POST(req: Request) {
       }
 
       try {
-        // ── 5. Validate & process image ──
-        sendEvent({
-          type: "progress",
-          step: "validating",
-          message: "Validando imagen...",
-        });
-
-        const imageBuffer = Buffer.from(await imageFile.arrayBuffer());
-        const validation = await validateImage(imageBuffer);
-
-        if (!validation.valid) {
-          sendEvent({
-            type: "error",
-            message: validation.error ?? "Imagen no válida",
-            code: "invalid_image",
-          });
-          return;
-        }
-
         const { buffer: processedBuffer, width, height } = await processUserImage(imageBuffer);
 
-        // ── 6. Check credits ──
+        // ── 5. Check credits ──
         const { data: profile, error: profileError } = await supabaseAdmin
           .from("profiles")
           .select("credits")
@@ -135,7 +146,7 @@ export async function POST(req: Request) {
           return;
         }
 
-        // ── 7. Fetch product ──
+        // ── 6. Fetch product ──
         const { data: product, error: productError } = await supabaseAdmin
           .from("products")
           .select("id, title, category, image_urls, status")
@@ -170,7 +181,7 @@ export async function POST(req: Request) {
           return;
         }
 
-        // ── 8. Upload user image ──
+        // ── 7. Upload user image ──
         sendEvent({
           type: "progress",
           step: "uploading",
@@ -212,7 +223,7 @@ export async function POST(req: Request) {
           return;
         }
 
-        // ── 9. Deduct credit ──
+        // ── 8. Deduct credit ──
         sendEvent({
           type: "progress",
           step: "processing",
@@ -238,16 +249,8 @@ export async function POST(req: Request) {
         logId = rpcResult as string;
         creditDeducted = true;
 
-        // ── 10. Content guard (after credit deduction — Option A) ──
-        sendEvent({
-          type: "progress",
-          step: "content_check",
-          message: "Verificando contenido...",
-        });
-
-        const guardResult = await runContentGuard(getOpenAI(), processedBuffer);
-        if (!guardResult.approved) {
-          // Credit already deducted — no refund (disuades abuse)
+        // ── 9. Content guard rejection (Option A: credit already deducted) ──
+        if (guardResult.outcome === CONTENT_GUARD_OUTCOME.REJECTED) {
           await supabaseAdmin
             .from("ai_tryon_logs")
             .update({
@@ -261,11 +264,10 @@ export async function POST(req: Request) {
             message: guardResult.reason ?? "Imagen no válida para el probador virtual",
             code: guardResult.code ?? "inappropriate_image",
           });
-          controller.close();
           return;
         }
 
-        // ── 11. Generate try-on ──
+        // ── 10. Generate try-on ──
         sendEvent({
           type: "progress",
           step: "generating",
@@ -278,7 +280,7 @@ export async function POST(req: Request) {
           height,
         });
 
-        // ── 12. Save result ──
+        // ── 11. Save result ──
         sendEvent({
           type: "progress",
           step: "finalizing",
