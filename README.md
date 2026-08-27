@@ -51,7 +51,7 @@ Plataforma e-commerce de ropa vintage argentina con probador virtual por IA.
 
 ### Sistema de Creditos (/credits)
 
-- 2 creditos gratis al verificar email
+- 2 creditos de bienvenida procesados de forma idempotente por el webhook de ciclo de vida de Clerk
 - Packs: Basic (3/$1,500), Popular (7/$3,000), Pro (15/$5,500 ARS)
 - Compra via MercadoPago (mismo flujo de webhooks)
 - Deduccion atomica via Supabase RPC
@@ -91,7 +91,7 @@ src/
     ├── supabase/             # Clientes Supabase (anon + admin)
     └── validations/          # Zod schemas
 supabase/
-└── migrations/               # 001-007
+└── migrations/               # Migraciones SQL versionadas hasta 022
 ```
 
 ## Variables de Entorno
@@ -149,6 +149,10 @@ Configure `RESEND_FROM_EMAIL` with a sender identity verified in Resend. The app
 | `NEXT_PUBLIC_APP_URL` | Produccion | URL base de la app |
 | `NEXT_PUBLIC_NGROK_URL` | Solo dev | URL de ngrok para webhooks |
 
+### Authenticated E2E (Clerk)
+
+`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, and `E2E_CLERK_USER_EMAIL` are required by authenticated E2E. The first two must be Clerk development test credentials; `E2E_CLERK_USER_EMAIL` must identify a dedicated Clerk development test user with no orders.
+
 ### Configuracion de tienda
 
 | Variable | Requerida | Descripcion |
@@ -166,6 +170,9 @@ Configure `RESEND_FROM_EMAIL` with a sender identity verified in Resend. The app
 | Variable | Requerida | Descripcion |
 |----------|-----------|-------------|
 | `NEXT_PUBLIC_SENTRY_DSN` | No | Habilita Sentry con muestreo de trazas de `0.1` |
+| `SENTRY_AUTH_TOKEN` | Solo build con source maps | Token server-only para subir source maps a Sentry |
+| `SENTRY_ORG` | Solo build con source maps | Slug de la organizacion de Sentry |
+| `SENTRY_PROJECT` | Solo build con source maps | Slug del proyecto de Sentry |
 | `NEXT_PUBLIC_POSTHOG_KEY` | No | Habilita eventos PostHog con persistencia en memoria |
 | `NEXT_PUBLIC_POSTHOG_HOST` | No | Host opcional de PostHog; usa el valor predeterminado si esta vacio |
 
@@ -175,13 +182,13 @@ Sin `NEXT_PUBLIC_SENTRY_DSN` o `NEXT_PUBLIC_POSTHOG_KEY`, la aplicacion sigue fu
 
 ### Requisitos
 
-- Node.js 18+
+- Node.js 22 (consultá `.nvmrc`)
 - Cuentas en: Clerk, Supabase, MercadoPago, OpenAI (org verificada), Resend
 
 ### Instalacion
 
 ```bash
-npm install
+npm ci
 cp .env.local.example .env.local  # Completar solo valores locales
 npm run dev
 ```
@@ -200,6 +207,13 @@ La autoridad de produccion es exclusivamente la base de datos; la aplicacion loc
 | `npm run build` | Build de produccion |
 | `npm run start` | Servidor de produccion |
 | `npm run lint` | ESLint |
+| `npm run type-check` | TypeScript sin emitir archivos |
+| `npm test` | Suite unitaria con Vitest |
+| `npm run test:database` | Pruebas de migraciones SQL aisladas con Docker |
+| `npm run test:payment-webhook` | Pruebas enfocadas del flujo de pagos y webhook de MercadoPago |
+| `npm run test:e2e` | Pruebas E2E del storefront con Playwright |
+| `npm run test:e2e:headed` | Pruebas E2E del storefront con navegador visible |
+| `npm run test:e2e:auth` | Pruebas E2E autenticadas con Clerk |
 
 ## Licencia
 
