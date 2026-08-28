@@ -1,7 +1,7 @@
 // ── Canonical Domain Types ──
 // Single source of truth for all domain types.
 // Field names match the Supabase DB schema (snake_case).
-// Last synced with: migrations 001 + 004 + 005 + 006 + 007 + 009 + 020
+// Last synced with: migrations 001 + 004 + 005 + 006 + 007 + 009 + 020 + 023
 
 // ── Product ──
 
@@ -26,6 +26,8 @@ export interface Product {
   brand: string | null;
   condition: string | null;
   measurements: string | null;
+  product_type_id: string | null;
+  product_subtype_id: string | null;
 }
 
 // ── Cart ──

@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { MultiImageUpload } from "@/components/admin/image-upload";
@@ -18,15 +18,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { createProduct } from "@/lib/actions/product";
+import { createProduct, getActiveProductTaxonomy, type ProductTaxonomyType } from "@/lib/actions/product";
 import { productSchema, type ProductFormValues } from "@/lib/validations/product";
 
-const adminCats = [
-  { id: "Tops", name: "Tops" },
-  { id: "Bottoms", name: "Bottoms" },
-  { id: "Outerwear", name: "Outerwear" },
-  { id: "Accesorios", name: "Accesorios" },
-];
+const NO_SUBTYPE_VALUE = "__none__";
 
 export function ProductForm({
   initialData,
@@ -37,6 +32,7 @@ export function ProductForm({
 }) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
+  const [taxonomy, setTaxonomy] = useState<ProductTaxonomyType[]>([]);
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
@@ -53,8 +49,17 @@ export function ProductForm({
       brand: initialData?.brand || "",
       condition: initialData?.condition || "",
       measurements: initialData?.measurements || "",
+      product_type_id: initialData?.product_type_id,
+      product_subtype_id: initialData?.product_subtype_id,
     },
   });
+  const selectedType = taxonomy.find((type) => type.id === form.watch("product_type_id"));
+
+  useEffect(() => {
+    void getActiveProductTaxonomy().then((result) => {
+      if ("data" in result) setTaxonomy(result.data);
+    });
+  }, []);
 
   async function onSubmit(data: ProductFormValues) {
     setIsPending(true);
@@ -151,16 +156,22 @@ export function ProductForm({
               <Label>Categoría</Label>
               <Select
                 disabled={isPending}
-                onValueChange={(val) => form.setValue("category", val)}
-                defaultValue={form.watch("category")}
+                onValueChange={(id) => {
+                  const type = taxonomy.find((item) => item.id === id);
+                  form.setValue("product_type_id", id);
+                  form.setValue("product_subtype_id", null);
+                  form.setValue("category", type?.name ?? "");
+                  form.setValue("subcategory", "");
+                }}
+                value={form.watch("product_type_id") ?? undefined}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar" />
                 </SelectTrigger>
                 <SelectContent>
-                  {adminCats.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name}
+                  {taxonomy.map((type) => (
+                    <SelectItem key={type.id} value={type.id}>
+                      {type.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -172,11 +183,28 @@ export function ProductForm({
 
             <div className="space-y-2">
               <Label>Subcategoría (Tipo)</Label>
-              <Input
-                {...form.register("subcategory")}
-                disabled={isPending}
-                placeholder="Ej: Campera de Jean"
-              />
+              <Select
+                disabled={isPending || !selectedType}
+                onValueChange={(id) => {
+                  if (id === NO_SUBTYPE_VALUE) {
+                    form.setValue("product_subtype_id", null);
+                    form.setValue("subcategory", "");
+                    return;
+                  }
+                  const subtype = selectedType?.subtypes.find((item) => item.id === id);
+                  form.setValue("product_subtype_id", id);
+                  form.setValue("subcategory", subtype?.name ?? "");
+                }}
+                value={form.watch("product_subtype_id") ?? NO_SUBTYPE_VALUE}
+              >
+                <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_SUBTYPE_VALUE}>Sin subtipo</SelectItem>
+                  {selectedType?.subtypes.map((subtype) => (
+                    <SelectItem key={subtype.id} value={subtype.id}>{subtype.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {errors.subcategory && (
                 <p className="text-destructive text-sm">{errors.subcategory.message}</p>
               )}

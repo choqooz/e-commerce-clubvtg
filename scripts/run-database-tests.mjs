@@ -21,6 +21,7 @@ const suites = [
   ["020_retention", 19, "retention"],
   ["021_anonymization", 20, "anonymization"],
   ["022_activation", 21, "activation"],
+  ["023_taxonomy", 23, "taxonomy"],
 ];
 
 function run(command, args, options = {}) {
@@ -96,7 +97,7 @@ async function runSuite(suite, migrationFiles) {
     await docker(["run", "--rm", "-d", "--name", container, "-e", `POSTGRES_PASSWORD=${password}`, "-e", `POSTGRES_DB=${database}`, "-v", `${root}:/workspace:ro`, "postgres:17"]);
     await ready(container);
     await psql(container, supportSql);
-    for (const migration of migrationFiles.filter(({ number }) => number <= maxMigration)) await psql(container, migration.file);
+    for (const migration of migrationFiles.filter(({ number }) => number <= maxMigration && (phase !== "taxonomy" || number < maxMigration))) await psql(container, migration.file);
     if (phase === "bonus") {
       await psql(container, "/workspace/scripts/database-test-fixtures.sql", { fixture_bonus: "1" });
       await psql(container, "/workspace/supabase/migrations/019_prepare_registration_bonus.sql");
@@ -113,6 +114,10 @@ async function runSuite(suite, migrationFiles) {
     if (phase === "activation") {
       await psql(container, `/workspace/supabase/tests/database/${name}.test.sql`, { pre_activation: "1" });
       await psql(container, "/workspace/supabase/migrations/022_activate_clerk_lifecycle.sql");
+    }
+    if (phase === "taxonomy") {
+      await psql(container, `/workspace/supabase/tests/database/${name}.test.sql`, { pre_taxonomy: "1" });
+      await psql(container, `/workspace/supabase/migrations/023_scheduled_promotions_foundation.sql`);
     }
     const output = await psql(container, `/workspace/supabase/tests/database/${name}.test.sql`, phase === "retention" ? { retention: true } : {});
     return { name, output };
