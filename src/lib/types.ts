@@ -28,6 +28,10 @@ export interface Product {
   measurements: string | null;
   product_type_id: string | null;
   product_subtype_id: string | null;
+  base_price?: number;
+  current_price?: number;
+  promotion_ends_at?: string | null;
+  promotion_percent?: number | null;
 }
 
 // ── Cart ──

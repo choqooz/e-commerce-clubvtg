@@ -22,6 +22,7 @@ const suites = [
   ["021_anonymization", 20, "anonymization"],
   ["022_activation", 21, "activation"],
   ["023_taxonomy", 23, "taxonomy"],
+  ["024_promotion_authority", 24],
 ];
 
 function run(command, args, options = {}) {
