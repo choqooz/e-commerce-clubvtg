@@ -43,7 +43,10 @@ export interface CartItem {
 
 // ── Orders (recreated in migration 005) ──
 
-export type OrderStatus = "pending" | "paid" | "shipped" | "cancelled";
+export const ORDER_STATUSES = { CANCELLED: "cancelled", PAID: "paid", PENDING: "pending", SHIPPED: "shipped" } as const;
+export type OrderStatus = (typeof ORDER_STATUSES)[keyof typeof ORDER_STATUSES];
+export const ORDER_PRICING_SOURCES = { COUPON: "coupon", PROMOTIONS: "promotions" } as const;
+export type OrderPricingSource = (typeof ORDER_PRICING_SOURCES)[keyof typeof ORDER_PRICING_SOURCES];
 
 export interface Order {
   id: string;
@@ -61,6 +64,15 @@ export interface Order {
   created_at: string;
   updated_at: string;
   clerk_anonymized_at: string | null;
+  pricing_source?: OrderPricingSource | null;
+  merchandise_original_cents?: number | null;
+  merchandise_discount_cents?: number | null;
+  merchandise_final_cents?: number | null;
+  shipping_cents?: number | null;
+  total_cents?: number | null;
+  payment_amount_cents?: number | null;
+  pricing_snapshot_at?: string | null;
+  coupon_reservation_state?: string | null;
 }
 
 export interface OrderItem {
@@ -68,6 +80,10 @@ export interface OrderItem {
   order_id: string;
   product_id: string;
   price: number;
+  original_cents?: number | null;
+  discount_cents?: number | null;
+  final_cents?: number | null;
+  pricing_source?: OrderPricingSource | null;
 }
 
 // ── Supporting types (unchanged from migration 001) ──

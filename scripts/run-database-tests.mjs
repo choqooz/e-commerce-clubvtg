@@ -24,6 +24,7 @@ const suites = [
   ["023_taxonomy", 23, "taxonomy"],
   ["024_promotion_authority", 24],
   ["025_coupon_checkout", 25],
+  ["026_discount_settlement", 26],
 ];
 
 function run(command, args, options = {}) {

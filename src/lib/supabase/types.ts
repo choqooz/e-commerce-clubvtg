@@ -6,6 +6,7 @@ export type {
   ProductStatus,
   Product,
   OrderStatus,
+  OrderPricingSource,
   Order,
   OrderItem,
   CartItem,
