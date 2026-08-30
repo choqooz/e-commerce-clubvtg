@@ -1,8 +1,9 @@
 "use client";
 
 import { usePostHog } from "posthog-js/react";
-import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import { productAddedToCartEvent } from "@/lib/analytics-events";
+import { CUSTOMER_COUPON_SOURCES, type CustomerCouponSource, replaceCouponCode } from "@/lib/coupon-choice";
 import type { Product, CartItem } from "@/lib/types";
 
 interface CartContextValue {
@@ -10,6 +11,13 @@ interface CartContextValue {
   addItem: (product: Product) => void;
   removeItem: (productId: string) => void;
   clearCart: () => void;
+  couponCode: string;
+  couponSource: CustomerCouponSource | null;
+  clearCouponSelection: () => void;
+  getCouponQuoteVersion: () => number;
+  isCouponQuoteVersionCurrent: (version: number) => boolean;
+  setCouponCode: (couponCode: string) => void;
+  selectCoupon: () => void;
   totalItems: number;
   totalPrice: number;
   isOpen: boolean;
@@ -22,8 +30,23 @@ const CartContext = createContext<CartContextValue | null>(null);
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const posthog = usePostHog();
   const [items, setItems] = useState<CartItem[]>([]);
+  const [couponCode, setCouponCodeState] = useState("");
+  const [couponSource, setCouponSource] = useState<CustomerCouponSource | null>(null);
+  const couponQuoteVersionRef = useRef(0);
   const [isOpen, setIsOpen] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
+
+  function invalidateCouponQuote() {
+    couponQuoteVersionRef.current += 1;
+  }
+
+  function getCouponQuoteVersion() {
+    return couponQuoteVersionRef.current;
+  }
+
+  function isCouponQuoteVersionCurrent(version: number) {
+    return couponQuoteVersionRef.current === version;
+  }
 
   // Hydrate from localStorage on client only.
   // setState in effect is intentional here — this synchronizes with an external
@@ -57,6 +80,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         if (exists) return prev;
         return [...prev, { product, quantity: 1 }];
       });
+      invalidateCouponQuote();
+      setCouponSource(null);
       setIsOpen(true);
       const event = productAddedToCartEvent(product);
       posthog?.capture(event.event, event.properties);
@@ -66,11 +91,29 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const removeItem = useCallback((productId: string) => {
     setItems((prev) => prev.filter((item) => item.product.id !== productId));
+    invalidateCouponQuote();
+    setCouponSource(null);
   }, []);
 
   const clearCart = useCallback(() => {
     setItems([]);
+    setCouponCodeState("");
+    invalidateCouponQuote();
+    setCouponSource(null);
   }, []);
+
+  const setCouponCode = (nextCouponCode: string) => {
+    const choice = replaceCouponCode(nextCouponCode);
+    setCouponCodeState(choice.couponCode);
+    invalidateCouponQuote();
+    setCouponSource(choice.source);
+  };
+
+  const clearCouponSelection = () => {
+    invalidateCouponQuote();
+    setCouponSource(null);
+  };
+  const selectCoupon = () => setCouponSource(CUSTOMER_COUPON_SOURCES.COUPON);
 
   const totalItems = items.length;
   const totalPrice = items.reduce((sum, item) => sum + item.product.price, 0);
@@ -82,6 +125,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         addItem,
         removeItem,
         clearCart,
+        couponCode,
+        couponSource,
+        clearCouponSelection,
+        getCouponQuoteVersion,
+        isCouponQuoteVersionCurrent,
+        setCouponCode,
+        selectCoupon,
         totalItems,
         totalPrice,
         isOpen,

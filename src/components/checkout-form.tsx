@@ -6,13 +6,15 @@ import { usePostHog } from "posthog-js/react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { CouponSelection } from "@/components/coupon-selection";
 import { useCart } from "@/contexts/cart-context";
 import { createCheckoutPreference } from "@/lib/actions/checkout";
 import { checkoutStartedEvent } from "@/lib/analytics-events";
+import { toCouponCheckoutSelection } from "@/lib/coupon-choice";
 import { checkoutSchema, type CheckoutFormValues } from "@/lib/validations/checkout";
 
 export function CheckoutForm() {
-  const { items, totalPrice } = useCart();
+  const { couponCode, couponSource, items, totalPrice } = useCart();
   const posthog = usePostHog();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -43,7 +45,7 @@ export function CheckoutForm() {
       const event = checkoutStartedEvent(items.length, totalPrice);
       posthog?.capture(event.event, event.properties);
       // Create Order and MP Preference
-      const res = await createCheckoutPreference(data, items);
+      const res = await createCheckoutPreference(data, items, toCouponCheckoutSelection({ couponCode, source: couponSource }));
 
       if (!res.success) {
         toast.error(res.error || "Ocurrió un error al procesar el pago");
@@ -221,6 +223,8 @@ export function CheckoutForm() {
           </div>
         </div>
       </div>
+
+      <CouponSelection />
 
       <button
         type="submit"
