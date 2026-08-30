@@ -47,6 +47,16 @@ export const ORDER_STATUSES = { CANCELLED: "cancelled", PAID: "paid", PENDING: "
 export type OrderStatus = (typeof ORDER_STATUSES)[keyof typeof ORDER_STATUSES];
 export const ORDER_PRICING_SOURCES = { COUPON: "coupon", PROMOTIONS: "promotions" } as const;
 export type OrderPricingSource = (typeof ORDER_PRICING_SOURCES)[keyof typeof ORDER_PRICING_SOURCES];
+export const COUPON_RESERVATION_STATES = { CONSUMED: "consumed", EXPIRED: "expired", NONE: "none", RELEASED: "released", RESERVED: "reserved" } as const;
+export type CouponReservationState = (typeof COUPON_RESERVATION_STATES)[keyof typeof COUPON_RESERVATION_STATES];
+export const PAYMENT_REVERSAL_CLASSES = { CHARGED_BACK: "charged_back", REFUNDED: "refunded" } as const;
+export type PaymentReversalClass = (typeof PAYMENT_REVERSAL_CLASSES)[keyof typeof PAYMENT_REVERSAL_CLASSES];
+
+export interface PaymentReversalEvidence {
+  created_at: string;
+  event_class: PaymentReversalClass;
+  reversal_total_cents: number;
+}
 
 export interface Order {
   id: string;
@@ -72,7 +82,7 @@ export interface Order {
   total_cents?: number | null;
   payment_amount_cents?: number | null;
   pricing_snapshot_at?: string | null;
-  coupon_reservation_state?: string | null;
+  coupon_reservation_state?: CouponReservationState | null;
 }
 
 export interface OrderItem {

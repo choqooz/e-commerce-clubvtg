@@ -5,7 +5,32 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/actions/auth";
 import { getResendMailer } from "@/lib/resend";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import type { OrderStatus } from "@/lib/types";
+import type { Order, OrderItem, OrderStatus, PaymentReversalEvidence } from "@/lib/types";
+
+interface OrderHistoryProduct {
+  image_urls: string[];
+  slug: string;
+  title: string;
+}
+
+interface OrderHistoryCoupon {
+  code: string;
+}
+
+interface OrderHistoryReversalEvidence extends PaymentReversalEvidence {
+  order_id: string;
+}
+
+interface OrderHistoryItem extends OrderItem {
+  products: OrderHistoryProduct | null;
+}
+
+export interface OrderHistoryOrder extends Order {
+  coupon_definitions: OrderHistoryCoupon[];
+  product_payment_reversal_evidence: PaymentReversalEvidence[];
+  promotion_ids: string[];
+  order_items: OrderHistoryItem[];
+}
 
 // ── User-facing ──
 
@@ -15,35 +40,29 @@ export async function getUserOrders() {
 
   const { data, error } = await supabaseAdmin
     .from("orders")
-    .select("*, order_items(*, products(title, image_urls, slug))")
+    .select("id, user_id, customer_email, customer_name, status, total_amount, shipping_fee, shipping_info, mp_preference_id, mp_payment_id, tracking_number, shipped_at, created_at, updated_at, clerk_anonymized_at, pricing_source, promotion_ids, merchandise_original_cents, merchandise_discount_cents, merchandise_final_cents, shipping_cents, total_cents, payment_amount_cents, pricing_snapshot_at, coupon_reservation_state, coupon_definitions(code), order_items(id, order_id, product_id, price, original_cents, discount_cents, final_cents, pricing_source, products(title, image_urls, slug))")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
-  if (error) return null;
-  return data;
+  if (error || !data) return null;
+  const { data: reversalEvidence, error: reversalError } = await supabaseAdmin.rpc("get_order_history_reversal_evidence", { p_order_ids: data.map(({ id }) => id) });
+  if (reversalError) return null;
+  const evidenceByOrderId = new Map<string, PaymentReversalEvidence[]>();
+  for (const evidence of reversalEvidence ?? []) {
+    const { order_id, ...safeEvidence } = evidence as OrderHistoryReversalEvidence;
+    evidenceByOrderId.set(order_id, [...(evidenceByOrderId.get(order_id) ?? []), safeEvidence]);
+  }
+  return data.map((order) => ({ ...order, product_payment_reversal_evidence: evidenceByOrderId.get(order.id) ?? [] })) as unknown as OrderHistoryOrder[];
 }
 
 // ── Admin ──
 
-const VALID_STATUSES: OrderStatus[] = ["pending", "paid", "shipped", "cancelled"];
-
 export async function updateOrderStatus(orderId: string, status: OrderStatus) {
   const authError = await requireAdmin();
   if (authError) return authError;
-
-  if (!VALID_STATUSES.includes(status)) {
-    return { error: "Estado inválido" };
-  }
-
-  const { error } = await supabaseAdmin
-    .from("orders")
-    .update({ status, updated_at: new Date().toISOString() })
-    .eq("id", orderId);
-
-  if (error) return { error: error.message };
-
-  revalidatePath("/admin/orders");
-  return { success: true };
+  void orderId;
+  void status;
+  return { error: "Direct status changes are not allowed" };
 }
 
 export async function shipOrder(orderId: string, trackingNumber: string) {
@@ -52,17 +71,12 @@ export async function shipOrder(orderId: string, trackingNumber: string) {
 
   if (!trackingNumber.trim()) return { error: "Número de tracking requerido" };
 
-  // Update order with tracking info
-  const { error: updateError } = await supabaseAdmin
-    .from("orders")
-    .update({
-      status: "shipped",
-      tracking_number: trackingNumber.trim(),
-      shipped_at: new Date().toISOString(),
-    })
-    .eq("id", orderId);
-
+  const { data: shipped, error: updateError } = await supabaseAdmin.rpc("ship_product_order", {
+    p_order_id: orderId,
+    p_tracking_number: trackingNumber.trim(),
+  });
   if (updateError) return { error: updateError.message };
+  if (!shipped) return { error: "Order cannot be shipped from its current state" };
 
   // Fetch order with items for dispatch email
   const { data: order } = await supabaseAdmin

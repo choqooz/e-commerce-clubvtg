@@ -30,6 +30,8 @@ const ORDER_REFERENCE = /^order:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 const CREDIT_REFERENCE = /^credits:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 const MAX_AMOUNT = 1_000_000_000_000;
 
+function isExactCentAmount(value: unknown): value is number { return typeof value === "number" && Number.isFinite(value) && value > 0 && value <= MAX_AMOUNT && /^\d+(?:\.\d{1,2})?$/.test(value.toString()); }
+
 type PaymentEventClass = (typeof PAYMENT_EVENT_CLASS)[keyof typeof PAYMENT_EVENT_CLASS];
 
 interface PaymentFacts {
@@ -38,6 +40,7 @@ interface PaymentFacts {
   eventClass: PaymentEventClass;
   paymentId: string;
   reference: string;
+  reversalTotal: number | null;
 }
 
 interface SettlementArguments {
@@ -47,6 +50,7 @@ interface SettlementArguments {
   p_payment_id: string;
   p_provider: "mercadopago";
   p_reference: string;
+  p_reversal_total: number | null;
 }
 
 interface CreditSettlementArguments {
@@ -157,15 +161,14 @@ function paymentFacts(candidateId: string, value: unknown): PaymentFacts | null 
     !reference ||
     (!ORDER_REFERENCE.test(reference) && !CREDIT_REFERENCE.test(reference)) ||
     payment.currency_id !== "ARS" ||
-    typeof amount !== "number" ||
-    !Number.isFinite(amount) ||
-    amount < 0 ||
-    amount > MAX_AMOUNT
+    !isExactCentAmount(amount)
   ) {
     return null;
   }
 
-  return { amount, currency: "ARS", eventClass: status as PaymentEventClass, paymentId: id, reference };
+  const reversalTotal = status === PAYMENT_EVENT_CLASS.REFUNDED ? payment.transaction_amount_refunded : status === PAYMENT_EVENT_CLASS.CHARGED_BACK ? amount : null;
+  if (reversalTotal !== null && (!isExactCentAmount(reversalTotal) || reversalTotal > amount)) return null;
+  return { amount, currency: "ARS", eventClass: status as PaymentEventClass, paymentId: id, reference, reversalTotal };
 }
 
 function acknowledgedProductSettlement(data: unknown): ProductSettlement | null {
@@ -259,7 +262,7 @@ async function loadPayment(candidateId: string, dependencies?: PaymentDependenci
 async function settleProduct(facts: PaymentFacts, deps: PaymentDependencies): Promise<PaymentProcessing> {
   try {
     const { data, error } = await deps.settlement.rpc("settle_product_payment", {
-      p_amount: facts.amount, p_currency: facts.currency, p_event_class: facts.eventClass, p_payment_id: facts.paymentId, p_provider: "mercadopago", p_reference: facts.reference,
+      p_amount: facts.amount, p_currency: facts.currency, p_event_class: facts.eventClass, p_payment_id: facts.paymentId, p_provider: "mercadopago", p_reference: facts.reference, p_reversal_total: facts.reversalTotal,
     });
     const settlement = acknowledgedProductSettlement(data);
     return error || !settlement
