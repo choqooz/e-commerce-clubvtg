@@ -32,6 +32,19 @@ export interface OrderHistoryOrder extends Order {
   order_items: OrderHistoryItem[];
 }
 
+const ORDER_HISTORY_FIELDS = "id, user_id, customer_email, customer_name, status, total_amount, shipping_fee, shipping_info, tracking_number, shipped_at, created_at, updated_at, clerk_anonymized_at, pricing_source, promotion_ids, merchandise_original_cents, merchandise_discount_cents, merchandise_final_cents, shipping_cents, total_cents, payment_amount_cents, pricing_snapshot_at, coupon_reservation_state, coupon_definitions(code), order_items(id, order_id, product_id, price, original_cents, discount_cents, final_cents, pricing_source, products(title, image_urls, slug))";
+
+async function attachReversalEvidence(orders: OrderHistoryOrder[]) {
+  const { data: reversalEvidence, error: reversalError } = await supabaseAdmin.rpc("get_order_history_reversal_evidence", { p_order_ids: orders.map(({ id }) => id) });
+  if (reversalError) return null;
+  const evidenceByOrderId = new Map<string, PaymentReversalEvidence[]>();
+  for (const evidence of reversalEvidence ?? []) {
+    const { order_id, ...safeEvidence } = evidence as OrderHistoryReversalEvidence;
+    evidenceByOrderId.set(order_id, [...(evidenceByOrderId.get(order_id) ?? []), safeEvidence]);
+  }
+  return orders.map((order) => ({ ...order, product_payment_reversal_evidence: evidenceByOrderId.get(order.id) ?? [] }));
+}
+
 // ── User-facing ──
 
 export async function getUserOrders() {
@@ -40,22 +53,28 @@ export async function getUserOrders() {
 
   const { data, error } = await supabaseAdmin
     .from("orders")
-    .select("id, user_id, customer_email, customer_name, status, total_amount, shipping_fee, shipping_info, mp_preference_id, mp_payment_id, tracking_number, shipped_at, created_at, updated_at, clerk_anonymized_at, pricing_source, promotion_ids, merchandise_original_cents, merchandise_discount_cents, merchandise_final_cents, shipping_cents, total_cents, payment_amount_cents, pricing_snapshot_at, coupon_reservation_state, coupon_definitions(code), order_items(id, order_id, product_id, price, original_cents, discount_cents, final_cents, pricing_source, products(title, image_urls, slug))")
+    .select(ORDER_HISTORY_FIELDS)
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
   if (error || !data) return null;
-  const { data: reversalEvidence, error: reversalError } = await supabaseAdmin.rpc("get_order_history_reversal_evidence", { p_order_ids: data.map(({ id }) => id) });
-  if (reversalError) return null;
-  const evidenceByOrderId = new Map<string, PaymentReversalEvidence[]>();
-  for (const evidence of reversalEvidence ?? []) {
-    const { order_id, ...safeEvidence } = evidence as OrderHistoryReversalEvidence;
-    evidenceByOrderId.set(order_id, [...(evidenceByOrderId.get(order_id) ?? []), safeEvidence]);
-  }
-  return data.map((order) => ({ ...order, product_payment_reversal_evidence: evidenceByOrderId.get(order.id) ?? [] })) as unknown as OrderHistoryOrder[];
+  return attachReversalEvidence(data as unknown as OrderHistoryOrder[]);
 }
 
 // ── Admin ──
+
+export async function getAdminOrders() {
+  const authError = await requireAdmin();
+  if (authError) return null;
+
+  const { data, error } = await supabaseAdmin
+    .from("orders")
+    .select(ORDER_HISTORY_FIELDS)
+    .order("created_at", { ascending: false });
+  if (error || !data) return null;
+
+  return attachReversalEvidence(data as unknown as OrderHistoryOrder[]);
+}
 
 export async function updateOrderStatus(orderId: string, status: OrderStatus) {
   const authError = await requireAdmin();
