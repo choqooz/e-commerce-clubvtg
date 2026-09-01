@@ -27,6 +27,7 @@ const suites = [
     ["026_discount_settlement", 27],
     ["028_coupon_admin_lifecycle", 28],
     ["029_promotion_revision", 20260901172015],
+    ["030_coupon_runtime_proofs", 20260901172015],
   ];
 
 function run(command, args, options = {}) {
