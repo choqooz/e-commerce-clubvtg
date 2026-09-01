@@ -3,11 +3,9 @@
 import { createHmac } from "node:crypto";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { SHIPPING_FEE } from "@/lib/config";
+import { COUPON_QUOTE_SOURCES, type CouponQuoteSource } from "@/lib/coupon-choice";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { checkoutItemsSchema, type CheckoutCartItem } from "@/lib/validations/checkout";
-
-export const COUPON_QUOTE_SOURCES = { COUPON: "coupon", PROMOTIONS: "promotions" } as const;
-export type CouponQuoteSource = (typeof COUPON_QUOTE_SOURCES)[keyof typeof COUPON_QUOTE_SOURCES];
 
 export interface CouponQuote {
   couponDiscountCents: string;

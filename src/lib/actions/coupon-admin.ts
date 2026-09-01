@@ -146,7 +146,7 @@ export async function getAdminCoupons(): Promise<{ data: AdminCoupon[] } | { err
   if (definitions.error || audits.error) return error("No se pudieron cargar los cupones.");
   const actions = new Map<string, string>();
   for (const audit of audits.data ?? []) {
-    if (audit.action === "replaced" || !actions.has(audit.coupon_id)) actions.set(audit.coupon_id, audit.action);
+    if (audit.action === "replaced" || audit.action === "replacement_created" || !actions.has(audit.coupon_id)) actions.set(audit.coupon_id, audit.action);
   }
   return {
     data: (definitions.data ?? []).map((coupon) => ({
