@@ -26,7 +26,7 @@ interface OrderHistoryItem extends OrderItem {
 }
 
 export interface OrderHistoryOrder extends Order {
-  coupon_definitions: OrderHistoryCoupon[];
+  coupon_definitions: OrderHistoryCoupon[] | null;
   product_payment_reversal_evidence: PaymentReversalEvidence[];
   promotion_ids: string[];
   order_items: OrderHistoryItem[];

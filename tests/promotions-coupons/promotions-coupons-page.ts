@@ -49,9 +49,9 @@ export class CustomerPromotionsCouponsPage extends BasePage {
     await expect(this.checkoutForm.getByRole("radio", { name: `Usar cupón ${code}` })).toBeChecked();
   }
 
-  async handOffToCheckoutProvider(): Promise<void> {
+  async handOffToCheckoutProvider(customerEmail: string): Promise<void> {
     await this.checkoutForm.getByLabel("Nombre Completo").fill(CHECKOUT_DETAILS.fullName);
-    await this.checkoutForm.getByLabel("Email").fill(CHECKOUT_DETAILS.email);
+    await this.checkoutForm.getByLabel("Email").fill(customerEmail);
     await this.checkoutForm.getByLabel("DNI").fill(CHECKOUT_DETAILS.dni);
     await this.checkoutForm.getByLabel("Teléfono").fill(CHECKOUT_DETAILS.phone);
     await this.checkoutForm.getByLabel("Calle").fill(CHECKOUT_DETAILS.street);
@@ -60,16 +60,17 @@ export class CustomerPromotionsCouponsPage extends BasePage {
     await this.checkoutForm.getByLabel("Provincia").fill(CHECKOUT_DETAILS.province);
     await this.checkoutForm.getByLabel("CP").fill(CHECKOUT_DETAILS.zipCode);
     await Promise.all([
-      this.page.waitForURL(/mercadopago\.com/),
+      this.page.waitForURL(/\/e2e\/payment-handoff\?order_id=/),
       this.checkoutForm.getByRole("button", { name: "Pagar con MercadoPago" }).click(),
     ]);
   }
 
-  async assertImmutableHistory(orderId: string): Promise<void> {
+  async assertImmutableHistory(orderId: string, totalCents: number): Promise<void> {
     await this.goto("/orders");
     const order = this.page.locator("article").filter({ hasText: `#${orderId.slice(0, 8)}` });
     await expect(order.getByTestId("order-pricing-history")).toBeVisible();
     await expect(order.getByText("Total a pagar", { exact: true })).toBeVisible();
+    await expect(order.getByText((totalCents / 100).toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }))).toBeVisible();
   }
 }
 

@@ -63,6 +63,7 @@ beforeEach(() => {
         error: null,
       });
     }
+    if (name === "attach_order_preference") return Promise.resolve({ data: true, error: null });
     return Promise.resolve({ data: null, error: null });
   });
 });
@@ -91,6 +92,20 @@ describe("createCheckoutPreference telemetry isolation", () => {
       p_identity_key_version: "v1",
       p_pricing_source: "coupon",
     }));
+  });
+
+  it("uses the guarded local handoff without creating a MercadoPago preference", async () => {
+    vi.stubEnv("E2E_LOCAL_PAYMENT_HANDOFF", "true");
+    vi.stubEnv("E2E_LOCAL_SUPABASE", "true");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "http://127.0.0.1:4173");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:54321");
+
+    await expect(createCheckoutPreference(data, items)).resolves.toEqual({
+      initPoint: "http://127.0.0.1:4173/e2e/payment-handoff?order_id=order_123",
+      success: true,
+    });
+    expect(mocks.preferenceCreate).not.toHaveBeenCalled();
+    expect(mocks.rpc).toHaveBeenCalledWith("attach_order_preference", expect.objectContaining({ p_order_id: "order_123" }));
   });
 
   it("returns the existing structured failure and runs cancellation when Sentry capture throws", async () => {

@@ -12,13 +12,10 @@ const REQUIRED_ENVIRONMENT_VARIABLES = [
   "E2E_CLERK_USER_EMAIL",
   "E2E_CLERK_ADMIN_EMAIL",
   "E2E_LOCAL_SUPABASE",
-  "E2E_PROMOTIONS_COUPONS_CUSTOMER_COUPON",
-  "E2E_PROMOTIONS_COUPONS_HISTORY_ORDER_ID",
-  "E2E_PROMOTIONS_COUPONS_PRODUCT_SLUG",
-  "E2E_PROMOTIONS_COUPONS_PROMOTION_PERCENT",
+  "E2E_LOCAL_PAYMENT_HANDOFF",
 ] as const;
 
-const E2E_BASE_URL = "http://127.0.0.1:4173";
+const E2E_BASE_URL = "http://localhost:4173";
 
 function assertLocalPromotionsCouponsEnvironment(): void {
   const missing = REQUIRED_ENVIRONMENT_VARIABLES.filter((name) => !process.env[name]?.trim());
@@ -51,10 +48,14 @@ export default defineConfig({
     { name: "admin", testDir: "./tests/promotions-coupons", testMatch: "admin.authenticated.spec.ts", dependencies: ["admin-setup"], use: { ...devices["Desktop Chrome"], channel: "chrome", storageState: "playwright/.clerk/promotions-coupons-admin.json" } },
   ],
   webServer: {
-    command: "npm run dev -- --hostname 127.0.0.1 --port 4173",
+    command: "npm run dev -- --hostname localhost --port 4173",
     env: {
+      ADMIN_EMAIL: process.env.E2E_CLERK_ADMIN_EMAIL ?? "",
       NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
       NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+      E2E_LOCAL_PAYMENT_HANDOFF: process.env.E2E_LOCAL_PAYMENT_HANDOFF ?? "",
+      E2E_LOCAL_SUPABASE: process.env.E2E_LOCAL_SUPABASE ?? "",
+      MP_ACCESS_TOKEN: process.env.MP_ACCESS_TOKEN ?? "",
       SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
     },
     reuseExistingServer: false,

@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/actions/auth";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
-export const COUPON_LIFECYCLE_STATES = {
+const COUPON_LIFECYCLE_STATES = {
   ACTIVE: "active",
   DEACTIVATED: "deactivated",
   REPLACED: "replaced",
