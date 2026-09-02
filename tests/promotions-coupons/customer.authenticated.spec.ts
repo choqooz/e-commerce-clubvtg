@@ -1,23 +1,34 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { CustomerPromotionsCouponsPage } from "./promotions-coupons-page";
 
-const couponCode = process.env.E2E_PROMOTIONS_COUPONS_CUSTOMER_COUPON!;
-const historyOrderId = process.env.E2E_PROMOTIONS_COUPONS_HISTORY_ORDER_ID!;
-const productSlug = process.env.E2E_PROMOTIONS_COUPONS_PRODUCT_SLUG!;
-const promotionPercent = process.env.E2E_PROMOTIONS_COUPONS_PROMOTION_PERCENT!;
+interface PromotionsCouponsFixture {
+  couponCode: string;
+  customerEmail: string;
+  historyOrderId: string;
+  historyTotalCents: number;
+  productSlug: string;
+  promotionPercent: number;
+}
+
+function fixture(): PromotionsCouponsFixture {
+  return JSON.parse(readFileSync(path.join(process.cwd(), "playwright/.promotions-coupons-fixture.json"), "utf8")) as PromotionsCouponsFixture;
+}
 
 test(
   "customer quotes without reserving, defaults to promotions, selects a coupon, and reaches authoritative checkout",
   { tag: ["@critical", "@e2e", "@promotions-coupons", "@PROMOTIONS-COUPONS-E2E-001"] },
   async ({ page }) => {
+    const runtimeFixture = fixture();
     const customer = new CustomerPromotionsCouponsPage(page);
-    await customer.gotoProduct(productSlug);
-    await expect(page.getByText(`-${promotionPercent}% hasta`, { exact: false })).toBeVisible();
+    await customer.gotoProduct(runtimeFixture.productSlug);
+    await expect(page.getByText(`-${runtimeFixture.promotionPercent}% hasta`, { exact: false })).toBeVisible();
     await customer.addConfiguredProductToCart();
-    await customer.quoteCoupon(couponCode);
+    await customer.quoteCoupon(runtimeFixture.couponCode);
     await expect(page.getByRole("radio", { name: "Promociones" })).toBeChecked();
-    await customer.chooseCoupon(couponCode);
-    await customer.handOffToCheckoutProvider();
+    await customer.chooseCoupon(runtimeFixture.couponCode);
+    await customer.handOffToCheckoutProvider(runtimeFixture.customerEmail);
   },
 );
 
@@ -25,6 +36,7 @@ test(
   "customer history renders an immutable persisted pricing snapshot",
   { tag: ["@high", "@e2e", "@promotions-coupons", "@PROMOTIONS-COUPONS-E2E-002"] },
   async ({ page }) => {
-    await new CustomerPromotionsCouponsPage(page).assertImmutableHistory(historyOrderId);
+    const runtimeFixture = fixture();
+    await new CustomerPromotionsCouponsPage(page).assertImmutableHistory(runtimeFixture.historyOrderId, runtimeFixture.historyTotalCents);
   },
 );

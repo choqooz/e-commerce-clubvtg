@@ -3,8 +3,8 @@
 import { Loader2, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { useCart } from "@/contexts/cart-context";
-import { COUPON_QUOTE_SOURCES, quoteCouponCheckout, type CouponQuote } from "@/lib/actions/coupon-quote";
-import { CUSTOMER_COUPON_SOURCES, isCurrentCouponQuote, isCurrentCouponQuoteResponse, quoteRequestKey, startCouponQuoteRequest, type CouponQuoteRequest } from "@/lib/coupon-choice";
+import { quoteCouponCheckout, type CouponQuote } from "@/lib/actions/coupon-quote";
+import { COUPON_QUOTE_SOURCES, CUSTOMER_COUPON_SOURCES, isCurrentCouponQuote, isCurrentCouponQuoteResponse, quoteRequestKey, startCouponQuoteRequest, type CouponQuoteRequest, type CouponQuoteSource } from "@/lib/coupon-choice";
 import { formatQuoteCents } from "@/lib/quote-display";
 
 const QUOTE_STATUS = { ERROR: "error", IDLE: "idle", LOADING: "loading", SUCCESS: "success" } as const;
@@ -41,7 +41,7 @@ export function CouponSelection() {
   const error = quoteState.key && isCurrentCouponQuote(quoteState.key, currentKey) ? quoteState.error : null;
   const isLoading = quoteState.status === QUOTE_STATUS.LOADING && quoteState.key === currentKey;
 
-  async function requestQuote(selectedSource?: (typeof COUPON_QUOTE_SOURCES)[keyof typeof COUPON_QUOTE_SOURCES]): Promise<CouponQuote | null> {
+  async function requestQuote(selectedSource?: CouponQuoteSource): Promise<CouponQuote | null> {
     const key = currentKey;
     clearCouponSelection();
     const request = startCouponQuoteRequest(++requestIdentityRef.current, getCouponQuoteVersion());

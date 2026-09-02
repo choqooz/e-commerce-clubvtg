@@ -1,6 +1,9 @@
 export const CUSTOMER_COUPON_SOURCES = { COUPON: "coupon" } as const;
 export type CustomerCouponSource = (typeof CUSTOMER_COUPON_SOURCES)[keyof typeof CUSTOMER_COUPON_SOURCES];
 
+export const COUPON_QUOTE_SOURCES = { COUPON: "coupon", PROMOTIONS: "promotions" } as const;
+export type CouponQuoteSource = (typeof COUPON_QUOTE_SOURCES)[keyof typeof COUPON_QUOTE_SOURCES];
+
 export interface CustomerCouponChoice {
   couponCode: string;
   source: CustomerCouponSource | null;

@@ -25,12 +25,21 @@ interface ProductCheckoutIntent {
   reference: string;
 }
 
-export const CHECKOUT_PRICING_SOURCES = { COUPON: "coupon", PROMOTIONS: "promotions" } as const;
+const CHECKOUT_PRICING_SOURCES = { COUPON: "coupon", PROMOTIONS: "promotions" } as const;
 export type CheckoutPricingSource = (typeof CHECKOUT_PRICING_SOURCES)[keyof typeof CHECKOUT_PRICING_SOURCES];
 
 export interface CheckoutPricingSelection {
   couponCode?: string;
   source: CheckoutPricingSource;
+}
+
+function localPaymentHandoff(orderId: string): string | null {
+  if (process.env.E2E_LOCAL_PAYMENT_HANDOFF !== "true") return null;
+  const localSupabase = /^http:\/\/(127\.0\.0\.1|localhost)(?::\d+)?(?:\/|$)/.test(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "");
+  if (process.env.E2E_LOCAL_SUPABASE !== "true" || !localSupabase || process.env.NEXT_PUBLIC_APP_URL !== "http://localhost:4173") {
+    throw new Error("Local E2E payment handoff requires the disposable 127.0.0.1 Supabase runtime.");
+  }
+  return `http://localhost:4173/e2e/payment-handoff?order_id=${encodeURIComponent(orderId)}`;
 }
 
 export async function createCheckoutPreference(
@@ -80,6 +89,16 @@ export async function createCheckoutPreference(
     }
 
     try {
+      const localHandoff = localPaymentHandoff(intent.order_id);
+      if (localHandoff) {
+        const { data: attached, error: attachError } = await supabaseAdmin.rpc("attach_order_preference", {
+          p_expires_at: intent.expires_at,
+          p_order_id: intent.order_id,
+          p_preference_id: `e2e-local-${intent.order_id}`,
+        });
+        if (attachError || !attached) throw new Error("No se pudo asociar la preferencia de pago.");
+        return { success: true, initPoint: localHandoff };
+      }
       const preference = new Preference(mpClient);
       const { webhookBaseUrl } = resolvePaymentUrls();
       const response = await preference.create({
