@@ -9,6 +9,7 @@ vi.mock("@/lib/supabase/admin", () => ({ supabaseAdmin: { from: mocks.from, rpc:
 import { createCoupon, deactivateCoupon, getAdminCoupons, replaceCoupon } from "./coupon-admin";
 
 const id = "00000000-0000-4000-8000-000000000001";
+const replacementId = "00000000-0000-4000-8000-000000000002";
 function terms() { const formData = new FormData(); for (const [key, value] of Object.entries({ capacity: "3", code: "SAVE20", discountKind: "percentage", discountValue: "20", endsAt: "2026-09-02T00:00", startsAt: "2026-09-01T00:00" })) formData.set(key, value); return formData; }
 afterEach(() => vi.clearAllMocks());
 
@@ -59,10 +60,10 @@ describe("coupon admin actions", () => {
 
   it("projects lifecycle DTOs without identity or audit actor fields", async () => {
     mocks.requireAdmin.mockResolvedValue(null);
-    const definitions = { data: [{ capacity: 3, code: "SAVE20", ends_at: "2026-09-02T00:00:00Z", id, is_active: false, starts_at: "2026-09-01T00:00:00Z", used_count: 1 }], error: null };
-    const audits = { data: [{ action: "replaced", coupon_id: id }, { action: "created", coupon_id: id, fingerprint: "must-not-leak" }, { action: "deactivated", coupon_id: id }], error: null };
+    const definitions = { data: [{ capacity: 3, code: "SAVE20", ends_at: "2026-09-02T00:00:00Z", id, is_active: false, starts_at: "2026-09-01T00:00:00Z", used_count: 1 }, { capacity: 3, code: "SAVE20-NEW", ends_at: "2026-09-02T00:00:00Z", id: replacementId, is_active: false, starts_at: "2026-09-01T00:00:00Z", used_count: 0 }], error: null };
+    const audits = { data: [{ action: "replaced", coupon_id: id }, { action: "created", coupon_id: id, fingerprint: "must-not-leak" }, { action: "deactivated", coupon_id: id }, { action: "created", coupon_id: replacementId }, { action: "replacement_created", coupon_id: replacementId }, { action: "deactivated", coupon_id: replacementId }], error: null };
     mocks.from.mockReturnValueOnce({ select: vi.fn().mockReturnValue({ order: vi.fn().mockResolvedValue(definitions) }) }).mockReturnValueOnce({ select: vi.fn().mockResolvedValue(audits) });
-    await expect(getAdminCoupons()).resolves.toEqual({ data: [{ capacity: 3, code: "SAVE20", endsAt: "2026-09-02T00:00:00Z", id, startsAt: "2026-09-01T00:00:00Z", state: "replaced", usedCount: 1 }] });
+    await expect(getAdminCoupons()).resolves.toEqual({ data: [{ capacity: 3, code: "SAVE20", endsAt: "2026-09-02T00:00:00Z", id, startsAt: "2026-09-01T00:00:00Z", state: "replaced", usedCount: 1 }, { capacity: 3, code: "SAVE20-NEW", endsAt: "2026-09-02T00:00:00Z", id: replacementId, startsAt: "2026-09-01T00:00:00Z", state: "replacement", usedCount: 0 }] });
     expect(mocks.from).toHaveBeenCalledWith("coupon_definitions");
   });
 });
