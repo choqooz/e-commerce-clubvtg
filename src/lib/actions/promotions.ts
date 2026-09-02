@@ -60,4 +60,24 @@ export async function endPromotionEarly(promotionId: string, reason: string) {
   return { success: true };
 }
 
+export async function revisePromotion(promotionId: string, input: PromotionInput, reason: string) {
+  const actor = await requirePromotionAdmin();
+  if (typeof actor !== "string") return actor;
+  const { data, error } = await supabaseAdmin.rpc("revise_promotion", {
+    p_actor: actor,
+    p_discount_bps: input.discountBps,
+    p_ends_at: input.endsAt,
+    p_promotion_id: promotionId,
+    p_reason: reason,
+    p_starts_at: input.startsAt,
+    p_targets: input.targets.map((target) => ({
+      product_subtype_id: target.productSubtypeId ?? null,
+      product_type_id: target.productTypeId,
+    })),
+  });
+  if (error) return { error: error.message };
+  revalidatePromotionCatalog();
+  return { data, success: true };
+}
+
 export const deactivatePromotion = endPromotionEarly;
