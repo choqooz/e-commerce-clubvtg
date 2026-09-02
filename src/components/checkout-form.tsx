@@ -6,13 +6,15 @@ import { usePostHog } from "posthog-js/react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { CouponSelection } from "@/components/coupon-selection";
 import { useCart } from "@/contexts/cart-context";
 import { createCheckoutPreference } from "@/lib/actions/checkout";
 import { checkoutStartedEvent } from "@/lib/analytics-events";
+import { toCouponCheckoutSelection } from "@/lib/coupon-choice";
 import { checkoutSchema, type CheckoutFormValues } from "@/lib/validations/checkout";
 
 export function CheckoutForm() {
-  const { items, totalPrice } = useCart();
+  const { couponCode, couponSource, items, totalPrice } = useCart();
   const posthog = usePostHog();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -43,7 +45,7 @@ export function CheckoutForm() {
       const event = checkoutStartedEvent(items.length, totalPrice);
       posthog?.capture(event.event, event.properties);
       // Create Order and MP Preference
-      const res = await createCheckoutPreference(data, items);
+      const res = await createCheckoutPreference(data, items, toCouponCheckoutSelection({ couponCode, source: couponSource }));
 
       if (!res.success) {
         toast.error(res.error || "Ocurrió un error al procesar el pago");
@@ -69,7 +71,7 @@ export function CheckoutForm() {
   };
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <form data-testid="checkout-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
       <div className="space-y-4">
         <h3 className="font-heading text-xl">Datos de Contacto</h3>
 
@@ -80,6 +82,7 @@ export function CheckoutForm() {
             </label>
             <input
               {...form.register("fullName")}
+              aria-label="Nombre Completo"
               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="Juan Pérez"
               disabled={isSubmitting}
@@ -93,6 +96,7 @@ export function CheckoutForm() {
             <label className="text-xs uppercase font-sans font-medium tracking-widest">Email</label>
             <input
               {...form.register("email")}
+              aria-label="Email"
               type="email"
               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="juan@ejemplo.com"
@@ -107,6 +111,7 @@ export function CheckoutForm() {
             <label className="text-xs uppercase font-sans font-medium tracking-widest">DNI</label>
             <input
               {...form.register("dni")}
+              aria-label="DNI"
               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="12345678"
               disabled={isSubmitting}
@@ -122,6 +127,7 @@ export function CheckoutForm() {
             </label>
             <input
               {...form.register("phone")}
+              aria-label="Teléfono"
               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="11 1234 5678"
               disabled={isSubmitting}
@@ -141,6 +147,7 @@ export function CheckoutForm() {
             <label className="text-xs uppercase font-sans font-medium tracking-widest">Calle</label>
             <input
               {...form.register("street")}
+              aria-label="Calle"
               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="Av. Rivadavia"
               disabled={isSubmitting}
@@ -156,6 +163,7 @@ export function CheckoutForm() {
             </label>
             <input
               {...form.register("number")}
+              aria-label="Número"
               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="1234"
               disabled={isSubmitting}
@@ -183,6 +191,7 @@ export function CheckoutForm() {
             </label>
             <input
               {...form.register("city")}
+              aria-label="Ciudad"
               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="CABA"
               disabled={isSubmitting}
@@ -198,6 +207,7 @@ export function CheckoutForm() {
             </label>
             <input
               {...form.register("province")}
+              aria-label="Provincia"
               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="Buenos Aires"
               disabled={isSubmitting}
@@ -211,6 +221,7 @@ export function CheckoutForm() {
             <label className="text-xs uppercase font-sans font-medium tracking-widest">CP</label>
             <input
               {...form.register("zipCode")}
+              aria-label="CP"
               className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="1000"
               disabled={isSubmitting}
@@ -221,6 +232,8 @@ export function CheckoutForm() {
           </div>
         </div>
       </div>
+
+      <CouponSelection />
 
       <button
         type="submit"

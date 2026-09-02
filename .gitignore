@@ -16,6 +16,8 @@
 /test-results/
 /playwright/.auth/
 /playwright/.clerk/user.json
+/playwright/.clerk/promotions-coupons-admin.json
+/playwright/.promotions-coupons-fixture.json
 
 # next.js
 /.next/

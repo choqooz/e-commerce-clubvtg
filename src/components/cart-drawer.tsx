@@ -8,7 +8,7 @@ import { useCart } from "@/contexts/cart-context";
 import { formatPrice } from "@/lib/config";
 
 export function CartDrawer() {
-  const { items, removeItem, totalItems, totalPrice, isOpen, setIsOpen } = useCart();
+  const { couponCode, items, removeItem, setCouponCode, totalItems, totalPrice, isOpen, setIsOpen } = useCart();
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -66,6 +66,17 @@ export function CartDrawer() {
             </div>
 
             <div className="border-t border-border pt-4 space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="cart-coupon-code" className="text-xs font-sans font-medium uppercase tracking-widest">Cupón</label>
+                <input
+                  id="cart-coupon-code"
+                  value={couponCode}
+                  onChange={(event) => setCouponCode(event.target.value)}
+                  placeholder="Ingresalo para cotizarlo en checkout"
+                  className="w-full border border-border bg-transparent p-3 text-sm font-sans uppercase focus:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                <p className="text-xs font-sans text-muted-foreground">Elegirás entre el cupón y las promociones antes de pagar.</p>
+              </div>
               <div className="flex justify-between text-sm font-sans">
                 <span>Total</span>
                 <span className="font-medium">{formatPrice(totalPrice)}</span>

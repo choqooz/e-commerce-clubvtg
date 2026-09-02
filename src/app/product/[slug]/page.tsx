@@ -4,12 +4,14 @@ import { ProductDetailContent } from "@/components/product-detail-content";
 import { releaseExpiredReservations } from "@/lib/supabase/release-reservations";
 import { createClient } from "@/lib/supabase/server";
 
+export const dynamic = "force-dynamic";
+
 async function getProduct(slug: string) {
   // Lazy release: free any products reserved >15 min before reading
   await releaseExpiredReservations();
 
   const supabase = await createClient();
-  const { data, error } = await supabase.from("products").select("*").eq("slug", slug).single();
+  const { data, error } = await supabase.from("catalog_product_prices").select("*").eq("slug", slug).single();
 
   if (error || !data) return null;
   return data;
@@ -50,7 +52,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   // 2. Fetch related products (same category, different id, available)
   const supabase = await createClient();
   const { data: relatedProducts } = await supabase
-    .from("products")
+    .from("catalog_product_prices")
     .select("*")
     .eq("category", product.category)
     .eq("status", "available")
