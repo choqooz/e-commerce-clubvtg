@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutDashboard, Package, ShoppingCart } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingCart, Ticket } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,11 @@ const navItems = [
     title: "Órdenes",
     href: "/admin/orders",
     icon: ShoppingCart,
+  },
+  {
+    title: "Cupones",
+    href: "/admin/coupons",
+    icon: Ticket,
   },
 ];
 

@@ -9,7 +9,7 @@ const creditReference = "credits:123e4567-e89b-12d3-a456-426614174000";
 const creditIntent = { amount: 2500, credits: 50, currency: "ARS", id: "123e4567-e89b-12d3-a456-426614174000", pack_id: "popular", user_id: "user_123" };
 
 function payment(status = "approved", overrides: Record<string, unknown> = {}) {
-  return { currency_id: "ARS", external_reference: reference, id: 123, payer: { id: "attacker" }, status, transaction_amount: 2500, ...overrides };
+  return { currency_id: "ARS", external_reference: reference, id: 123, payer: { id: "attacker" }, status, transaction_amount: 2500, transaction_amount_refunded: status === "refunded" ? 2500 : undefined, ...overrides };
 }
 
 function dependencies(providerPayment: unknown = payment(), rpcData: unknown = [{ newly_applied: true, result: "applied" }]) {
@@ -43,9 +43,22 @@ describe("MercadoPago product payment contract", () => {
       expect(deps.provider.get).toHaveBeenCalledWith({ id: "123" });
       expect(deps.settlement.rpc).toHaveBeenCalledWith("settle_product_payment", {
         p_amount: 2500, p_currency: "ARS", p_event_class: status, p_payment_id: "123", p_provider: "mercadopago", p_reference: reference,
+        p_reversal_total: status === "charged_back" || status === "refunded" ? 2500 : null,
       });
     },
   );
+
+  it("persists fetched refund totals without trusting webhook payloads", async () => {
+    const deps = dependencies(payment("refunded", { transaction_amount_refunded: 750 }));
+
+    await expect(processProductPayment("123", deps)).resolves.toBe(PROCESS_PAYMENT_RESULT.ACKNOWLEDGED);
+    expect(deps.settlement.rpc).toHaveBeenCalledWith("settle_product_payment", expect.objectContaining({
+      p_event_class: "refunded",
+      p_reversal_total: 750,
+    }));
+  });
+
+  it("accepts exact two-decimal provider amounts", async () => expect(await processProductPayment("123", dependencies(payment("approved", { transaction_amount: 120.01 })))).toBe(PROCESS_PAYMENT_RESULT.ACKNOWLEDGED));
 
   it("performs exactly one provider fetch and one settlement RPC per processing call", async () => {
     const deps = dependencies();
@@ -71,6 +84,9 @@ describe("MercadoPago product payment contract", () => {
     [payment("approved", { id: 999 }), PROCESS_PAYMENT_RESULT.INVALID],
     [payment("approved", { transaction_amount: Infinity }), PROCESS_PAYMENT_RESULT.INVALID],
     [payment("approved", { transaction_amount: 1_000_000_000_001 }), PROCESS_PAYMENT_RESULT.INVALID],
+    [payment("approved", { transaction_amount: 120.006 }), PROCESS_PAYMENT_RESULT.INVALID],
+    [payment("refunded", { transaction_amount_refunded: 0 }), PROCESS_PAYMENT_RESULT.INVALID],
+    [payment("refunded", { transaction_amount: 120.01, transaction_amount_refunded: 120.004 }), PROCESS_PAYMENT_RESULT.INVALID],
   ])("rejects invalid fetched facts without an RPC mutation", async (providerPayment, expected) => {
     const deps = dependencies(providerPayment);
     expect(await processProductPayment("123", deps)).toBe(expected);

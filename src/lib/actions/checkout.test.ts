@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
+  currentUser: vi.fn(),
   captureException: vi.fn(),
   preferenceCreate: vi.fn(),
   releaseExpiredReservations: vi.fn(),
@@ -12,7 +13,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@clerk/nextjs/server", () => ({ auth: mocks.auth }));
+vi.mock("@clerk/nextjs/server", () => ({ auth: mocks.auth, currentUser: mocks.currentUser }));
 vi.mock("@sentry/nextjs", () => ({ captureException: mocks.captureException }));
 vi.mock("mercadopago", () => ({
   Preference: class {
@@ -45,6 +46,7 @@ const items = [{ product: { id: "00000000-0000-4000-8000-000000000001" }, quanti
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.auth.mockResolvedValue({ userId: "user_123" });
+  mocks.currentUser.mockResolvedValue({ primaryEmailAddress: { emailAddress: "buyer@example.test", verification: { status: "verified" } } });
   mocks.releaseExpiredReservations.mockResolvedValue(undefined);
   mocks.preferenceCreate.mockRejectedValue(new Error("MercadoPago unavailable"));
   mocks.rpc.mockImplementation((name) => {
@@ -61,13 +63,51 @@ beforeEach(() => {
         error: null,
       });
     }
+    if (name === "attach_order_preference") return Promise.resolve({ data: true, error: null });
     return Promise.resolve({ data: null, error: null });
   });
 });
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); });
 
 describe("createCheckoutPreference telemetry isolation", () => {
+  it("uses database-priced promotions when no coupon was explicitly selected", async () => {
+    await createCheckoutPreference(data, items);
+
+    expect(mocks.rpc).toHaveBeenCalledWith("create_product_checkout", expect.objectContaining({
+      p_coupon_code: null,
+      p_identity_fingerprint: null,
+      p_pricing_source: "promotions",
+    }));
+  });
+
+  it("derives the coupon identity server-side for an explicit coupon selection", async () => {
+    vi.stubEnv("COUPON_IDENTITY_HMAC_KEY_V1", "test-hmac-key");
+
+    await createCheckoutPreference(data, items, { couponCode: " snap50 ", source: "coupon" });
+
+    expect(mocks.rpc).toHaveBeenCalledWith("create_product_checkout", expect.objectContaining({
+      p_coupon_code: "SNAP50",
+      p_identity_fingerprint: expect.stringMatching(/^[0-9a-f]{64}$/),
+      p_identity_key_version: "v1",
+      p_pricing_source: "coupon",
+    }));
+  });
+
+  it("uses the guarded local handoff without creating a MercadoPago preference", async () => {
+    vi.stubEnv("E2E_LOCAL_PAYMENT_HANDOFF", "true");
+    vi.stubEnv("E2E_LOCAL_SUPABASE", "true");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "http://localhost:4173");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:54321");
+
+    await expect(createCheckoutPreference(data, items)).resolves.toEqual({
+      initPoint: "http://localhost:4173/e2e/payment-handoff?order_id=order_123",
+      success: true,
+    });
+    expect(mocks.preferenceCreate).not.toHaveBeenCalled();
+    expect(mocks.rpc).toHaveBeenCalledWith("attach_order_preference", expect.objectContaining({ p_order_id: "order_123" }));
+  });
+
   it("returns the existing structured failure and runs cancellation when Sentry capture throws", async () => {
     mocks.captureException.mockImplementation(() => {
       throw new Error("Sentry unavailable");

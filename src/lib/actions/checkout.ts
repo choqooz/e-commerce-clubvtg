@@ -1,6 +1,7 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
+import { createHmac } from "node:crypto";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { Preference } from "mercadopago";
 import { SHIPPING_FEE } from "@/lib/config";
 import { mpClient } from "@/lib/mercadopago";
@@ -24,9 +25,27 @@ interface ProductCheckoutIntent {
   reference: string;
 }
 
+const CHECKOUT_PRICING_SOURCES = { COUPON: "coupon", PROMOTIONS: "promotions" } as const;
+export type CheckoutPricingSource = (typeof CHECKOUT_PRICING_SOURCES)[keyof typeof CHECKOUT_PRICING_SOURCES];
+
+export interface CheckoutPricingSelection {
+  couponCode?: string;
+  source: CheckoutPricingSource;
+}
+
+function localPaymentHandoff(orderId: string): string | null {
+  if (process.env.E2E_LOCAL_PAYMENT_HANDOFF !== "true") return null;
+  const localSupabase = /^http:\/\/(127\.0\.0\.1|localhost)(?::\d+)?(?:\/|$)/.test(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "");
+  if (process.env.E2E_LOCAL_SUPABASE !== "true" || !localSupabase || process.env.NEXT_PUBLIC_APP_URL !== "http://localhost:4173") {
+    throw new Error("Local E2E payment handoff requires the disposable 127.0.0.1 Supabase runtime.");
+  }
+  return `http://localhost:4173/e2e/payment-handoff?order_id=${encodeURIComponent(orderId)}`;
+}
+
 export async function createCheckoutPreference(
   data: CheckoutFormValues,
   items: CartItem[],
+  selection?: CheckoutPricingSelection,
 ): Promise<{ initPoint?: string; sandboxInitPoint?: string; success: true } | { error: string; success: false }> {
   try {
     const { userId } = await auth();
@@ -34,6 +53,20 @@ export async function createCheckoutPreference(
 
     const parsed = checkoutItemsSchema.safeParse(items);
     if (!parsed.success) return { success: false, error: "Datos del carrito inválidos" };
+
+    const source = selection?.source ?? CHECKOUT_PRICING_SOURCES.PROMOTIONS;
+    const code = selection?.couponCode?.trim().toUpperCase();
+    if (!Object.values(CHECKOUT_PRICING_SOURCES).includes(source) || (source === CHECKOUT_PRICING_SOURCES.COUPON && !/^[A-Z0-9-]{3,64}$/.test(code ?? "")) || (source === CHECKOUT_PRICING_SOURCES.PROMOTIONS && code)) return { success: false, error: "La selección de descuento no es válida." };
+    let identityKeyVersion: string | null = null;
+    let identityFingerprint: string | null = null;
+    if (source === CHECKOUT_PRICING_SOURCES.COUPON) {
+      const user = await currentUser();
+      const email = user?.primaryEmailAddress;
+      const key = process.env.COUPON_IDENTITY_HMAC_KEY_V1;
+      if (email?.verification?.status !== "verified" || !email.emailAddress || !key) return { success: false, error: "Se requiere una identidad verificada para usar un cupón." };
+      identityKeyVersion = "v1";
+      identityFingerprint = createHmac("sha256", key).update(email.emailAddress.trim().toLowerCase()).digest("hex");
+    }
 
     await releaseExpiredReservations();
     const { data: checkoutData, error: checkoutError } = await supabaseAdmin.rpc(
@@ -43,6 +76,10 @@ export async function createCheckoutPreference(
         p_shipping_fee: SHIPPING_FEE,
         p_shipping_info: data,
         p_user_id: userId,
+        p_pricing_source: source,
+        p_coupon_code: code ?? null,
+        p_identity_key_version: identityKeyVersion,
+        p_identity_fingerprint: identityFingerprint,
       },
     );
     const intent = checkoutData?.[0] as ProductCheckoutIntent | undefined;
@@ -52,6 +89,16 @@ export async function createCheckoutPreference(
     }
 
     try {
+      const localHandoff = localPaymentHandoff(intent.order_id);
+      if (localHandoff) {
+        const { data: attached, error: attachError } = await supabaseAdmin.rpc("attach_order_preference", {
+          p_expires_at: intent.expires_at,
+          p_order_id: intent.order_id,
+          p_preference_id: `e2e-local-${intent.order_id}`,
+        });
+        if (attachError || !attached) throw new Error("No se pudo asociar la preferencia de pago.");
+        return { success: true, initPoint: localHandoff };
+      }
       const preference = new Preference(mpClient);
       const { webhookBaseUrl } = resolvePaymentUrls();
       const response = await preference.create({
