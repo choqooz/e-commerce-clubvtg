@@ -36,13 +36,17 @@ function stringValue(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
-function reportProcessingIssue(paymentId: string, processing: Awaited<ReturnType<typeof processPaymentDetails>>) {
+function redactedPaymentReference(paymentId: string, secret: string): string {
+  return `mp_${createHmac("sha256", secret).update(`payment-id:v1:${paymentId}`).digest("hex").slice(0, 16)}`;
+}
+
+function reportProcessingIssue(paymentId: string, secret: string, processing: Awaited<ReturnType<typeof processPaymentDetails>>) {
   if (!processing.issue) return;
   try {
     Sentry.captureMessage("MercadoPago payment processing issue", {
       level: "warning",
       tags: {
-        payment_id: paymentId,
+        payment_reference: redactedPaymentReference(paymentId, secret),
         payment_issue: processing.issue,
         payment_result: processing.result,
       },
@@ -114,7 +118,7 @@ export async function POST(request: Request) {
   }
 
   const processing = await processPaymentDetails(paymentId);
-  reportProcessingIssue(paymentId, processing);
+  reportProcessingIssue(paymentId, secret, processing);
   if (processing.result === PROCESS_PAYMENT_RESULT.ACKNOWLEDGED) {
     if (processing.settlement?.kind === "product" && processing.settlement.newlyApplied && processing.settlement.orderId) {
       await runNewlyAppliedProductPaymentEffects(processing.settlement.orderId);

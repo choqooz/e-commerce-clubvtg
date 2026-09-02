@@ -50,7 +50,7 @@ export function formatHistoricalOrderTotal(order: Pick<PricingHistoryOrder, "tot
 export function OrderPricingHistory({ order }: { order: PricingHistoryOrder }) {
   if (!hasAuthoritativeSnapshot(order)) return null;
 
-  const couponCode = order.coupon_definitions[0]?.code;
+  const couponCode = order.coupon_definitions?.[0]?.code;
   const source = order.pricing_source === "coupon" ? `Cupón${couponCode ? ` ${couponCode}` : ""}` : order.pricing_source === "promotions" ? "Promociones" : "Sin fuente registrada";
 
   return (
