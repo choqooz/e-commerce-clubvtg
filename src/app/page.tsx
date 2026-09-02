@@ -2,6 +2,8 @@ import { CatalogContent } from "@/components/catalog-content";
 import { releaseExpiredReservations } from "@/lib/supabase/release-reservations";
 import { createClient } from "@/lib/supabase/server";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   // Lazy release: free any products reserved >15 min before querying
   await releaseExpiredReservations();
@@ -9,7 +11,7 @@ export default async function HomePage() {
   const supabase = await createClient();
 
   const { data: products } = await supabase
-    .from("products")
+    .from("catalog_product_prices")
     .select("*")
     .eq("status", "available")
     .order("created_at", { ascending: false });

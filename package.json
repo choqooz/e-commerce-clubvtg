@@ -14,7 +14,8 @@
     "test:payment-webhook": "vitest run src/lib/payments/mercadopago.test.ts src/app/api/webhooks/mp/route.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
-    "test:e2e:auth": "playwright test --config=playwright.auth.config.ts"
+    "test:e2e:auth": "playwright test --config=playwright.auth.config.ts",
+    "test:e2e:promotions-coupons": "node scripts/run-promotions-coupons-e2e.mjs"
   },
   "dependencies": {
     "@clerk/localizations": "^4.15.7",

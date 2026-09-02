@@ -139,8 +139,9 @@ export function ProductDetailContent({
               <h1 className="font-heading text-3xl md:text-4xl font-light mb-3">{product.title}</h1>
 
               <div className="flex items-center gap-3 mb-6">
-                <span className="text-lg font-sans">{formatPrice(product.price)}</span>
-                {/* Vintage items don't typically have "originalPrice", so removed */}
+                {product.promotion_percent ? <span className="text-sm text-muted-foreground line-through">{formatPrice(product.price)}</span> : null}
+                <span className="text-lg font-sans">{formatPrice(product.current_price ?? product.price)}</span>
+                {product.promotion_percent && product.promotion_ends_at ? <span className="text-xs font-medium text-green-700">-{product.promotion_percent}% hasta {new Intl.DateTimeFormat("es-AR", { dateStyle: "short", hourCycle: "h23", timeStyle: "medium", timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(product.promotion_ends_at))}</span> : null}
               </div>
 
               <p className="text-sm text-muted-foreground leading-relaxed mb-8 font-sans whitespace-pre-wrap">

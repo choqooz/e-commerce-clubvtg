@@ -4,6 +4,8 @@ import { formatPrice } from "@/lib/config";
 import type { Product } from "@/lib/types";
 
 export function ProductCard({ product, priority = false }: { product: Product; priority?: boolean }) {
+  const currentPrice = product.current_price ?? product.price;
+  const promotionEnd = product.promotion_ends_at && new Intl.DateTimeFormat("es-AR", { dateStyle: "short", hourCycle: "h23", timeStyle: "medium", timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(product.promotion_ends_at));
   return (
     <Link
       href={`/product/${product.slug}`}
@@ -32,8 +34,11 @@ export function ProductCard({ product, priority = false }: { product: Product; p
       {/* Info */}
       <h3 className="product-card-title mt-3">{product.title}</h3>
       <div className="flex items-center gap-2 mt-1">
-        <span className="product-card-price">{formatPrice(product.price)}</span>
+        {product.promotion_percent ? <span className="text-xs text-muted-foreground line-through">{formatPrice(product.price)}</span> : null}
+        <span className="product-card-price">{formatPrice(currentPrice)}</span>
+        {product.promotion_percent ? <span className="text-xs font-medium text-green-700">-{product.promotion_percent}%</span> : null}
       </div>
+      {promotionEnd ? <span className="text-xs text-muted-foreground">Hasta {promotionEnd}</span> : null}
 
       {/* Color + size */}
       <div className="flex items-center gap-2 mt-2">

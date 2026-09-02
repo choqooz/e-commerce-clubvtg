@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { OrderPricingHistory, formatHistoricalOrderTotal } from "@/components/orders/order-pricing-history";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,8 +30,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { updateOrderStatus, shipOrder } from "@/lib/actions/orders";
-import { formatPrice } from "@/lib/config";
-import type { Order, OrderItem, OrderStatus } from "@/lib/types";
+import type { OrderHistoryOrder } from "@/lib/actions/orders";
+import type { OrderStatus } from "@/lib/types";
 
 const STATUS_CONFIG: Record<
   OrderStatus,
@@ -56,7 +57,7 @@ const STATUS_CONFIG: Record<
 };
 
 interface OrdersTableProps {
-  orders: (Order & { order_items: OrderItem[] })[];
+  orders: OrderHistoryOrder[];
 }
 
 export function OrdersTable({ orders }: OrdersTableProps) {
@@ -84,12 +85,11 @@ export function OrdersTable({ orders }: OrdersTableProps) {
   );
 }
 
-function OrderRow({ order }: { order: Order & { order_items: OrderItem[] } }) {
+function OrderRow({ order }: { order: OrderHistoryOrder }) {
   const [isPending, startTransition] = useTransition();
   const [shippingOrderId, setShippingOrderId] = useState<string | null>(null);
   const [trackingInput, setTrackingInput] = useState("");
 
-  const total = order.order_items.reduce((sum, item) => sum + item.price, 0);
   const config = STATUS_CONFIG[order.status];
 
   function handleStatusChange(newStatus: string) {
@@ -139,7 +139,7 @@ function OrderRow({ order }: { order: Order & { order_items: OrderItem[] } }) {
             <p className="text-xs text-muted-foreground">{order.customer_email}</p>
           </div>
         </TableCell>
-        <TableCell className="px-4">{formatPrice(total)}</TableCell>
+        <TableCell className="px-4">{formatHistoricalOrderTotal(order)}</TableCell>
         <TableCell className="px-4">
           <Badge variant={config.variant ?? "outline"} className={config.className}>
             {config.label}
@@ -167,6 +167,12 @@ function OrderRow({ order }: { order: Order & { order_items: OrderItem[] } }) {
               <SelectItem value="cancelled">Cancelado</SelectItem>
             </SelectContent>
           </Select>
+        </TableCell>
+      </TableRow>
+
+      <TableRow>
+        <TableCell colSpan={7} className="whitespace-normal px-4 py-3">
+          <OrderPricingHistory order={order} />
         </TableCell>
       </TableRow>
 
