@@ -5,22 +5,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { formatPrice } from "@/lib/config";
-import type { Order, OrderItem, OrderStatus } from "@/lib/types";
+import type { OrderHistoryOrder } from "@/lib/actions/orders";
+import type { OrderStatus } from "@/lib/types";
+import { OrderPricingHistory, formatHistoricalOrderTotal } from "./order-pricing-history";
 
 // ── Types for the joined query ──
-
-interface OrderItemWithProduct extends OrderItem {
-  products: {
-    title: string;
-    image_urls: string[];
-    slug: string;
-  } | null;
-}
-
-interface OrderWithItems extends Order {
-  order_items: OrderItemWithProduct[];
-}
 
 // ── Status config (mirrors admin) ──
 
@@ -50,7 +39,7 @@ const STATUS_CONFIG: Record<
 // ── Component ──
 
 interface OrdersPageContentProps {
-  orders: OrderWithItems[];
+  orders: OrderHistoryOrder[];
 }
 
 export function OrdersPageContent({ orders }: OrdersPageContentProps) {
@@ -69,8 +58,7 @@ export function OrdersPageContent({ orders }: OrdersPageContentProps) {
 
 // ── Order Card ──
 
-function OrderCard({ order }: { order: OrderWithItems }) {
-  const total = order.order_items.reduce((sum, item) => sum + item.price, 0);
+function OrderCard({ order }: { order: OrderHistoryOrder }) {
   const config = STATUS_CONFIG[order.status];
   const formattedDate = new Date(order.created_at).toLocaleDateString("es-AR", {
     day: "numeric",
@@ -125,12 +113,18 @@ function OrderCard({ order }: { order: OrderWithItems }) {
 
       <Separator />
 
+      <div className="px-5 py-4">
+        <OrderPricingHistory order={order} />
+      </div>
+
+      <Separator />
+
       {/* Footer — Total */}
       <div className="flex items-center justify-between px-5 py-3">
         <span className="text-sm text-muted-foreground">
           {order.order_items.length} {order.order_items.length === 1 ? "producto" : "productos"}
         </span>
-        <span className="text-base font-semibold">{formatPrice(total)}</span>
+        <span className="text-base font-semibold">{formatHistoricalOrderTotal(order)}</span>
       </div>
     </article>
   );
@@ -138,7 +132,7 @@ function OrderCard({ order }: { order: OrderWithItems }) {
 
 // ── Order Item Row ──
 
-function OrderItemRow({ item }: { item: OrderItemWithProduct }) {
+function OrderItemRow({ item }: { item: OrderHistoryOrder["order_items"][number] }) {
   const product = item.products;
   const imageUrl = product?.image_urls?.[0];
 
@@ -171,7 +165,7 @@ function OrderItemRow({ item }: { item: OrderItemWithProduct }) {
         ) : (
           <span className="text-sm font-medium line-clamp-1">Producto</span>
         )}
-        <p className="text-sm text-muted-foreground">{formatPrice(item.price)}</p>
+        <p className="text-sm text-muted-foreground">{formatHistoricalOrderTotal({ total_amount: item.price, total_cents: item.final_cents })}</p>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { getUserOrders, shipOrder, updateOrderStatus } from "./orders";
+import { getAdminOrders, getUserOrders, shipOrder, updateOrderStatus } from "./orders";
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
   order: vi.fn(),
@@ -31,7 +31,7 @@ describe("order authority actions", () => {
     const fields = mocks.select.mock.calls[0][0] as string;
     expect(fields).toContain("merchandise_original_cents");
     expect(fields).not.toContain("product_payment_reversal_evidence");
-    expect(fields).not.toMatch(/fingerprint|identity_key_version|used_count|deactivation_reason|actor/);
+    expect(fields).not.toMatch(/fingerprint|identity_key_version|mp_payment_id|mp_preference_id|used_count|deactivation_reason|actor/);
     expect(mocks.rpc).toHaveBeenCalledWith("get_order_history_reversal_evidence", { p_order_ids: [] });
   });
 
@@ -41,6 +41,14 @@ describe("order authority actions", () => {
 
     await expect(updateOrderStatus("order_1", "paid")).resolves.toEqual({ error: "Direct status changes are not allowed" });
     expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+
+  it("denies administrative history before issuing its safe projection query", async () => {
+    mocks.select.mockClear();
+    mocks.requireAdmin.mockResolvedValue({ error: "No tenés permisos de administrador." });
+
+    await expect(getAdminOrders()).resolves.toBeNull();
+    expect(mocks.select).not.toHaveBeenCalled();
   });
 
   it("uses the valid-state shipping RPC instead of a direct order update", async () => {

@@ -1,22 +1,12 @@
 import { OrdersTable } from "@/components/admin/orders-table";
-import { supabaseAdmin } from "@/lib/supabase/admin";
-import type { Order, OrderItem } from "@/lib/types";
+import { getAdminOrders } from "@/lib/actions/orders";
 
 export const metadata = {
   title: "Órdenes | Admin ClubVTG",
 };
 
 export default async function AdminOrdersPage() {
-  const { data: orders, error } = await supabaseAdmin
-    .from("orders")
-    .select("*, order_items(*)")
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.error("Error fetching orders:", error);
-  }
-
-  const typedOrders = (orders ?? []) as (Order & { order_items: OrderItem[] })[];
+  const typedOrders = (await getAdminOrders()) ?? [];
 
   return (
     <div className="space-y-6">
