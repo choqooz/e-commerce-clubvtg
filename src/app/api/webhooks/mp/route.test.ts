@@ -125,21 +125,25 @@ describe("MercadoPago product webhook activation", () => {
     expect(mocks.runNewlyAppliedCreditPaymentEffects).toHaveBeenCalledWith(settlement);
   });
 
-  it.each([false, true])("reports typed issues without changing signed webhook outcomes when Sentry throws: %s", async (throws) => {
+  it.each([false, true])("reports typed issues with a deterministic redacted payment reference without changing signed webhook outcomes when Sentry throws: %s", async (throws) => {
     process.env.MP_WEBHOOK_SECRET = secret;
     if (throws) mocks.captureMessage.mockImplementationOnce(() => { throw new Error("Sentry offline"); });
     mocks.processPaymentDetails
       .mockResolvedValueOnce({ issue: "invalid_provider_facts", result: "invalid", settlement: null })
       .mockResolvedValueOnce({ issue: "provider_fetch", result: "retry", settlement: null });
 
-    expect((await POST(signedRequest())).status).toBe(400);
-    const response = await POST(signedRequest());
+    const paymentId = "987654321";
+    expect((await POST(signedRequest({ body: { type: "payment", data: { id: paymentId } }, paymentId }))).status).toBe(400);
+    const response = await POST(signedRequest({ body: { type: "payment", data: { id: paymentId } }, paymentId }));
     expect(response.status).toBe(503);
     expect(response.headers.get("Retry-After")).toBe("60");
-    expect(mocks.captureMessage).toHaveBeenCalledWith(
-      "MercadoPago payment processing issue",
-      expect.objectContaining({ tags: expect.objectContaining({ payment_id: "123" }) }),
-    );
+    const firstTags = mocks.captureMessage.mock.calls[0][1].tags;
+    const secondTags = mocks.captureMessage.mock.calls[1][1].tags;
+    expect(firstTags).toMatchObject({ payment_issue: "invalid_provider_facts", payment_result: "invalid" });
+    expect(firstTags.payment_reference).toMatch(/^mp_[0-9a-f]{16}$/);
+    expect(secondTags.payment_reference).toBe(firstTags.payment_reference);
+    expect(firstTags.payment_id).toBeUndefined();
+    expect(JSON.stringify(firstTags)).not.toContain(paymentId);
   });
 
   it("routes a signed credit settlement without product first-effects", async () => {

@@ -97,11 +97,11 @@ describe("createCheckoutPreference telemetry isolation", () => {
   it("uses the guarded local handoff without creating a MercadoPago preference", async () => {
     vi.stubEnv("E2E_LOCAL_PAYMENT_HANDOFF", "true");
     vi.stubEnv("E2E_LOCAL_SUPABASE", "true");
-    vi.stubEnv("NEXT_PUBLIC_APP_URL", "http://127.0.0.1:4173");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "http://localhost:4173");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:54321");
 
     await expect(createCheckoutPreference(data, items)).resolves.toEqual({
-      initPoint: "http://127.0.0.1:4173/e2e/payment-handoff?order_id=order_123",
+      initPoint: "http://localhost:4173/e2e/payment-handoff?order_id=order_123",
       success: true,
     });
     expect(mocks.preferenceCreate).not.toHaveBeenCalled();

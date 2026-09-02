@@ -68,9 +68,10 @@ export class CustomerPromotionsCouponsPage extends BasePage {
   async assertImmutableHistory(orderId: string, totalCents: number): Promise<void> {
     await this.goto("/orders");
     const order = this.page.locator("article").filter({ hasText: `#${orderId.slice(0, 8)}` });
-    await expect(order.getByTestId("order-pricing-history")).toBeVisible();
-    await expect(order.getByText("Total a pagar", { exact: true })).toBeVisible();
-    await expect(order.getByText((totalCents / 100).toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }))).toBeVisible();
+    const pricingHistory = order.getByTestId("order-pricing-history");
+    await expect(pricingHistory).toBeVisible();
+    await expect(pricingHistory.getByText("Total a pagar", { exact: true })).toBeVisible();
+    await expect(pricingHistory.getByText("Total a pagar", { exact: true }).locator("xpath=following-sibling::dd[1]")).toHaveText((totalCents / 100).toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }));
   }
 }
 
@@ -93,7 +94,7 @@ export class AdminPromotionsCouponsPage extends BasePage {
     await form.getByLabel("Inicio UTC").fill(startsAt);
     await form.getByLabel("Fin UTC").fill(endsAt);
     await form.getByLabel("Tipo de descuento").selectOption("percentage");
-    await form.getByLabel("Descuento").fill("10");
+    await form.getByLabel("Descuento", { exact: true }).fill("10");
     if (replacementCode) {
       await form.getByLabel("Cupón a reemplazar").selectOption({ label: `Reemplazar ${replacementCode}` });
       await form.getByLabel("Motivo de reemplazo").fill("Fixture lifecycle replacement");
