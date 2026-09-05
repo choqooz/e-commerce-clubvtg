@@ -102,7 +102,7 @@ begin
     if p_reversal_total is null or p_reversal_total <= 0 or p_reversal_total in ('NaN'::numeric, 'Infinity'::numeric, '-Infinity'::numeric) or p_reversal_total * 100 <> trunc(p_reversal_total * 100) then newly_applied := false; result := 'invalid_payment'; return next; return; end if;
     v_reversal_cents := (p_reversal_total * 100)::bigint;
     select * into v_order from public.orders where integrity_version = 1 and payment_reference = p_reference for update;
-    if not found or v_order.payment_amount_cents <> v_payment_cents or v_order.payment_currency <> p_currency or v_reversal_cents > v_order.payment_amount_cents or v_order.mp_payment_id <> p_payment_id then
+    if not found or v_order.payment_amount_cents <> v_payment_cents or v_order.payment_currency <> p_currency or v_reversal_cents > v_order.payment_amount_cents or v_order.mp_payment_id is null or v_order.mp_payment_id <> p_payment_id then
       newly_applied := false; result := 'payment_mismatch'; return next; return;
     end if;
     insert into public.product_payment_reversal_evidence (order_id, provider, payment_id, event_class, reversal_total_cents) values (v_order.id, p_provider, p_payment_id, p_event_class, v_reversal_cents) on conflict do nothing;

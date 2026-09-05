@@ -2,14 +2,34 @@ begin;
 alter table public.promotion_audit_events drop constraint promotion_audit_events_action_check;
 alter table public.promotion_audit_events add constraint promotion_audit_events_action_check
   check (action in ('created', 'ended_early', 'deactivated', 'revised'));
+create table public.promotion_terms_update_authorizations (
+  promotion_id uuid primary key references public.promotion_campaigns(id) on delete cascade,
+  expected_discount_bps integer not null,
+  next_discount_bps integer not null,
+  expected_starts_at timestamptz not null,
+  next_starts_at timestamptz not null,
+  expected_ends_at timestamptz not null,
+  next_ends_at timestamptz not null,
+  created_at timestamptz not null default now()
+);
+alter table public.promotion_terms_update_authorizations enable row level security;
+revoke all on public.promotion_terms_update_authorizations from public, anon, authenticated, service_role;
 create or replace function public.guard_promotion_campaign_update() returns trigger
 language plpgsql set search_path = '' as $function$
 begin
   if new.discount_bps <> old.discount_bps or new.starts_at <> old.starts_at or new.ends_at <> old.ends_at then
-    if current_setting('app.promotion_revision', true) is distinct from 'true' then
+    delete from public.promotion_terms_update_authorizations
+    where promotion_id = old.id
+      and expected_discount_bps = old.discount_bps
+      and next_discount_bps = new.discount_bps
+      and expected_starts_at = old.starts_at
+      and next_starts_at = new.starts_at
+      and expected_ends_at = old.ends_at
+      and next_ends_at = new.ends_at;
+    if not found then
       raise exception using errcode = 'P0001', message = 'promotion_terms_immutable';
     end if;
-    if old.starts_at <= pg_catalog.statement_timestamp() then
+    if old.starts_at <= pg_catalog.statement_timestamp() or new.starts_at <= pg_catalog.statement_timestamp() then
       raise exception using errcode = 'P0001', message = 'promotion_revision_not_future';
     end if;
   end if;
@@ -35,6 +55,9 @@ begin
   end if;
   if p_starts_at >= p_ends_at then
     raise exception using errcode = '23514', message = 'promotion_schedule_invalid';
+  end if;
+  if p_starts_at <= pg_catalog.statement_timestamp() then
+    raise exception using errcode = 'P0001', message = 'promotion_revision_not_future';
   end if;
   if btrim(coalesce(p_actor, '')) = '' or btrim(coalesce(p_reason, '')) = ''
     or jsonb_typeof(p_targets) <> 'array' or jsonb_array_length(p_targets) = 0 then
@@ -73,7 +96,13 @@ begin
     raise exception using errcode = 'P0001', message = 'promotion_target_overlap';
   end if;
   v_before := jsonb_build_object('discount_bps', v_campaign.discount_bps, 'starts_at', v_campaign.starts_at, 'ends_at', v_campaign.ends_at, 'is_active', v_campaign.is_active, 'targets', v_current_targets);
-  perform pg_catalog.set_config('app.promotion_revision', 'true', true);
+  insert into public.promotion_terms_update_authorizations (
+    promotion_id, expected_discount_bps, next_discount_bps,
+    expected_starts_at, next_starts_at, expected_ends_at, next_ends_at
+  ) values (
+    p_promotion_id, v_campaign.discount_bps, p_discount_bps,
+    v_campaign.starts_at, p_starts_at, v_campaign.ends_at, p_ends_at
+  );
   update public.promotion_campaigns
   set discount_bps = p_discount_bps, starts_at = p_starts_at, ends_at = p_ends_at
   where id = p_promotion_id;

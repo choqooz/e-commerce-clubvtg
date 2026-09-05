@@ -19,6 +19,48 @@ select id as accessories_type_id from public.product_types where name = 'Revisio
 set role service_role;
 select public.create_promotion('user_admin', 1000, statement_timestamp() + interval '2 hours', statement_timestamp() + interval '4 hours', jsonb_build_array(jsonb_build_object('product_type_id', :'outerwear_type_id'::uuid, 'product_subtype_id', null))) as revision_promotion_id \gset
 reset role;
+do $forged_authorization$
+begin
+  begin
+    set local role service_role;
+    insert into public.promotion_terms_update_authorizations (
+      promotion_id, expected_discount_bps, next_discount_bps,
+      expected_starts_at, next_starts_at, expected_ends_at, next_ends_at
+    )
+    select id, discount_bps, 2000, starts_at, statement_timestamp() + interval '3 hours', ends_at, statement_timestamp() + interval '5 hours'
+    from public.promotion_campaigns
+    where starts_at > statement_timestamp() + interval '1 hour'
+      and starts_at < statement_timestamp() + interval '3 hours';
+    raise exception 'direct_revision_authorization_insert_accepted';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    set local role service_role;
+    perform pg_catalog.set_config('app.promotion_revision', 'true', true);
+    update public.promotion_campaigns
+    set discount_bps = 2000, starts_at = statement_timestamp() + interval '3 hours', ends_at = statement_timestamp() + interval '5 hours'
+    where starts_at > statement_timestamp() + interval '1 hour'
+      and starts_at < statement_timestamp() + interval '3 hours';
+    raise exception 'forged_revision_authorization_accepted';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform pg_catalog.set_config('app.promotion_revision', 'true', true);
+    update public.promotion_campaigns
+    set discount_bps = 2000, starts_at = statement_timestamp() + interval '3 hours', ends_at = statement_timestamp() + interval '5 hours'
+    where starts_at > statement_timestamp() + interval '1 hour'
+      and starts_at < statement_timestamp() + interval '3 hours';
+    raise exception 'forged_revision_authorization_accepted';
+  exception when others then
+    if sqlerrm <> 'promotion_terms_immutable' then raise; end if;
+  end;
+end;
+$forged_authorization$;
+select pg_temp.assert_true(
+  not has_table_privilege('service_role', 'public.promotion_terms_update_authorizations', 'insert')
+  and not has_table_privilege('service_role', 'public.promotion_terms_update_authorizations', 'delete'),
+  'service_role_must_not_forge_promotion_revision_authorization'
+);
 set role service_role;
 select public.revise_promotion('user_admin', :'revision_promotion_id'::uuid, 2000, statement_timestamp() + interval '3 hours', statement_timestamp() + interval '5 hours', jsonb_build_array(jsonb_build_object('product_type_id', :'outerwear_type_id'::uuid, 'product_subtype_id', null)), 'Correct future campaign terms') as revision_number \gset
 reset role;
@@ -46,6 +88,15 @@ begin
     );
     raise exception 'revision_target_change_allowed';
   exception when others then if sqlerrm <> 'promotion_revision_targets_immutable' then raise; end if; end;
+  begin
+    perform public.revise_promotion(
+      'user_admin', (select id from public.promotion_campaigns where starts_at > statement_timestamp() + interval '2 hours' and starts_at < statement_timestamp() + interval '4 hours'), 3000,
+      statement_timestamp(), statement_timestamp() + interval '6 hours',
+      jsonb_build_array(jsonb_build_object('product_type_id', (select id from public.product_types where name = 'Revision outerwear'), 'product_subtype_id', null)),
+      'Past revision start'
+    );
+    raise exception 'past_revision_start_allowed';
+  exception when others then if sqlerrm <> 'promotion_revision_not_future' then raise; end if; end;
   begin
     set local role authenticated;
     perform public.revise_promotion('user_admin', (select id from public.promotion_campaigns where starts_at > statement_timestamp() + interval '2 hours' and starts_at < statement_timestamp() + interval '4 hours'), 1000, statement_timestamp() + interval '3 hours', statement_timestamp() + interval '5 hours', '[]', 'Unauthorized');

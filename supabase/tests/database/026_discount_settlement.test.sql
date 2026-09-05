@@ -81,6 +81,18 @@ create temp table settled_coupon_order as select * from public.settle_product_pa
 select pg_temp.assert_true((select newly_applied and result = 'applied' from settled_coupon_order) and (select status = 'paid' and coupon_reservation_state = 'consumed' from public.orders where id = (select order_id from coupon_order)) and (select reservation_state = 'consumed' from public.coupon_checkout_reservations where order_id = (select order_id from coupon_order)) and (select count(*) = 1 from public.coupon_identity_uses where coupon_id = :'coupon_id'::uuid and key_version = 'v1' and fingerprint = repeat('d', 64)) and (select count(*) = 2 from public.inventory_reservations where order_id = (select order_id from coupon_order) and status = 'sold'), 'approval_must_consume_coupon_and_inventory_once');
 create temp table replayed_coupon_order as select * from public.settle_product_payment('mercadopago', 'pay-026-coupon', 'approved', (select reference from coupon_order), 120.01, 'ARS', null);
 select pg_temp.assert_true(not (select newly_applied from replayed_coupon_order) and (select count(*) = 1 from public.coupon_identity_uses where coupon_id = :'coupon_id'::uuid and key_version = 'v1' and fingerprint = repeat('d', 64)), 'approval_replay_must_not_consume_twice');
+update public.orders set mp_payment_id = null where id = (select order_id from coupon_order);
+select pg_temp.assert_true(
+  (select result = 'payment_mismatch' from public.settle_product_payment('mercadopago', 'pay-026-coupon', 'refunded', (select reference from coupon_order), 120.01, 'ARS', 120.01))
+  and not exists (select 1 from public.product_payment_reversal_evidence where order_id = (select order_id from coupon_order)),
+  'refund_must_reject_missing_stored_payment_id'
+);
+update public.orders set mp_payment_id = 'pay-026-coupon' where id = (select order_id from coupon_order);
+select pg_temp.assert_true(
+  (select result = 'payment_mismatch' from public.settle_product_payment('mercadopago', 'pay-026-forged', 'refunded', (select reference from coupon_order), 120.01, 'ARS', 120.01))
+  and not exists (select 1 from public.product_payment_reversal_evidence where order_id = (select order_id from coupon_order)),
+  'refund_must_reject_mismatched_payment_id'
+);
 create temp table refunded_coupon_order as select * from public.settle_product_payment('mercadopago', 'pay-026-coupon', 'refunded', (select reference from coupon_order), 120.01, 'ARS', 120.01);
 select pg_temp.assert_true((select result = 'manual_review_required' from refunded_coupon_order) and (select count(*) = 1 from public.product_payment_reversal_evidence where order_id = (select order_id from coupon_order) and event_class = 'refunded' and reversal_total_cents = 12001) and (select used_count = 1 from public.coupon_definitions where id = :'coupon_id'::uuid) and (select reservation_state = 'consumed' from public.coupon_checkout_reservations where order_id = (select order_id from coupon_order)), 'refund_must_record_evidence_without_restoring_coupon');
 update public.coupon_definitions set is_active = false, deactivated_at = statement_timestamp(), deactivation_reason = 'campaign ended' where id = :'tie_coupon_id'::uuid;
@@ -100,4 +112,24 @@ create temp table cancelled_coupon_order as select * from public.create_product_
 update public.coupon_definitions set is_active = false, deactivated_at = statement_timestamp(), deactivation_reason = 'cancelled campaign' where id = :'cancel_coupon_id'::uuid;
 create temp table cancelled_coupon_result as select * from public.settle_product_payment('mercadopago', 'pay-026-cancelled', 'cancelled', (select reference from cancelled_coupon_order), .9, 'ARS', null);
 select pg_temp.assert_true((select result = 'cancelled' from cancelled_coupon_result) and (select result = 'duplicate_event' from public.settle_product_payment('mercadopago', 'pay-026-cancelled', 'cancelled', (select reference from cancelled_coupon_order), .9, 'ARS', null)) and (select used_count = 0 and not is_active from public.coupon_definitions where id = :'cancel_coupon_id'::uuid) and (select status = 'available' from public.products where id = '26000000-0000-0000-0000-000000000005'::uuid) and not exists (select 1 from public.coupon_checkout_reservations where order_id = (select order_id from cancelled_coupon_order)) and not exists (select 1 from public.coupon_identity_uses where coupon_id = :'cancel_coupon_id'::uuid) and not exists (select 1 from public.coupon_used_count_authorizations where order_id = (select order_id from cancelled_coupon_order)) and not exists (select 1 from public.order_status_transition_authorizations where order_id = (select order_id from cancelled_coupon_order)), 'inactive_cancellation_must_release_capacity_identity_and_authorization_exactly_once');
+insert into public.products (id, title, slug, price, category, product_type_id, product_subtype_id)
+select '26000000-0000-0000-0000-000000000006'::uuid, 'Zero merchandise fixture', 'zero-merchandise-fixture', 0, 'fixture', types.id, subtypes.id
+from public.product_types types join public.product_subtypes subtypes on subtypes.product_type_id = types.id
+where types.name = 'Snapshot coats';
+select public.create_coupon('snapshot_admin', 'ZERO26', 1, statement_timestamp() - interval '1 minute', statement_timestamp() + interval '1 hour', 1000, null);
+do $zero_merchandise$
+begin
+  begin
+    perform public.create_product_checkout('user_026_a', '{"email":"a@example.invalid","fullName":"A User"}'::jsonb, array['26000000-0000-0000-0000-000000000006'::uuid], 0, 'coupon', 'ZERO26', 'v1', repeat('0', 64));
+    raise exception 'zero_merchandise_coupon_checkout_accepted';
+  exception when others then
+    if sqlerrm <> 'invalid_product_checkout' then raise; end if;
+  end;
+end;
+$zero_merchandise$;
+select pg_temp.assert_true(
+  (select used_count = 0 from public.coupon_definitions where code = 'ZERO26')
+  and not exists (select 1 from public.coupon_checkout_reservations where coupon_id = (select id from public.coupon_definitions where code = 'ZERO26')),
+  'zero_merchandise_coupon_checkout_must_fail_closed_without_reservation'
+);
 select '026_discount_settlement_proof_passed' as result;

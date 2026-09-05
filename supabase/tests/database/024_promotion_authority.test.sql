@@ -45,6 +45,13 @@ select pg_temp.assert_true(
   and (select count(*) = 2 from public.promotion_campaigns where is_active),
   'database_time_projection_must_apply_percentage_only_without_shipping'
 );
+update public.products set status = 'reserved' where slug = 'promotion-accessory';
+select pg_temp.assert_true(
+  not exists (select 1 from public.catalog_product_prices where slug = 'promotion-accessory')
+  and not exists (select 1 from private.catalog_product_prices() where slug = 'promotion-accessory'),
+  'catalog_projection_must_exclude_unavailable_products_inside_definer'
+);
+update public.products set status = 'available' where slug = 'promotion-accessory';
 select pg_temp.assert_true(
   not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'promotion_campaigns' and column_name ilike '%fixed%')
   and not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'catalog_product_prices' and column_name ilike '%shipping%'),
