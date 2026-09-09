@@ -6,13 +6,14 @@ const revalidatePath = vi.hoisted(() => vi.fn());
 const getPostHogServer = vi.hoisted(() => vi.fn());
 const requireAdmin = vi.hoisted(() => vi.fn());
 const from = vi.hoisted(() => vi.fn());
+const rpc = vi.hoisted(() => vi.fn());
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath }));
 vi.mock("@/lib/resend", () => ({ getResendMailer }));
 vi.mock("@/lib/posthog", () => ({ getPostHogServer }));
 vi.mock("@/lib/actions/auth", () => ({ requireAdmin }));
-vi.mock("@/lib/supabase/admin", () => ({ supabaseAdmin: { from } }));
+vi.mock("@/lib/supabase/admin", () => ({ supabaseAdmin: { from, rpc } }));
 vi.mock("@/components/emails/receipt-email", () => ({ ReceiptEmail: vi.fn() }));
 vi.mock("@/components/emails/dispatch-email", () => ({ DispatchEmail: vi.fn() }));
 
@@ -53,9 +54,9 @@ describe("email callers", () => {
       id: "123e4567-e89b-12d3-a456-426614174000",
       order_items: [],
     };
-    const update = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) });
     const select = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: order }) }) });
-    from.mockReturnValue({ select, update });
+    from.mockReturnValue({ select });
+    rpc.mockResolvedValue({ data: true, error: null });
     requireAdmin.mockResolvedValue(null);
     const send = vi.fn().mockRejectedValue(new Error("delivery unavailable"));
     getResendMailer.mockReturnValue({
@@ -65,7 +66,10 @@ describe("email callers", () => {
 
     await expect(shipOrder(order.id, "TRACK-123")).resolves.toEqual({ success: true });
 
-    expect(update).toHaveBeenCalledOnce();
+    expect(rpc).toHaveBeenCalledWith("ship_product_order", {
+      p_order_id: order.id,
+      p_tracking_number: "TRACK-123",
+    });
     expect(getResendMailer).toHaveBeenCalledOnce();
     expect(send).toHaveBeenCalledWith(expect.objectContaining({ from: "ClubVTG <orders@example.com>" }));
     expect(revalidatePath).toHaveBeenCalledWith("/admin/orders");
