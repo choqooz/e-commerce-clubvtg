@@ -59,7 +59,16 @@ export async function POST(req: Request) {
   }
 
   // ── 3. Rate limiting ──
-  const { success: withinLimit } = await rateLimiter.limit(userId);
+  let withinLimit: boolean;
+  try {
+    ({ success: withinLimit } = await rateLimiter.limit(userId));
+  } catch {
+    return createErrorSSE(
+      "El límite de solicitudes no está disponible. Intentá de nuevo en unos momentos.",
+      "server_error",
+      503,
+    );
+  }
   if (!withinLimit) {
     return createErrorSSE(
       "Demasiadas solicitudes. Esperá un momento e intentá de nuevo.",

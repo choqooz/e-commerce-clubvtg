@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(), captureException: vi.fn(), createSignedUrl: vi.fn(), currentUser: vi.fn(), from: vi.fn(), generateTryOn: vi.fn(), getPostHogServer: vi.fn(),
-  logUpdate: vi.fn(), processUserImage: vi.fn(), profileSingle: vi.fn(), rateLimit: vi.fn(), rpc: vi.fn(), runContentGuard: vi.fn(), validateImage: vi.fn(),
+  logUpdate: vi.fn(), processUserImage: vi.fn(), profileSingle: vi.fn(), rateLimit: vi.fn(), rpc: vi.fn(), runContentGuard: vi.fn(), upload: vi.fn(), validateImage: vi.fn(),
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({ auth: mocks.auth, currentUser: mocks.currentUser }));
@@ -24,7 +24,7 @@ vi.mock("@/lib/ai/openai", () => ({ generateTryOn: mocks.generateTryOn, getOpenA
 vi.mock("@/lib/ai/prompts", () => ({ buildTryOnPrompt: vi.fn(() => "prompt") }));
 vi.mock("@/lib/posthog", () => ({ getPostHogServer: mocks.getPostHogServer }));
 vi.mock("@/lib/rate-limit", () => ({ rateLimiter: { limit: mocks.rateLimit } }));
-vi.mock("@/lib/supabase/admin", () => ({ supabaseAdmin: { from: mocks.from, rpc: mocks.rpc, storage: { from: vi.fn(() => ({ createSignedUrl: mocks.createSignedUrl, upload: vi.fn().mockResolvedValue({ error: null }) })) } } }));
+vi.mock("@/lib/supabase/admin", () => ({ supabaseAdmin: { from: mocks.from, rpc: mocks.rpc, storage: { from: vi.fn(() => ({ createSignedUrl: mocks.createSignedUrl, upload: mocks.upload })) } } }));
 
 import { POST } from "./route";
 
@@ -44,6 +44,7 @@ function prepare() {
   mocks.runContentGuard.mockResolvedValue({ outcome: "approved" });
   mocks.profileSingle.mockResolvedValue({ data: { credits: 2 }, error: null });
   mocks.createSignedUrl.mockResolvedValue({ data: { signedUrl: "https://signed.test/image" }, error: null });
+  mocks.upload.mockResolvedValue({ error: null });
   mocks.logUpdate.mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) });
   mocks.from.mockImplementation((table) => {
     if (table === "profiles") return { select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: mocks.profileSingle }) }) };
@@ -57,6 +58,20 @@ beforeEach(() => { vi.clearAllMocks(); prepare(); });
 afterEach(() => vi.restoreAllMocks());
 
 describe("AI process failure and analytics runtime boundary", () => {
+  it("returns a retryable SSE response when rate limiting is unavailable before uploads or credit writes", async () => {
+    mocks.rateLimit.mockRejectedValueOnce(new Error("Upstash unavailable"));
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Content-Type")).toBe("text/event-stream");
+    await expect(response.text()).resolves.toContain('"code":"server_error"');
+    expect(mocks.processUserImage).not.toHaveBeenCalled();
+    expect(mocks.upload).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalled();
+    expect(mocks.generateTryOn).not.toHaveBeenCalled();
+  });
+
   it("returns a retryable guard-unavailable response without charging a credit or generating an image", async () => {
     mocks.runContentGuard.mockResolvedValue({ code: "content_guard_unavailable", outcome: "unavailable" });
 
