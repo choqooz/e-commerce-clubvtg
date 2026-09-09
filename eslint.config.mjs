@@ -38,6 +38,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Installed agent skills are vendored resources, not application source.
+    ".agents/**",
   ]),
 ]);
 
