@@ -146,7 +146,7 @@ Configure `RESEND_FROM_EMAIL` with a sender identity verified in Resend. The app
 
 | Variable | Requerida | Descripcion |
 |----------|-----------|-------------|
-| `NEXT_PUBLIC_APP_URL` | Produccion | URL base de la app |
+| `NEXT_PUBLIC_APP_URL` | Production | Absolute HTTPS origin only; no credentials, path, query, or fragment |
 | `NEXT_PUBLIC_NGROK_URL` | Solo dev | URL de ngrok para webhooks |
 
 ### Authenticated E2E (Clerk)
@@ -198,6 +198,8 @@ npm run dev
 La autoridad de produccion es exclusivamente la base de datos; la aplicacion local es un cliente de esa autoridad cuando recibe credenciales aprobadas. Esta guia no cubre cambios de infraestructura remota.
 
 **Advertencia MercadoPago:** mantené `MP_WEBHOOK_SECRET` fuera del repositorio. `NEXT_PUBLIC_NGROK_URL` es solo un tunel temporal de desarrollo; nunca dirijas un webhook de produccion a una URL local o temporal.
+
+In production, payment returns and webhooks use `NEXT_PUBLIC_APP_URL`; `NEXT_PUBLIC_NGROK_URL` is ignored.
 
 ## Scripts
 

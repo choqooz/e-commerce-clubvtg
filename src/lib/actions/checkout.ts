@@ -25,6 +25,12 @@ interface ProductCheckoutIntent {
   reference: string;
 }
 
+interface ResumableProductCheckout {
+  order_id: string;
+  preference_id: string;
+  reference: string;
+}
+
 const CHECKOUT_PRICING_SOURCES = { COUPON: "coupon", PROMOTIONS: "promotions" } as const;
 export type CheckoutPricingSource = (typeof CHECKOUT_PRICING_SOURCES)[keyof typeof CHECKOUT_PRICING_SOURCES];
 
@@ -32,6 +38,20 @@ export interface CheckoutPricingSelection {
   couponCode?: string;
   source: CheckoutPricingSource;
 }
+
+interface CheckoutPreferenceSuccess {
+  initPoint?: string;
+  resumed?: true;
+  sandboxInitPoint?: string;
+  success: true;
+}
+
+interface CheckoutPreferenceFailure {
+  error: string;
+  success: false;
+}
+
+const RESUME_RETRY_ERROR = "No pudimos retomar tu pago pendiente. Intentá nuevamente en unos instantes.";
 
 function localPaymentHandoff(orderId: string): string | null {
   if (process.env.E2E_LOCAL_PAYMENT_HANDOFF !== "true") return null;
@@ -42,11 +62,37 @@ function localPaymentHandoff(orderId: string): string | null {
   return `http://localhost:4173/e2e/payment-handoff?order_id=${encodeURIComponent(orderId)}`;
 }
 
+async function findResumableProductCheckout(
+  productIds: string[],
+  userId: string,
+  source: CheckoutPricingSource,
+  couponCode: string | null,
+  identityKeyVersion: string | null,
+  identityFingerprint: string | null,
+): Promise<ResumableProductCheckout | null | "lookup_failed"> {
+  const { data, error } = await supabaseAdmin.rpc("get_resumable_product_checkout", {
+    p_coupon_code: couponCode,
+    p_identity_fingerprint: identityFingerprint,
+    p_identity_key_version: identityKeyVersion,
+    p_pricing_source: source,
+    p_product_ids: productIds,
+    p_user_id: userId,
+  });
+  if (error) {
+    console.error("Resumable checkout lookup error:", error.message);
+    return "lookup_failed";
+  }
+
+  const candidate = data?.[0] as ResumableProductCheckout | undefined;
+  if (!candidate || typeof candidate.order_id !== "string" || typeof candidate.preference_id !== "string" || typeof candidate.reference !== "string") return null;
+  return candidate;
+}
+
 export async function createCheckoutPreference(
   data: CheckoutFormValues,
   items: CartItem[],
   selection?: CheckoutPricingSelection,
-): Promise<{ initPoint?: string; sandboxInitPoint?: string; success: true } | { error: string; success: false }> {
+): Promise<CheckoutPreferenceSuccess | CheckoutPreferenceFailure> {
   try {
     const { userId } = await auth();
     if (!userId) return { success: false, error: "Iniciá sesión para continuar con la compra." };
@@ -69,10 +115,42 @@ export async function createCheckoutPreference(
     }
 
     await releaseExpiredReservations();
+    const productIds = parsed.data.map((item) => item.product.id);
+    const resumableCheckout = await findResumableProductCheckout(
+      productIds,
+      userId,
+      source,
+      code ?? null,
+      identityKeyVersion,
+      identityFingerprint,
+    );
+    if (resumableCheckout === "lookup_failed") {
+      return { success: false, error: "No pudimos comprobar si tenés un pago pendiente. Intentá nuevamente en unos instantes." };
+    }
+    if (resumableCheckout) {
+      try {
+        const localHandoff = localPaymentHandoff(resumableCheckout.order_id);
+        if (localHandoff && resumableCheckout.preference_id === `e2e-local-${resumableCheckout.order_id}`) {
+          return { success: true, initPoint: localHandoff, resumed: true };
+        }
+
+        const preference = new Preference(mpClient);
+        const response = await preference.get({ preferenceId: resumableCheckout.preference_id });
+        if (response.id !== resumableCheckout.preference_id || response.external_reference !== resumableCheckout.reference || !response.init_point) {
+          throw new Error("MercadoPago no devolvió la preferencia pendiente esperada.");
+        }
+        return { success: true, initPoint: response.init_point, sandboxInitPoint: response.sandbox_init_point, resumed: true };
+      } catch (error: unknown) {
+        console.error("Checkout preference resume error:", error);
+        captureExceptionSafely(error);
+        return { success: false, error: RESUME_RETRY_ERROR };
+      }
+    }
+
     const { data: checkoutData, error: checkoutError } = await supabaseAdmin.rpc(
       "create_product_checkout",
       {
-        p_product_ids: parsed.data.map((item) => item.product.id),
+        p_product_ids: productIds,
         p_shipping_fee: SHIPPING_FEE,
         p_shipping_info: data,
         p_user_id: userId,
@@ -100,7 +178,7 @@ export async function createCheckoutPreference(
         return { success: true, initPoint: localHandoff };
       }
       const preference = new Preference(mpClient);
-      const { webhookBaseUrl } = resolvePaymentUrls();
+      const { siteUrl } = resolvePaymentUrls();
       const response = await preference.create({
         body: {
           items: [
@@ -114,14 +192,13 @@ export async function createCheckoutPreference(
             { id: "SHIPPING", title: "Envío Correo Argentino", currency_id: "ARS", quantity: 1, unit_price: Number(SHIPPING_FEE) },
           ],
           payer: { name: data.fullName.split(" ")[0], surname: data.fullName.split(" ").slice(1).join(" "), email: data.email },
-          back_urls: { success: `${webhookBaseUrl}/api/mp-return?status=success&order_id=${intent.order_id}`, failure: `${webhookBaseUrl}/api/mp-return?status=failure&order_id=${intent.order_id}`, pending: `${webhookBaseUrl}/api/mp-return?status=pending&order_id=${intent.order_id}` },
+          back_urls: { success: `${siteUrl}/api/mp-return?status=success&order_id=${intent.order_id}`, failure: `${siteUrl}/api/mp-return?status=failure&order_id=${intent.order_id}`, pending: `${siteUrl}/api/mp-return?status=pending&order_id=${intent.order_id}` },
           auto_return: "approved",
           binary_mode: true,
           expiration_date_from: new Date().toISOString(),
           expiration_date_to: intent.expires_at,
           expires: true,
           external_reference: intent.reference,
-          notification_url: `${webhookBaseUrl}/api/webhooks/mp`,
           statement_descriptor: "CLUB VTG",
         },
       });

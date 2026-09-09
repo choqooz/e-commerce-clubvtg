@@ -122,11 +122,11 @@ export async function createCreditPackPreference(
 
     try {
       const preference = new Preference(mpClient);
-      const { webhookBaseUrl } = resolvePaymentUrls();
+      const { siteUrl, webhookBaseUrl } = resolvePaymentUrls();
       const response = await preference.create({
         body: {
           items: [{ id: `credit-pack-${packId}`, title: `Pack de ${pack.credits} créditos - ClubVTG`, currency_id: "ARS", quantity: 1, unit_price: pack.price }],
-          back_urls: { success: `${webhookBaseUrl}/api/mp-return?status=success&type=credits`, failure: `${webhookBaseUrl}/api/mp-return?status=failure&type=credits`, pending: `${webhookBaseUrl}/api/mp-return?status=pending&type=credits` },
+          back_urls: { success: `${siteUrl}/api/mp-return?status=success&type=credits`, failure: `${siteUrl}/api/mp-return?status=failure&type=credits`, pending: `${siteUrl}/api/mp-return?status=pending&type=credits` },
           auto_return: "approved", external_reference: intent.reference, notification_url: `${webhookBaseUrl}/api/webhooks/mp`, statement_descriptor: "CLUB VTG", binary_mode: true,
           expires: true, expiration_date_from: new Date().toISOString(), expiration_date_to: intent.expires_at,
         },

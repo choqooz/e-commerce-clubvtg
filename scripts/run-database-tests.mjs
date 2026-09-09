@@ -28,6 +28,7 @@ const suites = [
     ["028_coupon_admin_lifecycle", 28],
     ["029_promotion_revision", 20260901172015],
     ["030_coupon_runtime_proofs", 20260901172015],
+    ["031_resumable_product_checkout", 20260905033240],
   ];
 
 function run(command, args, options = {}) {

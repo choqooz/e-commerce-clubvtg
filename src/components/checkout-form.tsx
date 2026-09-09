@@ -3,13 +3,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { CouponSelection } from "@/components/coupon-selection";
 import { useCart } from "@/contexts/cart-context";
 import { createCheckoutPreference } from "@/lib/actions/checkout";
 import { checkoutStartedEvent } from "@/lib/analytics-events";
+import { registerCheckoutBfcacheReset } from "@/lib/checkout-bfcache";
 import { toCouponCheckoutSelection } from "@/lib/coupon-choice";
 import { checkoutSchema, type CheckoutFormValues } from "@/lib/validations/checkout";
 
@@ -17,6 +18,8 @@ export function CheckoutForm() {
   const { couponCode, couponSource, items, totalPrice } = useCart();
   const posthog = usePostHog();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => registerCheckoutBfcacheReset(window, setIsSubmitting), []);
 
   const form = useForm<CheckoutFormValues>({
     resolver: zodResolver(checkoutSchema),
@@ -51,6 +54,11 @@ export function CheckoutForm() {
         toast.error(res.error || "Ocurrió un error al procesar el pago");
         setIsSubmitting(false);
         return;
+      }
+
+      if (res.resumed) {
+        toast.info("Hay un pago pendiente. Retomaremos la misma orden con los datos de envío, contacto y precio originales.");
+        await new Promise((resolve) => setTimeout(resolve, 1500));
       }
 
       // Redirect to MercadoPago

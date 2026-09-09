@@ -2,7 +2,6 @@
 // All prices in ARS (Argentine Pesos)
 
 export const SITE_NAME = "clubvtg";
-export const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://clubvtg.com";
 
 function readIntegerEnv(name: string, defaultValue: number, minimum: number): number {
   const value = process.env[name];

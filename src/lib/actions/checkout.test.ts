@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   currentUser: vi.fn(),
   captureException: vi.fn(),
   preferenceCreate: vi.fn(),
+  preferenceGet: vi.fn(),
   releaseExpiredReservations: vi.fn(),
   rpc: vi.fn(),
 }));
@@ -18,6 +19,7 @@ vi.mock("@sentry/nextjs", () => ({ captureException: mocks.captureException }));
 vi.mock("mercadopago", () => ({
   Preference: class {
     create = mocks.preferenceCreate;
+    get = mocks.preferenceGet;
   },
 }));
 vi.mock("@/lib/mercadopago", () => ({ mpClient: {} }));
@@ -25,7 +27,7 @@ vi.mock("@/lib/supabase/admin", () => ({ supabaseAdmin: { rpc: mocks.rpc } }));
 vi.mock("@/lib/supabase/release-reservations", () => ({
   releaseExpiredReservations: mocks.releaseExpiredReservations,
 }));
-vi.mock("@/lib/urls", () => ({ resolvePaymentUrls: () => ({ webhookBaseUrl: "https://shop.test" }) }));
+vi.mock("@/lib/urls", () => ({ resolvePaymentUrls: () => ({ siteUrl: "https://public.test", webhookBaseUrl: "https://webhook.test" }) }));
 
 import { createCheckoutPreference } from "./checkout";
 
@@ -49,7 +51,9 @@ beforeEach(() => {
   mocks.currentUser.mockResolvedValue({ primaryEmailAddress: { emailAddress: "buyer@example.test", verification: { status: "verified" } } });
   mocks.releaseExpiredReservations.mockResolvedValue(undefined);
   mocks.preferenceCreate.mockRejectedValue(new Error("MercadoPago unavailable"));
+  mocks.preferenceGet.mockRejectedValue(new Error("MercadoPago unavailable"));
   mocks.rpc.mockImplementation((name) => {
+    if (name === "get_resumable_product_checkout") return Promise.resolve({ data: [], error: null });
     if (name === "create_product_checkout") {
       return Promise.resolve({
         data: [
@@ -71,6 +75,102 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); });
 
 describe("createCheckoutPreference telemetry isolation", () => {
+  it("does not create or cancel an order when the resumable checkout lookup fails", async () => {
+    mocks.rpc.mockImplementation((name) => {
+      if (name === "get_resumable_product_checkout") {
+        return Promise.resolve({ data: null, error: { message: "lookup unavailable" } });
+      }
+      return Promise.resolve({ data: null, error: null });
+    });
+
+    await expect(createCheckoutPreference(data, items)).resolves.toEqual({
+      error: "No pudimos comprobar si tenés un pago pendiente. Intentá nuevamente en unos instantes.",
+      success: false,
+    });
+
+    expect(mocks.preferenceGet).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalledWith("create_product_checkout", expect.anything());
+    expect(mocks.rpc).not.toHaveBeenCalledWith("cancel_product_order", expect.anything());
+  });
+
+  it("resumes an owned matching checkout with MercadoPago's stored preference instead of creating a second order", async () => {
+    mocks.rpc.mockImplementation((name) => {
+      if (name === "get_resumable_product_checkout") {
+        return Promise.resolve({ data: [{ order_id: "order_pending", preference_id: "preference_pending", reference: "order:order_pending" }], error: null });
+      }
+      return Promise.resolve({ data: null, error: null });
+    });
+    mocks.preferenceGet.mockResolvedValueOnce({ external_reference: "order:order_pending", id: "preference_pending", init_point: "https://payment.test/resume" });
+
+    await expect(createCheckoutPreference(data, items)).resolves.toEqual({
+      initPoint: "https://payment.test/resume",
+      resumed: true,
+      sandboxInitPoint: undefined,
+      success: true,
+    });
+
+    expect(mocks.preferenceGet).toHaveBeenCalledWith({ preferenceId: "preference_pending" });
+    expect(mocks.rpc).not.toHaveBeenCalledWith("create_product_checkout", expect.anything());
+    expect(mocks.preferenceCreate).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalledWith("cancel_product_order", expect.anything());
+  });
+
+  it("does not create or cancel an order when provider retrieval for a resumable checkout fails", async () => {
+    mocks.rpc.mockImplementation((name) => {
+      if (name === "get_resumable_product_checkout") {
+        return Promise.resolve({ data: [{ order_id: "order_pending", preference_id: "preference_pending", reference: "order:order_pending" }], error: null });
+      }
+      return Promise.resolve({ data: null, error: null });
+    });
+
+    await expect(createCheckoutPreference(data, items)).resolves.toEqual({
+      error: "No pudimos retomar tu pago pendiente. Intentá nuevamente en unos instantes.",
+      success: false,
+    });
+
+    expect(mocks.rpc).not.toHaveBeenCalledWith("create_product_checkout", expect.anything());
+    expect(mocks.rpc).not.toHaveBeenCalledWith("cancel_product_order", expect.anything());
+  });
+
+  it("does not create or cancel an order when provider retrieval returns a malformed preference", async () => {
+    mocks.rpc.mockImplementation((name) => {
+      if (name === "get_resumable_product_checkout") {
+        return Promise.resolve({ data: [{ order_id: "order_pending", preference_id: "preference_pending", reference: "order:order_pending" }], error: null });
+      }
+      return Promise.resolve({ data: null, error: null });
+    });
+    mocks.preferenceGet.mockResolvedValueOnce({ external_reference: "order:order_pending", id: "unexpected_preference", init_point: "https://payment.test/resume" });
+
+    await expect(createCheckoutPreference(data, items)).resolves.toEqual({
+      error: "No pudimos retomar tu pago pendiente. Intentá nuevamente en unos instantes.",
+      success: false,
+    });
+
+    expect(mocks.rpc).not.toHaveBeenCalledWith("create_product_checkout", expect.anything());
+    expect(mocks.rpc).not.toHaveBeenCalledWith("cancel_product_order", expect.anything());
+  });
+
+  it("uses application-configured webhook delivery while preserving Checkout Pro return data", async () => {
+    mocks.preferenceCreate.mockResolvedValueOnce({ id: "preference_123", init_point: "https://payment.test/checkout" });
+
+    await expect(createCheckoutPreference(data, items)).resolves.toEqual({
+      initPoint: "https://payment.test/checkout",
+      sandboxInitPoint: undefined,
+      success: true,
+    });
+
+    const preferencePayload = mocks.preferenceCreate.mock.calls[0][0].body;
+    expect(preferencePayload).toMatchObject({
+      back_urls: {
+        failure: "https://public.test/api/mp-return?status=failure&order_id=order_123",
+        pending: "https://public.test/api/mp-return?status=pending&order_id=order_123",
+        success: "https://public.test/api/mp-return?status=success&order_id=order_123",
+      },
+      external_reference: "order:order_123",
+    });
+    expect(preferencePayload).not.toHaveProperty("notification_url");
+  });
+
   it("uses database-priced promotions when no coupon was explicitly selected", async () => {
     await createCheckoutPreference(data, items);
 
