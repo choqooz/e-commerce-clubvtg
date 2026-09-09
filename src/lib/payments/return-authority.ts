@@ -13,28 +13,63 @@ export type ProductReturnOutcome = (typeof PRODUCT_RETURN_OUTCOME)[keyof typeof 
 
 const ORDER_ID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 
-interface PersistedOrder { id: string; purchase_user_id: string; status: "paid" | "pending" | "cancelled" | "shipped" }
+const PRODUCT_ORDER_STATUS = {
+  CANCELLED: "cancelled",
+  PAID: "paid",
+  PENDING: "pending",
+  SHIPPED: "shipped",
+} as const;
+
+type ProductOrderStatus = (typeof PRODUCT_ORDER_STATUS)[keyof typeof PRODUCT_ORDER_STATUS];
+
+export interface OwnedProductReturnOrder {
+  id: string;
+  integrity_version: number;
+  payment_reference: string | null;
+  purchase_user_id: string;
+  status: ProductOrderStatus;
+}
 
 export function isOrderId(value: string | null): value is string {
   return value !== null && ORDER_ID.test(value);
 }
 
-export async function getOwnedProductReturnOutcome(orderId: string | null): Promise<ProductReturnOutcome> {
-  if (!isOrderId(orderId)) return PRODUCT_RETURN_OUTCOME.PENDING;
+function productReturnOutcome(order: OwnedProductReturnOrder | null): ProductReturnOutcome {
+  if (!order) return PRODUCT_RETURN_OUTCOME.PENDING;
+  if (order.status === PRODUCT_ORDER_STATUS.PAID || order.status === PRODUCT_ORDER_STATUS.SHIPPED) return PRODUCT_RETURN_OUTCOME.SUCCESS;
+  return order.status === PRODUCT_ORDER_STATUS.CANCELLED ? PRODUCT_RETURN_OUTCOME.FAILURE : PRODUCT_RETURN_OUTCOME.PENDING;
+}
 
-  const { userId } = await auth();
-  if (!userId) return PRODUCT_RETURN_OUTCOME.PENDING;
+export async function getOwnedProductReturnOrder(orderId: string | null, userId: string): Promise<OwnedProductReturnOrder | null> {
+  if (!isOrderId(orderId)) return null;
 
   const { data, error } = await supabaseAdmin
     .from("orders")
-    .select("id, purchase_user_id, status")
+    .select("id, purchase_user_id, status, payment_reference, integrity_version")
     .eq("id", orderId)
     .eq("purchase_user_id", userId)
     .eq("integrity_version", 1)
     .maybeSingle();
-  const order = data as PersistedOrder | null;
+  const order = data as OwnedProductReturnOrder | null;
 
-  if (error || !order || order.purchase_user_id !== userId) return PRODUCT_RETURN_OUTCOME.PENDING;
-  if (order.status === "paid" || order.status === "shipped") return PRODUCT_RETURN_OUTCOME.SUCCESS;
-  return order.status === "cancelled" ? PRODUCT_RETURN_OUTCOME.FAILURE : PRODUCT_RETURN_OUTCOME.PENDING;
+  return error || !order || order.purchase_user_id !== userId || order.integrity_version !== 1 ? null : order;
+}
+
+export async function getOwnedProductReturnOrderForCurrentUser(orderId: string | null): Promise<OwnedProductReturnOrder | null> {
+  if (!isOrderId(orderId)) return null;
+
+  const { userId } = await auth();
+  return userId ? getOwnedProductReturnOrder(orderId, userId) : null;
+}
+
+export async function getOwnedProductReturnOutcome(orderId: string | null): Promise<ProductReturnOutcome> {
+  return productReturnOutcome(await getOwnedProductReturnOrderForCurrentUser(orderId));
+}
+
+export function getProductReturnOutcome(order: OwnedProductReturnOrder | null): ProductReturnOutcome {
+  return productReturnOutcome(order);
+}
+
+export function isAuthoritativelyPaidProductReturn(order: OwnedProductReturnOrder | null): boolean {
+  return order?.integrity_version === 1 && order.status === PRODUCT_ORDER_STATUS.PAID;
 }

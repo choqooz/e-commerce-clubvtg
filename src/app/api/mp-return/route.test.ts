@@ -1,13 +1,17 @@
+import { Children, isValidElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { CartClearOnAuthoritativePayment } from "@/components/cart-clear-on-authoritative-payment";
 import CheckoutSuccessPage from "../../(shop)/checkout/success/page";
 import { GET } from "./route";
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
   from: vi.fn(),
   maybeSingle: vi.fn(),
+  redirect: vi.fn((destination: string) => { throw new Error(`redirect:${destination}`); }),
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({ auth: mocks.auth }));
+vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/components/site-footer", () => ({ SiteFooter: () => null }));
 vi.mock("@/components/site-header", () => ({ SiteHeader: () => null }));
@@ -21,10 +25,10 @@ function request(query = "") {
   return new Request(`https://clubvtg.test/api/mp-return${query}`);
 }
 
-function persistedOrder(status: "paid" | "pending" | "cancelled", owner = "owner") {
+function persistedOrder(status: "paid" | "pending" | "cancelled" | "shipped", owner = "owner", integrityVersion = 1) {
   mocks.auth.mockResolvedValue({ userId: owner });
   mocks.maybeSingle.mockResolvedValue({
-    data: { id: orderId, purchase_user_id: owner, status },
+    data: { id: orderId, integrity_version: integrityVersion, payment_reference: `order:${orderId}`, purchase_user_id: owner, status },
     error: null,
   });
   const query = {
@@ -36,6 +40,11 @@ function persistedOrder(status: "paid" | "pending" | "cancelled", owner = "owner
   query.eq.mockReturnValue(query);
   mocks.from.mockReturnValue(query);
   return query;
+}
+
+function containsCartClearEffect(node: ReactNode): boolean {
+  if (!isValidElement<{ children?: ReactNode }>(node)) return false;
+  return node.type === CartClearOnAuthoritativePayment || Children.toArray(node.props.children).some(containsCartClearEffect);
 }
 
 describe("MercadoPago return authority", () => {
@@ -53,7 +62,7 @@ describe("MercadoPago return authority", () => {
 
     const response = await GET(request(query));
 
-    expect(response.headers.get("location")).toBe("https://clubvtg.test/checkout/pending");
+    expect(response.headers.get("location")).toBe(`https://clubvtg.test/checkout/reconcile?order_id=${orderId}`);
     expect(mocks.from).toHaveBeenCalledWith("orders");
   });
 
@@ -80,29 +89,57 @@ describe("MercadoPago return authority", () => {
     expect(mocks.from).not.toHaveBeenCalled();
   });
 
-  it("maps only a persisted owned terminal state to its return projection", async () => {
+  it("routes owned paid returns through authenticated reconciliation and projects cancellation as failure", async () => {
     persistedOrder("paid");
     const paid = await GET(request(`?order_id=${orderId}&status=failure`));
 
     persistedOrder("cancelled");
     const cancelled = await GET(request(`?order_id=${orderId}&status=success`));
 
-    expect(paid.headers.get("location")).toBe(`https://clubvtg.test/checkout/success?order_id=${orderId}`);
+    expect(paid.headers.get("location")).toBe(`https://clubvtg.test/checkout/reconcile?order_id=${orderId}`);
     expect(cancelled.headers.get("location")).toBe("https://clubvtg.test/checkout/failure");
   });
 
-  it("renders historical paid success without mutating a fresh cart on direct, refresh, or replay", async () => {
+  it("keeps GET limited to the owned return projection before the POST reconciliation handoff", async () => {
+    persistedOrder("pending");
+
+    const response = await GET(request(`?order_id=${orderId}`));
+
+    expect(response.headers.get("location")).toBe(`https://clubvtg.test/checkout/reconcile?order_id=${orderId}`);
+    expect(mocks.from).toHaveBeenCalledOnce();
+    expect(mocks.from).toHaveBeenCalledWith("orders");
+  });
+
+  it("mounts the cart proof-consumption effect only for an owned paid order", async () => {
     persistedOrder("paid");
-    const newerCart = ["newer-product"];
 
-    const direct = await CheckoutSuccessPage({ searchParams: Promise.resolve({ order_id: orderId }) });
-    const refreshed = await CheckoutSuccessPage({ searchParams: Promise.resolve({ order_id: orderId }) });
-    const replay = await CheckoutSuccessPage({ searchParams: Promise.resolve({ order_id: orderId }) });
+    const reconciledSuccess = await CheckoutSuccessPage({ searchParams: Promise.resolve({ order_id: orderId }) });
 
-    expect(direct).toBeTruthy();
-    expect(refreshed).toBeTruthy();
-    expect(replay).toBeTruthy();
-    expect(newerCart).toEqual(["newer-product"]);
-    expect(mocks.from).toHaveBeenCalledTimes(3);
+    expect(containsCartClearEffect(reconciledSuccess)).toBe(true);
+  });
+
+  it("does not mount the cart-clear effect for shipped or integrity-mismatched orders", async () => {
+    persistedOrder("shipped");
+
+    const shippedSuccess = await CheckoutSuccessPage({ searchParams: Promise.resolve({ order_id: orderId }) });
+
+    expect(containsCartClearEffect(shippedSuccess)).toBe(false);
+
+    persistedOrder("paid", "owner", 2);
+    await expect(CheckoutSuccessPage({ searchParams: Promise.resolve({ order_id: orderId }) })).rejects.toThrow("redirect:");
+  });
+
+  it.each([
+    ["pending", "pending", { order_id: orderId, status: "success" }],
+    ["failed or cancelled", "cancelled", { order_id: orderId }],
+    ["missing", null, {}],
+    ["foreign", "paid", { order_id: orderId }],
+    ["unauthenticated", null, { order_id: orderId }],
+  ])("never reads a cart-clear proof for %s success navigation", async (name, status, searchParams) => {
+    if (status) persistedOrder(status as "paid" | "pending" | "cancelled");
+    if (name === "foreign") mocks.auth.mockResolvedValue({ userId: "attacker" });
+    if (name === "unauthenticated") mocks.auth.mockResolvedValue({ userId: null });
+
+    await expect(CheckoutSuccessPage({ searchParams: Promise.resolve(searchParams) })).rejects.toThrow("redirect:");
   });
 });

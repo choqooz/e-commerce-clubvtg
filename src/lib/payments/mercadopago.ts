@@ -66,6 +66,18 @@ interface PaymentProvider {
   get(input: { id: string }): Promise<unknown>;
 }
 
+interface PaymentSearchProvider {
+  search(input: {
+    options: {
+      criteria: "desc";
+      external_reference: string;
+      limit: 5;
+      offset: 0;
+      sort: "date_created";
+    };
+  }): Promise<unknown>;
+}
+
 interface SettlementClient {
   from(table: "credit_purchase_intents"): {
     select(columns: string): { eq(column: "reference", value: string): { maybeSingle(): PromiseLike<{ data: unknown; error: unknown }> } };
@@ -76,6 +88,10 @@ interface SettlementClient {
 interface PaymentDependencies {
   provider: PaymentProvider;
   settlement: SettlementClient;
+}
+
+interface PaymentSearchDependencies {
+  provider: PaymentSearchProvider;
 }
 
 export const PROCESS_PAYMENT_RESULT = {
@@ -248,6 +264,64 @@ async function defaultDependencies(): Promise<PaymentDependencies> {
   ]);
   const payment = new Payment(mpClient);
   return { provider: { get: ({ id }) => payment.get({ id }) }, settlement: supabaseAdmin as unknown as SettlementClient };
+}
+
+const PAYMENT_SEARCH_LIMIT = 5;
+
+function isSearchResult(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function normalizedSearchPaymentId(value: unknown): string | null {
+  if (typeof value === "string") return isCandidatePaymentId(value) ? value : null;
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0 && isCandidatePaymentId(String(value))
+    ? String(value)
+    : null;
+}
+
+function searchedPaymentIds(response: unknown, reference: string): string[] | null {
+  if (!isSearchResult(response) || !Array.isArray(response.results) || response.results.length > PAYMENT_SEARCH_LIMIT) return null;
+
+  if (response.paging !== undefined) {
+    if (!isSearchResult(response.paging)) return null;
+    const total = response.paging.total;
+    if (typeof total !== "number" || !Number.isSafeInteger(total) || total < 0 || total > PAYMENT_SEARCH_LIMIT) return null;
+  }
+
+  const ids = new Set<string>();
+  for (const result of response.results) {
+    if (!isSearchResult(result) || result.external_reference !== reference) continue;
+    const paymentId = normalizedSearchPaymentId(result.id);
+    if (paymentId) ids.add(paymentId);
+  }
+  return [...ids];
+}
+
+async function defaultSearchDependencies(): Promise<PaymentSearchDependencies> {
+  const [{ Payment }, { mpClient }] = await Promise.all([import("mercadopago"), import("../mercadopago")]);
+  const payment = new Payment(mpClient);
+  return { provider: { search: (input) => payment.search(input) } };
+}
+
+export async function searchProductPaymentIdsByReference(
+  reference: string,
+  dependencies?: PaymentSearchDependencies,
+): Promise<string[] | null> {
+  try {
+    const provider = dependencies?.provider ?? (await defaultSearchDependencies()).provider;
+    const response = await provider.search({
+      options: {
+        criteria: "desc",
+        external_reference: reference,
+        limit: PAYMENT_SEARCH_LIMIT,
+        offset: 0,
+        sort: "date_created",
+      },
+    });
+    return searchedPaymentIds(response, reference);
+  } catch {
+    return null;
+  }
 }
 
 async function loadPayment(candidateId: string, dependencies?: PaymentDependencies): Promise<{ deps: PaymentDependencies; payment: unknown } | null> {

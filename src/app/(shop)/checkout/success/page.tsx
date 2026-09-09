@@ -1,9 +1,15 @@
 import { CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { CartClearOnAuthoritativePayment } from "@/components/cart-clear-on-authoritative-payment";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { PRODUCT_RETURN_OUTCOME, getOwnedProductReturnOutcome } from "@/lib/payments/return-authority";
+import {
+  PRODUCT_RETURN_OUTCOME,
+  getOwnedProductReturnOrderForCurrentUser,
+  getProductReturnOutcome,
+  isAuthoritativelyPaidProductReturn,
+} from "@/lib/payments/return-authority";
 
 interface CheckoutSuccessPageProps {
   searchParams: Promise<{ order_id?: string | string[] }>;
@@ -11,14 +17,15 @@ interface CheckoutSuccessPageProps {
 
 export default async function CheckoutSuccessPage({ searchParams }: CheckoutSuccessPageProps) {
   const { order_id: orderId } = await searchParams;
-  const outcome = await getOwnedProductReturnOutcome(typeof orderId === "string" ? orderId : null);
+  const order = await getOwnedProductReturnOrderForCurrentUser(typeof orderId === "string" ? orderId : null);
+  const outcome = getProductReturnOutcome(order);
 
   if (outcome !== PRODUCT_RETURN_OUTCOME.SUCCESS || typeof orderId !== "string") {
     redirect(`/checkout/${outcome}`);
   }
-
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      {isAuthoritativelyPaidProductReturn(order) && <CartClearOnAuthoritativePayment orderId={orderId} />}
       <SiteHeader />
       <main className="flex-1 flex items-center justify-center">
         <div className="flex flex-col items-center justify-center text-center max-w-md mx-auto py-20 px-6">

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck -- This isolated provider contract uses Vitest doubles for server-only dependencies.
 import { describe, expect, it, vi } from "vitest";
-import { PROCESS_PAYMENT_RESULT, processPaymentDetails, processProductPayment } from "./mercadopago";
+import { PROCESS_PAYMENT_RESULT, processPaymentDetails, processProductPayment, searchProductPaymentIdsByReference } from "./mercadopago";
 vi.mock("server-only", () => ({}));
 
 const reference = "order:123e4567-e89b-12d3-a456-426614174000";
@@ -119,6 +119,44 @@ describe("MercadoPago product payment contract", () => {
       result: PROCESS_PAYMENT_RESULT.RETRY,
       settlement: null,
     });
+  });
+});
+
+describe("MercadoPago payment reconciliation search", () => {
+  function searchDependencies(response: unknown) {
+    return { provider: { search: vi.fn().mockResolvedValue(response) } };
+  }
+
+  it("uses the exact persisted external reference and accepts only matching normalized payment IDs", async () => {
+    const deps = searchDependencies({
+      paging: { limit: 5, offset: 0, total: 4 },
+      results: [
+        { external_reference: reference, id: 123 },
+        { external_reference: reference, id: "123" },
+        { external_reference: reference, id: "456" },
+        { external_reference: "order:forged", id: "789" },
+      ],
+    });
+
+    await expect(searchProductPaymentIdsByReference(reference, deps)).resolves.toEqual(["123", "456"]);
+    expect(deps.provider.search).toHaveBeenCalledWith({
+      options: { criteria: "desc", external_reference: reference, limit: 5, offset: 0, sort: "date_created" },
+    });
+  });
+
+  it.each([
+    ["malformed IDs", { paging: { total: 3 }, results: [{ external_reference: reference, id: "0" }, { external_reference: reference, id: "1.2" }, { external_reference: reference, id: " 9" }] }, []],
+    ["empty result", { paging: { total: 0 }, results: [] }, []],
+    ["result bound overflow", { paging: { total: 5 }, results: Array.from({ length: 6 }, () => ({ external_reference: reference, id: "123" })) }, null],
+    ["total bound overflow", { paging: { total: 6 }, results: [] }, null],
+    ["invalid paging total", { paging: { total: "5" }, results: [] }, null],
+  ])("fails closed for %s", async (_name, response, expected) => {
+    await expect(searchProductPaymentIdsByReference(reference, searchDependencies(response))).resolves.toEqual(expected);
+  });
+
+  it("fails closed when the provider search throws", async () => {
+    const deps = { provider: { search: vi.fn().mockRejectedValue(new Error("unavailable")) } };
+    await expect(searchProductPaymentIdsByReference(reference, deps)).resolves.toBeNull();
   });
 });
 
