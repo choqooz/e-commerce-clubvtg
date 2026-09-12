@@ -30,6 +30,7 @@ const suites = [
     ["030_coupon_runtime_proofs", 20260901172015],
     ["031_resumable_product_checkout", 20260905033240],
     ["032_harden_production_data_api_grants", 20260910021122],
+    ["033_orders_uuid_compatibility", 20260912202105],
   ];
 
 function run(command, args, options = {}) {
