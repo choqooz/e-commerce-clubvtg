@@ -236,7 +236,7 @@ function creditPackMatches(payment: unknown, packId: string): boolean {
   return Array.isArray(items) && items.filter((item) => {
     if (typeof item !== "object" || item === null) return false;
     const evidence = item as Record<string, unknown>;
-    return evidence.id === `credit-pack-${packId}` && evidence.quantity === 1;
+    return evidence.id === `credit-pack-${packId}` && (evidence.quantity === 1 || evidence.quantity === "1");
   }).length === 1;
 }
 
@@ -263,6 +263,7 @@ async function defaultDependencies(): Promise<PaymentDependencies> {
     import("../supabase/admin"),
   ]);
   const payment = new Payment(mpClient);
+  // SAFETY: SettlementClient is a narrower structural view of the generated Supabase client methods used here.
   return { provider: { get: ({ id }) => payment.get({ id }) }, settlement: supabaseAdmin as unknown as SettlementClient };
 }
 
@@ -303,7 +304,7 @@ async function defaultSearchDependencies(): Promise<PaymentSearchDependencies> {
   return { provider: { search: (input) => payment.search(input) } };
 }
 
-export async function searchProductPaymentIdsByReference(
+export async function searchPaymentIdsByReference(
   reference: string,
   dependencies?: PaymentSearchDependencies,
 ): Promise<string[] | null> {
@@ -323,6 +324,8 @@ export async function searchProductPaymentIdsByReference(
     return null;
   }
 }
+
+export const searchProductPaymentIdsByReference = searchPaymentIdsByReference;
 
 async function loadPayment(candidateId: string, dependencies?: PaymentDependencies): Promise<{ deps: PaymentDependencies; payment: unknown } | null> {
   try {

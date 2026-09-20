@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck -- This isolated provider contract uses Vitest doubles for server-only dependencies.
 import { describe, expect, it, vi } from "vitest";
-import { PROCESS_PAYMENT_RESULT, processPaymentDetails, processProductPayment, searchProductPaymentIdsByReference } from "./mercadopago";
+import { PROCESS_PAYMENT_RESULT, processPaymentDetails, processProductPayment, searchPaymentIdsByReference, searchProductPaymentIdsByReference } from "./mercadopago";
 vi.mock("server-only", () => ({}));
 
 const reference = "order:123e4567-e89b-12d3-a456-426614174000";
@@ -128,6 +128,7 @@ describe("MercadoPago payment reconciliation search", () => {
   }
 
   it("uses the exact persisted external reference and accepts only matching normalized payment IDs", async () => {
+    expect(searchProductPaymentIdsByReference).toBe(searchPaymentIdsByReference);
     const deps = searchDependencies({
       paging: { limit: 5, offset: 0, total: 4 },
       results: [
@@ -186,10 +187,19 @@ describe("MercadoPago credit payment contract", () => {
     expect(deps.settlement.from).not.toHaveBeenCalledWith("profiles");
   });
 
+  it("settles the live provider item shape with a canonical string quantity", async () => {
+    const deps = creditDependencies(payment("approved", { additional_info: { items: [{ id: "credit-pack-popular", quantity: "1" }] }, external_reference: creditReference }));
+    await expect(processPaymentDetails("123", deps)).resolves.toMatchObject({ result: PROCESS_PAYMENT_RESULT.ACKNOWLEDGED });
+    expect(deps.settlement.rpc).toHaveBeenCalledOnce();
+  });
+
   it.each([
     ["malformed reference", payment("approved", { external_reference: "credits:forged" }), creditIntent],
     ["wrong pack item", payment("approved", { additional_info: { items: [{ id: "credit-pack-basic", quantity: 1 }] }, external_reference: creditReference }), creditIntent],
     ["wrong item quantity", payment("approved", { additional_info: { items: [{ id: "credit-pack-popular", quantity: 2 }] }, external_reference: creditReference }), creditIntent],
+    ["non-canonical string quantity", payment("approved", { additional_info: { items: [{ id: "credit-pack-popular", quantity: "01" }] }, external_reference: creditReference }), creditIntent],
+    ["decimal string quantity", payment("approved", { additional_info: { items: [{ id: "credit-pack-popular", quantity: "1.0" }] }, external_reference: creditReference }), creditIntent],
+    ["malformed quantity", payment("approved", { additional_info: { items: [{ id: "credit-pack-popular", quantity: null }] }, external_reference: creditReference }), creditIntent],
     ["mismatched amount", payment("approved", { external_reference: creditReference, transaction_amount: 100 }), creditIntent],
     ["wrong currency", payment("approved", { currency_id: "USD", external_reference: creditReference }), creditIntent],
     ["unknown user", payment("approved", { external_reference: creditReference }), { ...creditIntent, user_id: null }, PROCESS_PAYMENT_RESULT.ACKNOWLEDGED],

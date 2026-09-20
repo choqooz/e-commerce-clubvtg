@@ -32,6 +32,7 @@ const suites = [
     ["032_harden_production_data_api_grants", 20260910021122],
     ["033_orders_uuid_compatibility", 20260912202105],
     ["034_seed_apparel_taxonomy", 20260914053236, "apparel_taxonomy"],
+    ["035_credit_late_approval_settlement", 20260914232034],
   ];
 
 function run(command, args, options = {}) {
