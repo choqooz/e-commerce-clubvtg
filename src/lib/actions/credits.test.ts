@@ -46,11 +46,13 @@ describe("createCreditPackPreference", () => {
     const preferencePayload = mocks.preferenceCreate.mock.calls[0][0].body;
     expect(preferencePayload).toMatchObject({
       back_urls: {
-        failure: "https://public.test/api/mp-return?status=failure&type=credits",
-        pending: "https://public.test/api/mp-return?status=pending&type=credits",
-        success: "https://public.test/api/mp-return?status=success&type=credits",
+        failure: "https://public.test/api/mp-return?intent_id=intent_123",
+        pending: "https://public.test/api/mp-return?intent_id=intent_123",
+        success: "https://public.test/api/mp-return?intent_id=intent_123",
       },
       notification_url: "https://webhook.test/api/webhooks/mp",
     });
+    expect(preferencePayload.back_urls.success).not.toContain("status=");
+    expect(preferencePayload.back_urls.success).not.toContain("type=");
   });
 });
