@@ -1,6 +1,28 @@
 import OpenAI from "openai";
 
+const TRY_ON_MODELS = {
+  LEGACY: "gpt-image-1.5",
+  FLARE: "gpt-image-2.5-flare-2026-09-08",
+  SUNBURST: "gpt-image-2.5-sunburst-2026-09-08",
+} as const;
+
+type TryOnModel = (typeof TRY_ON_MODELS)[keyof typeof TRY_ON_MODELS];
+
 let _openai: OpenAI | null = null;
+
+function isTryOnModel(value: string): value is TryOnModel {
+  return Object.values(TRY_ON_MODELS).includes(value as TryOnModel);
+}
+
+function resolveTryOnModel(): TryOnModel {
+  const model = process.env.OPENAI_TRYON_MODEL;
+
+  if (model !== undefined && !isTryOnModel(model)) {
+    throw new Error("Invalid OPENAI_TRYON_MODEL; set it to gpt-image-1.5 to roll back");
+  }
+
+  return model ?? TRY_ON_MODELS.FLARE;
+}
 
 export function getOpenAI(): OpenAI {
   if (!_openai) {
@@ -18,6 +40,7 @@ export async function generateTryOn(
   prompt: string,
   dimensions: { width: number; height: number },
 ): Promise<{ imageBase64: string }> {
+  const model = resolveTryOnModel();
   const openai = getOpenAI();
 
   // Determine size based on orientation
@@ -43,12 +66,12 @@ export async function generateTryOn(
   // Call with retry
   async function callOpenAI() {
     return openai.images.edit({
-      model: "gpt-image-1.5",
+      model: model as "gpt-image-1.5",
       image: [userFile, productFile],
       prompt,
       size: size as "1024x1536" | "1536x1024" | "1024x1024",
       quality: "medium",
-      input_fidelity: "high",
+      ...(model === TRY_ON_MODELS.LEGACY ? { input_fidelity: "high" as const } : {}),
       output_format: "jpeg",
     });
   }
@@ -69,7 +92,7 @@ export async function generateTryOn(
         throw error;
       }
       // Only retry transient errors (5xx, 429, network)
-      await new Promise((r) => setTimeout(r, 1000 * attempt));
+      await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
     }
   }
 
