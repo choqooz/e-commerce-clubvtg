@@ -42,6 +42,15 @@ function persistedOrder(status: "paid" | "pending" | "cancelled" | "shipped", ow
   return query;
 }
 
+function persistedCreditIntent(status: "applied" | "cancelled" | "pending", owner = "owner") {
+  const intentId = "123e4567-e89b-12d3-a456-426614174001";
+  mocks.auth.mockResolvedValue({ userId: owner });
+  mocks.maybeSingle.mockResolvedValue({ data: { id: intentId, reference: `credits:${intentId}`, status, user_id: owner }, error: null });
+  const query = { eq: vi.fn(), maybeSingle: mocks.maybeSingle, select: vi.fn() };
+  query.select.mockReturnValue(query); query.eq.mockReturnValue(query); mocks.from.mockReturnValue(query);
+  return intentId;
+}
+
 function containsCartClearEffect(node: ReactNode): boolean {
   if (!isValidElement<{ children?: ReactNode }>(node)) return false;
   return node.type === CartClearOnAuthoritativePayment || Children.toArray(node.props.children).some(containsCartClearEffect);
@@ -64,6 +73,13 @@ describe("MercadoPago return authority", () => {
 
     expect(response.headers.get("location")).toBe(`https://clubvtg.test/checkout/reconcile?order_id=${orderId}`);
     expect(mocks.from).toHaveBeenCalledWith("orders");
+  });
+
+  it("ignores forged credit return facts and routes only an owned intent to reconciliation", async () => {
+    const intentId = persistedCreditIntent("pending");
+    const response = await GET(request(`?intent_id=${intentId}&status=success&type=credits&payment_id=999`));
+    expect(response.headers.get("location")).toBe(`https://clubvtg.test/credits/reconcile?intent_id=${intentId}`);
+    expect(mocks.from).toHaveBeenCalledWith("credit_purchase_intents");
   });
 
   it("does not let a foreign authenticated user observe another user's paid order", async () => {
