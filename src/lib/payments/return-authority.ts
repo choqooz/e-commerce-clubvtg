@@ -12,6 +12,7 @@ export const PRODUCT_RETURN_OUTCOME = {
 export type ProductReturnOutcome = (typeof PRODUCT_RETURN_OUTCOME)[keyof typeof PRODUCT_RETURN_OUTCOME];
 
 const ORDER_ID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
+const CREDIT_REFERENCE = /^credits:[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 
 const PRODUCT_ORDER_STATUS = {
   CANCELLED: "cancelled",
@@ -28,6 +29,17 @@ export interface OwnedProductReturnOrder {
   payment_reference: string | null;
   purchase_user_id: string;
   status: ProductOrderStatus;
+}
+
+export interface OwnedCreditReturnIntent {
+  id: string;
+  reference: string;
+  status: "applied" | "cancelled" | "pending";
+  user_id: string;
+}
+
+export function isCreditIntentId(value: string | null): value is string {
+  return value !== null && ORDER_ID.test(value);
 }
 
 export function isOrderId(value: string | null): value is string {
@@ -72,4 +84,18 @@ export function getProductReturnOutcome(order: OwnedProductReturnOrder | null): 
 
 export function isAuthoritativelyPaidProductReturn(order: OwnedProductReturnOrder | null): boolean {
   return order?.integrity_version === 1 && order.status === PRODUCT_ORDER_STATUS.PAID;
+}
+
+export async function getOwnedCreditReturnIntent(intentId: string | null, userId: string): Promise<OwnedCreditReturnIntent | null> {
+  if (!isCreditIntentId(intentId)) return null;
+
+  const { data, error } = await supabaseAdmin
+    .from("credit_purchase_intents")
+    .select("id, user_id, reference, status")
+    .eq("id", intentId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  const intent = data as OwnedCreditReturnIntent | null;
+
+  return error || !intent || intent.id !== intentId || intent.user_id !== userId || !CREDIT_REFERENCE.test(intent.reference) || !["applied", "cancelled", "pending"].includes(intent.status) ? null : intent;
 }
