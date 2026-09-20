@@ -31,6 +31,7 @@ const suites = [
     ["031_resumable_product_checkout", 20260905033240],
     ["032_harden_production_data_api_grants", 20260910021122],
     ["033_orders_uuid_compatibility", 20260912202105],
+    ["034_seed_apparel_taxonomy", 20260914053236, "apparel_taxonomy"],
   ];
 
 function run(command, args, options = {}) {
@@ -127,6 +128,15 @@ async function runSuite(suite, migrationFiles) {
     if (phase === "taxonomy") {
       await psql(container, `/workspace/supabase/tests/database/${name}.test.sql`, { pre_taxonomy: "1" });
       await psql(container, `/workspace/supabase/migrations/023_scheduled_promotions_foundation.sql`);
+    }
+    if (phase === "apparel_taxonomy") {
+      const migration = migrationFiles.find(({ file }) => file.endsWith("_seed_apparel_taxonomy.sql"));
+      if (!migration) throw new Error("apparel taxonomy migration not found");
+      await psql(container, migration.file);
+      await psql(container, `/workspace/supabase/tests/database/${name}.test.sql`);
+      await psql(container, `/workspace/supabase/tests/database/${name}.test.sql`, { prepare_idempotency: "1" });
+      await psql(container, migration.file);
+      return { name, output: await psql(container, `/workspace/supabase/tests/database/${name}.test.sql`, { post_idempotency: "1" }) };
     }
     const output = await psql(container, `/workspace/supabase/tests/database/${name}.test.sql`, phase === "retention" ? { retention: true } : {});
     return { name, output };
