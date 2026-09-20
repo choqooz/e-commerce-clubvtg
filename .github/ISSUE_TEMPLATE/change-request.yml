@@ -1,0 +1,57 @@
+name: Change request
+description: Propose a focused product, reliability, or maintenance change.
+title: ""
+body:
+  - type: dropdown
+    id: change-type
+    attributes:
+      label: Change type
+      description: Select the category that best matches this request.
+      options:
+        - Bug fix
+        - New feature
+        - Refactor
+        - Maintenance
+        - Documentation
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Describe the requested outcome in one or two sentences.
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Explain the observed problem or opportunity.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Proposed scope
+      description: List the intended implementation boundary and relevant non-goals.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List the observable conditions required to consider the change complete.
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification plan
+      description: Describe the automated and manual checks that will validate the change.
+    validations:
+      required: true
