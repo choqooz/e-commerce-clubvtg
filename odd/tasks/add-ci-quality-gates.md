@@ -13,7 +13,7 @@ Add a minimal, secret-free GitHub Actions quality gate for pull requests and upd
 
 ## Tasks
 
-- [ ] Add and verify the secret-free CI workflow.
+- [x] Add and verify the secret-free CI workflow.
   - Create `.github/workflows/ci.yml`.
   - Trigger on pull requests and pushes to `main`.
   - Grant read-only repository contents permission.
@@ -45,7 +45,7 @@ Add a minimal, secret-free GitHub Actions quality gate for pull requests and upd
 - Unit tests: `nvm exec 22 npm test` passed, 40 files and 325 tests.
 - Workspace parity: tracked and visible untracked status matched before and after verification.
 - Runtime harness: actual GitHub-hosted execution remains pending until the branch is pushed or a PR is opened.
-- Native review: unavailable because the installed `gentle-pi` package-local `gentle-ai` binary is missing; no lineage was created.
-- Pre-commit receipt validation: exited 0 with `status: invalidated`, `allowed: false`, because no review authority governs this candidate.
-- Rollback boundary: remove `.github/workflows/ci.yml`; retain this task record only if historical evidence is desired.
-- Commit: blocked pending explicit maintainer authorization to repair the package-local Gentle AI binary and rerun review/validation.
+- Native review: approved and acknowledged for the isolated two-file candidate under lineage `review-975be020e4c1e5df`; one informational task-status warning was recorded.
+- Pre-commit receipt validation: after acknowledgement, reported `delivery: unmanaged`; delivery followed ordinary repository policy as required by the native closure.
+- Rollback boundary: revert commit `2685f4d` to remove the workflow and its task record without touching unrelated work.
+- Commit: `2685f4d` (`ci: add secret-free quality gate`).
