@@ -22,7 +22,7 @@ Add a minimal, secret-free GitHub Actions quality gate for pull requests and upd
   - Validate workflow syntax and run the exact quality commands locally.
   - Commit the verified work unit with a Conventional Commit message.
 
-- [ ] Add and verify the remaining hermetic CI gates.
+- [x] Add and verify the remaining hermetic CI gates.
   - Run the payment webhook contract suite explicitly in the quality job.
   - Add a production-build job with literal non-secret `.invalid` configuration and telemetry disabled.
   - Add a Docker-backed database job for all 22 disposable PostgreSQL suites.
@@ -66,5 +66,6 @@ Add a minimal, secret-free GitHub Actions quality gate for pull requests and upd
 - Hygiene: `git diff --check` passed and the candidate diff hash remained unchanged through verification.
 - Install advisory: `npm ci` still reports 16 vulnerabilities for issue #58; no dependency change belongs to this work unit.
 - E2E boundary: deferred because current suites require Clerk development secrets/users and reachable Supabase state; they are not safe for untrusted fork PRs.
-- Rollback boundary: revert the pending remaining-gates commit to remove the explicit payment step plus build/database jobs while retaining the initial quality gate.
-- Commit: pending.
+- Native review: approved and acknowledged under lineage `review-d735d98204340ce9`; three informational warnings covered task status and the intentionally dependency-free database job.
+- Rollback boundary: revert commit `808f921` to remove the explicit payment step plus build/database jobs while retaining the initial quality gate.
+- Commit: `808f921` (`ci: add build and database quality gates`).
