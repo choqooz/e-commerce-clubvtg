@@ -7,9 +7,9 @@ Add a minimal, secret-free GitHub Actions quality gate for pull requests and upd
 ## Scope
 
 - Add one GitHub Actions workflow using the repository's Node and npm contract.
-- Run install, lint, type checking, and unit tests without provider credentials.
+- Run install, lint, type checking, unit tests, explicit payment contracts, production build, and disposable database tests without provider credentials.
 - Preserve all unrelated tracked and untracked workspace content.
-- Defer build, database, and E2E jobs until their environment and runtime boundaries are made hermetic.
+- Defer E2E jobs until their Clerk/Supabase secret and runtime boundaries are made hermetic.
 
 ## Tasks
 
@@ -22,11 +22,17 @@ Add a minimal, secret-free GitHub Actions quality gate for pull requests and upd
   - Validate workflow syntax and run the exact quality commands locally.
   - Commit the verified work unit with a Conventional Commit message.
 
+- [ ] Add and verify the remaining hermetic CI gates.
+  - Run the payment webhook contract suite explicitly in the quality job.
+  - Add a production-build job with literal non-secret `.invalid` configuration and telemetry disabled.
+  - Add a Docker-backed database job for all 22 disposable PostgreSQL suites.
+  - Keep every job fork-safe with no `secrets.*`, `pull_request_target`, hosted database, or provider mutation.
+  - Revalidate workflow syntax, build, database cleanup, and exact commands locally.
+  - Commit and push the verified work unit.
+
 ## Deferred work
 
-- Production build: needs a documented secret-free build environment contract.
-- Database tests: require Docker and 23 disposable PostgreSQL suites.
-- Playwright/Clerk E2E: requires isolated test credentials and a hermetic environment.
+- Playwright/Clerk E2E: existing suites require hosted Clerk development credentials, dedicated users, and reachable Supabase state; keep them out of untrusted PR workflows until isolated secret handling exists.
 
 ## Constraints
 
@@ -49,3 +55,16 @@ Add a minimal, secret-free GitHub Actions quality gate for pull requests and upd
 - Pre-commit receipt validation: after acknowledgement, reported `delivery: unmanaged`; delivery followed ordinary repository policy as required by the native closure.
 - Rollback boundary: revert commit `2685f4d` to remove the workflow and its task record without touching unrelated work.
 - Commit: `2685f4d` (`ci: add secret-free quality gate`).
+
+### Remaining-gates evidence
+
+- Workflow parsing: Python PyYAML 6.0.1 and explicit semantic assertions passed for three jobs, fork-safe permissions/triggers, exact commands, timeouts, and literal build configuration.
+- Runtime: Node `v22.23.2`, npm `10.9.8`, Vitest `4.1.11`, Next.js `16.3.3`, Docker client/server `29.8.1`.
+- Payment contracts: `npm run test:payment-webhook` passed, 2 files and 72 tests.
+- Production build: `npm run build` passed with only workflow literal placeholders; TypeScript passed and 25/25 static pages generated. The expected `ci.invalid` product-fetch lookup failed closed without failing the build.
+- Database: `npm run test:database` passed all 22 suites; all 22 disposable PostgreSQL containers were removed and no matching containers remained.
+- Hygiene: `git diff --check` passed and the candidate diff hash remained unchanged through verification.
+- Install advisory: `npm ci` still reports 16 vulnerabilities for issue #58; no dependency change belongs to this work unit.
+- E2E boundary: deferred because current suites require Clerk development secrets/users and reachable Supabase state; they are not safe for untrusted fork PRs.
+- Rollback boundary: revert the pending remaining-gates commit to remove the explicit payment step plus build/database jobs while retaining the initial quality gate.
+- Commit: pending.
