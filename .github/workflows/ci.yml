@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Run payment webhook contract tests
+        run: npm run test:payment-webhook
+
+  production-build:
+    name: Production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ADMIN_EMAIL: ci-admin@example.invalid
+      CLERK_SECRET_KEY: sk_test_ci_placeholder
+      MP_ACCESS_TOKEN: TEST-ci-placeholder
+      NEXT_PUBLIC_APP_URL: https://ci.invalid
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ci_placeholder
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-anon-placeholder
+      NEXT_PUBLIC_SUPABASE_URL: https://ci.invalid
+      NEXT_TELEMETRY_DISABLED: "1"
+      SUPABASE_SERVICE_ROLE_KEY: ci-service-role-placeholder
+      UPSTASH_REDIS_REST_TOKEN: ci-placeholder
+      UPSTASH_REDIS_REST_URL: https://ci.invalid
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+  database:
+    name: Disposable database migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Run database tests
+        run: npm run test:database
