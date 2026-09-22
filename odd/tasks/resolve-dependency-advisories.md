@@ -30,7 +30,9 @@ Resolve the currently audited npm dependency vulnerabilities through compatible 
   - Two reviewer runs independently returned incomplete inspection and were rejected without consuming the lens slot or correction budget.
   - The user explicitly chose to proceed without native review for this candidate after the full independent regression suite passed.
   - Work-unit commit: `d3d43a4` (`fix(deps): resolve transitive advisories`).
-  - Push and PR remain separately authorized delivery actions.
+  - Evidence commit: `7ba3bb4` (`docs(odd): record dependency remediation evidence`).
+  - Pushed `fix/dependency-advisories` and opened PR #84 linked to issue #58 with `type:bug`.
+  - Hosted checks passed: Quality, Production build, Disposable database migrations, and GitGuardian Security Checks; GitHub reports the PR mergeable and clean.
 
 ## Remediation evidence
 
