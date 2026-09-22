@@ -29,7 +29,8 @@ Resolve the currently audited npm dependency vulnerabilities through compatible 
   - Native review lineage `review-abde12ac058cdd6d` could not inspect the generated lockfile because Gentle omitted its content from the immutable reviewer prompt.
   - Two reviewer runs independently returned incomplete inspection and were rejected without consuming the lens slot or correction budget.
   - The user explicitly chose to proceed without native review for this candidate after the full independent regression suite passed.
-  - Commit locally with Conventional Commits; push and PR remain separately authorized delivery actions.
+  - Work-unit commit: `d3d43a4` (`fix(deps): resolve transitive advisories`).
+  - Push and PR remain separately authorized delivery actions.
 
 ## Remediation evidence
 
