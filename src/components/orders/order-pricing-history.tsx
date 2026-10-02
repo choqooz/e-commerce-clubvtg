@@ -32,7 +32,9 @@ function formatCents(cents: number) {
   return formatPrice(cents / 100);
 }
 
-function hasAuthoritativeSnapshot(order: PricingHistoryOrder): order is AuthoritativePricingHistoryOrder {
+function hasAuthoritativeSnapshot(
+  order: PricingHistoryOrder,
+): order is AuthoritativePricingHistoryOrder {
   return [
     order.merchandise_original_cents,
     order.merchandise_discount_cents,
@@ -43,37 +45,61 @@ function hasAuthoritativeSnapshot(order: PricingHistoryOrder): order is Authorit
   ].every((value) => typeof value === "number");
 }
 
-export function formatHistoricalOrderTotal(order: Pick<PricingHistoryOrder, "total_cents"> & { total_amount: number }) {
-  return typeof order.total_cents === "number" ? formatCents(order.total_cents) : formatPrice(order.total_amount);
+export function formatHistoricalOrderTotal(
+  order: Pick<PricingHistoryOrder, "total_cents"> & { total_amount: number },
+) {
+  return typeof order.total_cents === "number"
+    ? formatCents(order.total_cents)
+    : formatPrice(order.total_amount);
 }
 
 export function OrderPricingHistory({ order }: { order: PricingHistoryOrder }) {
   if (!hasAuthoritativeSnapshot(order)) return null;
 
   const couponCode = order.coupon_definitions?.[0]?.code;
-  const source = order.pricing_source === "coupon" ? `Cupón${couponCode ? ` ${couponCode}` : ""}` : order.pricing_source === "promotions" ? "Promociones" : "Sin fuente registrada";
+  const source =
+    order.pricing_source === "coupon"
+      ? `Cupón${couponCode ? ` ${couponCode}` : ""}`
+      : order.pricing_source === "promotions"
+        ? "Promociones"
+        : "Sin fuente registrada";
 
   return (
-    <section data-testid="order-pricing-history" aria-label="Detalle de precios confirmado" className="space-y-3 text-sm">
-      <div>
-        <h3 className="font-medium">Detalle de precios confirmado</h3>
-        <p className="text-muted-foreground">Fuente aplicada: {source}</p>
+    <section
+      data-testid="order-pricing-history"
+      aria-label="Detalle de precios confirmado"
+      className="grid min-w-0 max-w-[560px] gap-[13px] rounded-none border border-midnight-ink bg-warm-sand p-[13px] font-sans text-[15px] leading-[1.3] font-normal text-midnight-ink"
+    >
+      <div className="grid gap-[6px] break-words">
+        <h3 className="text-[20px] font-normal">Detalle de precios confirmado</h3>
+        <p>Fuente aplicada: {source}</p>
       </div>
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-muted-foreground">
-        <dt>Subtotal de productos</dt><dd className="text-right text-foreground">{formatCents(order.merchandise_original_cents)}</dd>
-        <dt>Descuento</dt><dd className="text-right text-foreground">-{formatCents(order.merchandise_discount_cents)}</dd>
-        <dt>Productos con descuento</dt><dd className="text-right text-foreground">{formatCents(order.merchandise_final_cents)}</dd>
-        <dt>Envío</dt><dd className="text-right text-foreground">{formatCents(order.shipping_cents)}</dd>
-        <dt className="font-medium text-foreground">Total a pagar</dt><dd className="text-right font-medium text-foreground">{formatCents(order.total_cents)}</dd>
-        <dt>Monto cobrado</dt><dd className="text-right text-foreground">{formatCents(order.payment_amount_cents)}</dd>
+      <dl className="grid grid-cols-2 gap-x-[13px] gap-y-[6px] font-mono text-[13px] break-words">
+        <dt>Subtotal de productos</dt>
+        <dd className="text-right">{formatCents(order.merchandise_original_cents)}</dd>
+        <dt>Descuento</dt>
+        <dd className="text-right">-{formatCents(order.merchandise_discount_cents)}</dd>
+        <dt>Productos con descuento</dt>
+        <dd className="text-right">{formatCents(order.merchandise_final_cents)}</dd>
+        <dt>Envío</dt>
+        <dd className="text-right">{formatCents(order.shipping_cents)}</dd>
+        <dt>Total a pagar</dt>
+        <dd className="text-right">{formatCents(order.total_cents)}</dd>
+        <dt>Monto cobrado</dt>
+        <dd className="text-right">{formatCents(order.payment_amount_cents)}</dd>
       </dl>
       {order.product_payment_reversal_evidence.length > 0 && (
-        <div data-testid="order-reversal-evidence" aria-label="Reversiones registradas">
-          <h3 className="font-medium">Reversiones registradas</h3>
-          <ul className="mt-1 space-y-1 text-muted-foreground">
+        <div
+          data-testid="order-reversal-evidence"
+          aria-label="Reversiones registradas"
+          className="grid gap-[6px] border-t border-midnight-ink pt-[13px]"
+        >
+          <h3 className="text-[20px] font-normal">Reversiones registradas</h3>
+          <ul className="grid gap-[6px] break-words">
             {order.product_payment_reversal_evidence.map((evidence) => (
               <li key={`${evidence.event_class}-${evidence.created_at}`}>
-                {REVERSAL_LABELS[evidence.event_class]}: {formatCents(evidence.reversal_total_cents)}
+                {REVERSAL_LABELS[evidence.event_class]}:{" "}
+                {formatCents(evidence.reversal_total_cents)}
               </li>
             ))}
           </ul>
