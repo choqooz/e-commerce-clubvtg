@@ -7,27 +7,25 @@ interface TryOnSectionProps {
 
 export function TryOnSection({ productSlug }: TryOnSectionProps) {
   return (
-    <div className="border-t border-border pt-6 mt-4">
-      <div className="flex items-center gap-2 mb-3">
-        <Sparkles size={14} className="text-accent" />
-        <h3 className="text-xs uppercase tracking-widest font-sans font-medium">
-          Probátelo virtualmente
-        </h3>
+    <div className="border-t border-midnight-ink pt-[24px] mt-[18px] text-midnight-ink font-sans font-normal">
+      <div className="flex items-center gap-[6px] mb-[13px]">
+        <Sparkles size={14} className="text-midnight-ink" />
+        <h3 className="font-mono text-[13px] font-normal leading-[1.2]">Probátelo virtualmente</h3>
       </div>
 
-      <p className="text-sm text-muted-foreground font-sans mb-5 leading-relaxed">
+      <p className="text-[15px] font-sans font-normal mb-[18px] leading-[1.3]">
         Subí tu foto y usá inteligencia artificial para verte con esta prenda.
       </p>
 
       <Link
         href={`/try-on/${productSlug}`}
-        className="w-full border border-foreground text-foreground py-3 text-sm uppercase tracking-widest font-sans font-medium hover:bg-primary hover:text-primary-foreground transition-all flex items-center justify-center gap-2"
+        className="w-full min-h-[36px] rounded-none border border-midnight-ink bg-bone-white text-midnight-ink px-[6px] py-[2px] font-mono text-[13px] font-normal hover:bg-warm-sand focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 flex items-center justify-center gap-[6px]"
       >
         <Sparkles size={14} />
         Probar ahora
       </Link>
 
-      <p className="text-[11px] text-muted-foreground text-center font-sans mt-2">
+      <p className="text-[13px] text-midnight-ink text-center font-mono font-normal mt-[6px] leading-[1.2]">
         Usa 1 crédito por generación
       </p>
     </div>

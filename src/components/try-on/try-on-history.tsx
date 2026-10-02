@@ -25,15 +25,15 @@ function isValidImageUrl(url: string | null | undefined): url is string {
 const STATUS_CONFIG: Record<TryOnStatus, { label: string; className: string }> = {
   completed: {
     label: "Completado",
-    className: "bg-green-500/10 text-green-700 dark:text-green-400",
+    className: "border-midnight-ink bg-bone-white text-midnight-ink",
   },
   failed: {
     label: "Fallido",
-    className: "bg-red-500/10 text-red-700 dark:text-red-400",
+    className: "border-midnight-ink border-dotted bg-bone-white text-midnight-ink",
   },
   processing: {
     label: "Procesando",
-    className: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400",
+    className: "border-midnight-ink bg-warm-sand text-midnight-ink",
   },
 };
 
@@ -47,7 +47,7 @@ function formatDate(dateStr: string): string {
 
 function ImagePlaceholder() {
   return (
-    <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+    <div className="flex h-full items-center justify-center text-[13px] font-mono font-normal text-midnight-ink">
       Sin imagen
     </div>
   );
@@ -66,7 +66,7 @@ function HistoryThumbnail({ src, alt }: { src: string | null | undefined; alt: s
       src={src}
       alt={alt}
       fill
-      className="object-cover transition-transform group-hover:scale-105"
+      className="object-cover"
       sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
       onError={handleError}
     />
@@ -76,8 +76,8 @@ function HistoryThumbnail({ src, alt }: { src: string | null | undefined; alt: s
 export function TryOnHistory({ items }: TryOnHistoryProps) {
   if (items.length === 0) {
     return (
-      <div className="text-center py-12 space-y-4">
-        <p className="text-muted-foreground">Aún no probaste ninguna prenda</p>
+      <div className="text-center py-[42px] space-y-[18px] font-sans text-[15px] font-normal">
+        <p className="text-midnight-ink">Aún no probaste ninguna prenda</p>
         <Button asChild variant="outline" size="sm">
           <Link href="/">Explorar el catálogo</Link>
         </Button>
@@ -86,7 +86,7 @@ export function TryOnHistory({ items }: TryOnHistoryProps) {
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-[18px] text-midnight-ink font-normal">
       {items.map((item) => {
         const imageUrl =
           item.status === "completed" && item.result_image_url
@@ -96,13 +96,13 @@ export function TryOnHistory({ items }: TryOnHistoryProps) {
         const config = STATUS_CONFIG[item.status];
 
         return (
-          <div key={item.id} className="group space-y-2">
+          <div key={item.id} className="group min-w-0 space-y-[6px]">
             {/* Thumbnail */}
-            <div className="relative aspect-[3/4] w-full overflow-hidden rounded-lg bg-muted">
+            <div className="relative aspect-[3/4] w-full overflow-hidden rounded-none bg-warm-sand">
               <HistoryThumbnail src={imageUrl} alt={`Prueba: ${item.product_title}`} />
 
               {/* Status badge overlay */}
-              <div className="absolute top-2 left-2">
+              <div className="absolute top-[6px] left-[6px] right-[6px]">
                 <Badge variant="outline" className={config.className}>
                   {config.label}
                 </Badge>
@@ -110,9 +110,13 @@ export function TryOnHistory({ items }: TryOnHistoryProps) {
             </div>
 
             {/* Info */}
-            <div className="space-y-0.5">
-              <p className="text-sm font-medium leading-tight line-clamp-1">{item.product_title}</p>
-              <p className="text-xs text-muted-foreground">{formatDate(item.created_at)}</p>
+            <div className="space-y-[6px]">
+              <p className="text-[15px] font-sans font-normal leading-[1.3] break-words line-clamp-1">
+                {item.product_title}
+              </p>
+              <p className="text-[13px] font-mono font-normal text-midnight-ink leading-[1.2]">
+                {formatDate(item.created_at)}
+              </p>
             </div>
           </div>
         );
