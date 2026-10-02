@@ -46,45 +46,45 @@ export function CreditsPageContent({ initialCredits }: CreditsPageContentProps) 
   );
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-bone-white text-midnight-ink font-sans font-normal text-[15px] leading-[1.3]">
       <SiteHeader />
       <CartDrawer />
 
       <main>
         {/* Breadcrumb */}
-        <div className="container mx-auto px-6 py-4">
-          <nav className="flex items-center gap-1.5 text-xs text-muted-foreground font-sans">
-            <Link href="/" className="hover:text-foreground transition-colors">
+        <div className="w-full px-[18px] py-[18px] md:px-[30px]">
+          <nav className="flex flex-wrap items-center gap-[6px] text-[13px] text-midnight-ink font-mono">
+            <Link href="/" className="hover:underline focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2">
               Inicio
             </Link>
             <ChevronRight size={12} />
-            <span className="text-foreground">Créditos</span>
+            <span className="text-midnight-ink">Créditos</span>
           </nav>
         </div>
 
-        <div className="container mx-auto px-6 pb-16">
-          <div className="max-w-3xl mx-auto space-y-10">
+        <div className="w-full px-[18px] pb-[42px] md:px-[30px]">
+          <div className="max-w-[896px] min-w-0 mx-auto space-y-[42px]">
             {/* Header */}
-            <div className="text-center space-y-3">
-              <div className="inline-flex items-center justify-center size-14 rounded-full bg-primary/10">
-                <Sparkles className="size-7 text-primary" />
+            <div className="text-center space-y-[13px]">
+              <div className="inline-flex items-center justify-center size-[56px] bg-warm-sand">
+                <Sparkles className="size-[28px] text-midnight-ink" />
               </div>
-              <h1 className="text-3xl font-heading font-medium tracking-wide">Tu balance</h1>
+              <h1 className="text-[30px] leading-[1.2] font-sans font-normal">Tu balance</h1>
               <div className="flex justify-center">
-                <CreditBalance credits={initialCredits} />
+                <CreditBalance credits={initialCredits} className="gap-[6px] font-mono text-[13px] font-normal tracking-normal text-midnight-ink hover:text-midnight-ink [&_svg]:opacity-100" />
               </div>
             </div>
 
             {/* Credit Packs */}
-            <div className="space-y-4">
-              <h2 className="text-lg font-heading font-medium tracking-wide text-center">
+            <div className="space-y-[18px]">
+              <h2 className="text-[20px] font-sans font-normal text-center">
                 Comprá créditos
               </h2>
-              <p className="text-sm text-muted-foreground text-center">
+              <p className="text-[15px] text-midnight-ink text-center">
                 Cada crédito te permite generar una prueba virtual de cualquier prenda.
               </p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-[18px] pt-[13px]">
                 {CREDIT_PACKS.map((pack) => (
                   <CreditPackCard
                     key={pack.id}
@@ -101,26 +101,26 @@ export function CreditsPageContent({ initialCredits }: CreditsPageContentProps) 
             </div>
 
             {/* How credits work */}
-            <div className="rounded-lg border bg-muted/30 p-6 space-y-3">
-              <div className="flex items-center gap-2">
-                <HelpCircle className="size-4 text-muted-foreground" />
-                <h3 className="text-sm font-medium">¿Cómo funcionan los créditos?</h3>
+            <div className="border border-midnight-ink bg-warm-sand p-[13px] md:p-[24px] space-y-[13px]">
+              <div className="flex items-center gap-[6px]">
+                <HelpCircle className="size-[16px] text-midnight-ink shrink-0" />
+                <h3 className="text-[13px] font-mono font-normal">¿Cómo funcionan los créditos?</h3>
               </div>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-start gap-2">
-                  <span className="font-medium text-foreground shrink-0">1.</span>
+              <ul className="space-y-[6px] text-[15px] text-midnight-ink">
+                <li className="flex items-start gap-[6px]">
+                  <span className="font-mono text-[13px] font-normal text-midnight-ink shrink-0">1.</span>
                   Comprá un pack de créditos con MercadoPago.
                 </li>
-                <li className="flex items-start gap-2">
-                  <span className="font-medium text-foreground shrink-0">2.</span>
+                <li className="flex items-start gap-[6px]">
+                  <span className="font-mono text-[13px] font-normal text-midnight-ink shrink-0">2.</span>
                   Elegí una prenda de la tienda y hacé clic en &quot;Probate esta prenda&quot;.
                 </li>
-                <li className="flex items-start gap-2">
-                  <span className="font-medium text-foreground shrink-0">3.</span>
+                <li className="flex items-start gap-[6px]">
+                  <span className="font-mono text-[13px] font-normal text-midnight-ink shrink-0">3.</span>
                   Subí una foto tuya y nuestra IA genera una prueba virtual.
                 </li>
-                <li className="flex items-start gap-2">
-                  <span className="font-medium text-foreground shrink-0">4.</span>
+                <li className="flex items-start gap-[6px]">
+                  <span className="font-mono text-[13px] font-normal text-midnight-ink shrink-0">4.</span>
                   Se descuenta 1 crédito por cada generación.
                 </li>
               </ul>

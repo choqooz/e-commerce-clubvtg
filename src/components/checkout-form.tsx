@@ -79,163 +79,163 @@ export function CheckoutForm() {
   };
 
   return (
-    <form data-testid="checkout-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-      <div className="space-y-4">
-        <h3 className="font-heading text-xl">Datos de Contacto</h3>
+    <form data-testid="checkout-form" onSubmit={form.handleSubmit(onSubmit)} className="min-w-0 space-y-[24px] font-sans font-normal text-[15px] leading-[1.3] text-midnight-ink">
+      <div className="space-y-[18px]">
+        <h3 className="font-sans font-normal text-[20px]">Datos de Contacto</h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-xs uppercase font-sans font-medium tracking-widest">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-[18px]">
+          <div className="min-w-0 space-y-[6px]">
+            <label className="text-[13px] uppercase font-mono font-normal">
               Nombre Completo
             </label>
             <input
               {...form.register("fullName")}
               aria-label="Nombre Completo"
-              className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full min-w-0 h-[36px] rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] text-[16px] md:text-[15px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="Juan Pérez"
               disabled={isSubmitting}
             />
             {form.formState.errors.fullName && (
-              <p className="text-destructive text-xs">{form.formState.errors.fullName.message}</p>
+              <p className="text-midnight-ink text-[13px] border-l border-dotted border-midnight-ink pl-[6px]">{form.formState.errors.fullName.message}</p>
             )}
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs uppercase font-sans font-medium tracking-widest">Email</label>
+          <div className="min-w-0 space-y-[6px]">
+            <label className="text-[13px] uppercase font-mono font-normal">Email</label>
             <input
               {...form.register("email")}
               aria-label="Email"
               type="email"
-              className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full min-w-0 h-[36px] rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] text-[16px] md:text-[15px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="juan@ejemplo.com"
               disabled={isSubmitting}
             />
             {form.formState.errors.email && (
-              <p className="text-destructive text-xs">{form.formState.errors.email.message}</p>
+              <p className="text-midnight-ink text-[13px] border-l border-dotted border-midnight-ink pl-[6px]">{form.formState.errors.email.message}</p>
             )}
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs uppercase font-sans font-medium tracking-widest">DNI</label>
+          <div className="min-w-0 space-y-[6px]">
+            <label className="text-[13px] uppercase font-mono font-normal">DNI</label>
             <input
               {...form.register("dni")}
               aria-label="DNI"
-              className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full min-w-0 h-[36px] rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] text-[16px] md:text-[15px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="12345678"
               disabled={isSubmitting}
             />
             {form.formState.errors.dni && (
-              <p className="text-destructive text-xs">{form.formState.errors.dni.message}</p>
+              <p className="text-midnight-ink text-[13px] border-l border-dotted border-midnight-ink pl-[6px]">{form.formState.errors.dni.message}</p>
             )}
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs uppercase font-sans font-medium tracking-widest">
+          <div className="min-w-0 space-y-[6px]">
+            <label className="text-[13px] uppercase font-mono font-normal">
               Teléfono
             </label>
             <input
               {...form.register("phone")}
               aria-label="Teléfono"
-              className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full min-w-0 h-[36px] rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] text-[16px] md:text-[15px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="11 1234 5678"
               disabled={isSubmitting}
             />
             {form.formState.errors.phone && (
-              <p className="text-destructive text-xs">{form.formState.errors.phone.message}</p>
+              <p className="text-midnight-ink text-[13px] border-l border-dotted border-midnight-ink pl-[6px]">{form.formState.errors.phone.message}</p>
             )}
           </div>
         </div>
       </div>
 
-      <div className="space-y-4 pt-6 border-t border-border">
-        <h3 className="font-heading text-xl">Datos de Envío (Correo Argentino)</h3>
+      <div className="space-y-[18px] pt-[24px] border-t border-midnight-ink">
+        <h3 className="font-sans font-normal text-[20px]">Datos de Envío (Correo Argentino)</h3>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="space-y-2 col-span-2 md:col-span-2">
-            <label className="text-xs uppercase font-sans font-medium tracking-widest">Calle</label>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-[18px]">
+          <div className="min-w-0 space-y-[6px] col-span-2 md:col-span-2">
+            <label className="text-[13px] uppercase font-mono font-normal">Calle</label>
             <input
               {...form.register("street")}
               aria-label="Calle"
-              className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full min-w-0 h-[36px] rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] text-[16px] md:text-[15px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="Av. Rivadavia"
               disabled={isSubmitting}
             />
             {form.formState.errors.street && (
-              <p className="text-destructive text-xs">{form.formState.errors.street.message}</p>
+              <p className="text-midnight-ink text-[13px] border-l border-dotted border-midnight-ink pl-[6px]">{form.formState.errors.street.message}</p>
             )}
           </div>
 
-          <div className="space-y-2 col-span-1">
-            <label className="text-xs uppercase font-sans font-medium tracking-widest">
+          <div className="min-w-0 space-y-[6px] col-span-1">
+            <label className="text-[13px] uppercase font-mono font-normal">
               Número
             </label>
             <input
               {...form.register("number")}
               aria-label="Número"
-              className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full min-w-0 h-[36px] rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] text-[16px] md:text-[15px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="1234"
               disabled={isSubmitting}
             />
             {form.formState.errors.number && (
-              <p className="text-destructive text-xs">{form.formState.errors.number.message}</p>
+              <p className="text-midnight-ink text-[13px] border-l border-dotted border-midnight-ink pl-[6px]">{form.formState.errors.number.message}</p>
             )}
           </div>
 
-          <div className="space-y-2 col-span-1">
-            <label className="text-xs uppercase font-sans font-medium tracking-widest">
+          <div className="min-w-0 space-y-[6px] col-span-1">
+            <label className="text-[13px] uppercase font-mono font-normal">
               Piso/Dpto
             </label>
             <input
               {...form.register("floorOrApt")}
-              className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full min-w-0 h-[36px] rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] text-[16px] md:text-[15px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="4B (Opcional)"
               disabled={isSubmitting}
             />
           </div>
 
-          <div className="space-y-2 col-span-2 md:col-span-2">
-            <label className="text-xs uppercase font-sans font-medium tracking-widest">
+          <div className="min-w-0 space-y-[6px] col-span-2 md:col-span-2">
+            <label className="text-[13px] uppercase font-mono font-normal">
               Ciudad
             </label>
             <input
               {...form.register("city")}
               aria-label="Ciudad"
-              className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full min-w-0 h-[36px] rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] text-[16px] md:text-[15px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="CABA"
               disabled={isSubmitting}
             />
             {form.formState.errors.city && (
-              <p className="text-destructive text-xs">{form.formState.errors.city.message}</p>
+              <p className="text-midnight-ink text-[13px] border-l border-dotted border-midnight-ink pl-[6px]">{form.formState.errors.city.message}</p>
             )}
           </div>
 
-          <div className="space-y-2 col-span-1 md:col-span-1">
-            <label className="text-xs uppercase font-sans font-medium tracking-widest">
+          <div className="min-w-0 space-y-[6px] col-span-1 md:col-span-1">
+            <label className="text-[13px] uppercase font-mono font-normal">
               Provincia
             </label>
             <input
               {...form.register("province")}
               aria-label="Provincia"
-              className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full min-w-0 h-[36px] rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] text-[16px] md:text-[15px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="Buenos Aires"
               disabled={isSubmitting}
             />
             {form.formState.errors.province && (
-              <p className="text-destructive text-xs">{form.formState.errors.province.message}</p>
+              <p className="text-midnight-ink text-[13px] border-l border-dotted border-midnight-ink pl-[6px]">{form.formState.errors.province.message}</p>
             )}
           </div>
 
-          <div className="space-y-2 col-span-1 md:col-span-1">
-            <label className="text-xs uppercase font-sans font-medium tracking-widest">CP</label>
+          <div className="min-w-0 space-y-[6px] col-span-1 md:col-span-1">
+            <label className="text-[13px] uppercase font-mono font-normal">CP</label>
             <input
               {...form.register("zipCode")}
               aria-label="CP"
-              className="w-full border border-border bg-transparent p-3 text-sm font-sans focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full min-w-0 h-[36px] rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] text-[16px] md:text-[15px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="1000"
               disabled={isSubmitting}
             />
             {form.formState.errors.zipCode && (
-              <p className="text-destructive text-xs">{form.formState.errors.zipCode.message}</p>
+              <p className="text-midnight-ink text-[13px] border-l border-dotted border-midnight-ink pl-[6px]">{form.formState.errors.zipCode.message}</p>
             )}
           </div>
         </div>
@@ -246,11 +246,11 @@ export function CheckoutForm() {
       <button
         type="submit"
         disabled={isSubmitting || items.length === 0}
-        className="w-full py-4 mt-8 bg-primary text-primary-foreground font-sans font-medium uppercase tracking-widest flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+        className="w-full min-h-[36px] py-[2px] px-[6px] mt-[30px] border border-midnight-ink bg-midnight-ink text-bone-white font-mono text-[13px] font-normal uppercase flex items-center justify-center gap-[6px] hover:underline disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2"
       >
         {isSubmitting ? (
           <>
-            <Loader2 className="h-5 w-5 animate-spin" />
+            <Loader2 className="h-[20px] w-[20px] animate-spin" />
             Iniciando Pago...
           </>
         ) : (
@@ -258,7 +258,7 @@ export function CheckoutForm() {
         )}
       </button>
 
-      <p className="text-xs text-center text-muted-foreground font-sans">
+      <p className="text-[13px] text-center text-midnight-ink font-mono">
         Al proceder, serás redirigido al sitio seguro de MercadoPago.
       </p>
     </form>
