@@ -132,12 +132,12 @@ export function CatalogFilters({
   const visibleColors = FILTER_COLORS.filter((c) => availableColorKeys.has(c.key));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-[24px] font-mono text-[13px] font-normal text-midnight-ink">
       {/* ── Subcategory ── */}
       {availableSubcategories.length > 0 && (
         <>
           <FilterSection title="Subcategoría">
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-[6px]">
               {availableSubcategories.map((sub) => (
                 <ChipToggle
                   key={sub}
@@ -163,7 +163,7 @@ export function CatalogFilters({
       {availableSizes.length > 0 && (
         <>
           <FilterSection title="Talle">
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-[6px]">
               {availableSizes.map((size) => (
                 <ChipToggle
                   key={size}
@@ -184,43 +184,34 @@ export function CatalogFilters({
       {visibleColors.length > 0 && (
         <>
           <FilterSection title="Color">
-            <div className="flex flex-wrap gap-2.5">
+            <div className="flex flex-wrap gap-[13px]">
               {visibleColors.map((color) => {
                 const hex = COLOR_MAP[color.key];
                 const isGradient = hex.includes("gradient");
                 const isSelected = filters.colors.includes(color.key);
-                const needsDarkCheck = color.key === "blanco" || color.key === "amarillo";
 
                 return (
                   <button
                     key={color.key}
+                    type="button"
                     onClick={() => toggleArray("colors", color.key)}
-                    className="group/color flex flex-col items-center gap-1"
+                    className="flex min-h-[36px] min-w-[36px] flex-col items-center gap-[6px] rounded-none px-[4px] py-[4px] font-mono text-[13px] font-normal text-midnight-ink focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-[2px]"
                     aria-label={color.name}
+                    aria-pressed={isSelected}
                   >
                     <span
-                      className={`relative w-7 h-7 rounded-full border-2 transition-all duration-200 ${
-                        isSelected
-                          ? "border-foreground scale-110 ring-2 ring-foreground ring-offset-2"
-                          : color.key === "blanco"
-                            ? "border-border hover:border-foreground/50 hover:ring-2 hover:ring-offset-2 hover:ring-foreground/30"
-                            : "border-transparent hover:scale-105 hover:ring-2 hover:ring-offset-2 hover:ring-foreground/30"
-                      }`}
+                      className="relative size-[28px] rounded-none border border-midnight-ink"
                       style={isGradient ? { background: hex } : { backgroundColor: hex }}
                     >
                       {isSelected && (
                         <Check
                           size={14}
-                          className={`absolute inset-0 m-auto ${
-                            needsDarkCheck ? "text-foreground" : "text-white"
-                          }`}
+                          className="absolute inset-0 m-auto bg-bone-white text-midnight-ink"
                           strokeWidth={3}
                         />
                       )}
                     </span>
-                    <span className="text-[10px] text-muted-foreground group-hover/color:text-foreground transition-colors">
-                      {color.name}
-                    </span>
+                    <span className="font-mono text-[13px] font-normal">{color.name}</span>
                   </button>
                 );
               })}
@@ -232,7 +223,7 @@ export function CatalogFilters({
 
       {/* ── Price Range ── */}
       <FilterSection title="Precio">
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-[6px]">
           {PRICE_BRACKETS.map((bracket, i) => (
             <ChipToggle
               key={i}
@@ -256,7 +247,7 @@ export function CatalogFilters({
         <>
           <Separator />
           <FilterSection title="Estado">
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-[6px]">
               {CONDITION_OPTIONS.filter((c) => availableConditions.includes(c)).map((cond) => (
                 <ChipToggle
                   key={cond}
@@ -277,50 +268,52 @@ export function CatalogFilters({
           <Separator />
           <FilterSection title="Marca">
             {sortedBrands.length > 6 && (
-              <div className="relative mb-2">
+              <div className="relative mb-[13px]">
                 <Search
                   size={14}
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  className="absolute left-[10px] top-1/2 -translate-y-1/2 text-midnight-ink"
                 />
                 <Input
                   placeholder="Buscar marca..."
                   value={brandSearch}
                   onChange={(e) => setBrandSearch(e.target.value)}
-                  className="pl-8 h-7 text-xs"
+                  className="h-[36px] pl-[30px] font-mono text-[16px] font-normal md:text-[13px]"
                 />
               </div>
             )}
-            <div className="flex flex-col gap-0.5 max-h-52 overflow-y-auto">
+            <div className="flex max-h-[208px] flex-col gap-[2px] overflow-y-auto p-[2px]">
               {filteredBrands.map(([brand, count]) => {
                 const selected = filters.brands.includes(brand);
                 return (
                   <button
                     key={brand}
+                    type="button"
                     onClick={() => toggleArray("brands", brand)}
-                    className={`flex items-center justify-between px-2 py-1.5 text-xs font-sans transition-colors ${
-                      selected
-                        ? "bg-foreground/5 text-foreground font-medium"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    aria-pressed={selected}
+                    className={`flex min-h-[36px] items-center justify-between gap-[13px] rounded-none px-[6px] py-[2px] font-mono text-[13px] font-normal text-midnight-ink focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-[0px] ${
+                      selected ? "bg-warm-sand" : "bg-bone-white hover:bg-warm-sand"
                     }`}
                   >
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-[6px]">
                       <span
-                        className={`w-3.5 h-3.5 border flex items-center justify-center shrink-0 ${
-                          selected ? "border-foreground bg-foreground" : "border-border"
+                        className={`flex size-[14px] shrink-0 items-center justify-center rounded-none border border-midnight-ink ${
+                          selected ? "bg-midnight-ink" : "bg-bone-white"
                         }`}
                       >
                         {selected && (
-                          <Check size={10} className="text-background" strokeWidth={3} />
+                          <Check size={10} className="text-bone-white" strokeWidth={3} />
                         )}
                       </span>
                       {brand}
                     </span>
-                    <span className="text-muted-foreground/60 tabular-nums">{count}</span>
+                    <span className="font-mono text-[13px] font-normal tabular-nums">{count}</span>
                   </button>
                 );
               })}
               {filteredBrands.length === 0 && (
-                <p className="text-xs text-muted-foreground py-2 text-center">Sin resultados</p>
+                <p className="py-[13px] text-center font-mono text-[13px] font-normal">
+                  Sin resultados
+                </p>
               )}
             </div>
           </FilterSection>
@@ -335,7 +328,7 @@ export function CatalogFilters({
 function FilterSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <h3 className="text-xs uppercase tracking-widest font-sans font-medium mb-3">{title}</h3>
+      <h3 className="mb-[13px] font-mono text-[13px] font-normal uppercase">{title}</h3>
       {children}
     </div>
   );
@@ -354,11 +347,13 @@ function ChipToggle({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className={`px-3 py-1.5 text-xs font-sans tracking-wide border transition-all duration-200 ${
+      aria-pressed={active}
+      className={`min-h-[28px] rounded-none border border-midnight-ink px-[6px] py-[2px] font-mono text-[13px] font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-[-3px] ${
         active
-          ? "border-foreground bg-foreground text-background"
-          : "border-border text-muted-foreground hover:border-foreground hover:text-foreground hover:bg-foreground/5"
+          ? "bg-midnight-ink text-bone-white focus-visible:outline-bone-white"
+          : "bg-bone-white text-midnight-ink hover:bg-warm-sand focus-visible:outline-midnight-ink"
       } ${className}`}
     >
       {children}
