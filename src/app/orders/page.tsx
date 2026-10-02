@@ -21,11 +21,11 @@ export default async function OrdersPage() {
 
   if (!orders || orders.length === 0) {
     return (
-      <div className="container mx-auto px-4 py-24 text-center">
-        <div className="mx-auto max-w-md space-y-6">
-          <div className="text-6xl">📦</div>
-          <h1 className="text-3xl font-heading font-light tracking-wide">No tenés pedidos aún</h1>
-          <p className="text-muted-foreground">
+      <div className="w-full bg-bone-white px-[18px] py-[42px] text-center font-sans font-normal text-[15px] leading-[1.3] text-midnight-ink">
+        <div className="mx-auto min-w-0 max-w-[448px] space-y-[24px]">
+          <div className="text-[60px] leading-[1]">📦</div>
+          <h1 className="font-sans font-normal text-[30px] leading-[1.2]">No tenés pedidos aún</h1>
+          <p className="text-midnight-ink">
             Cuando hagas tu primera compra, vas a poder ver el estado de tus pedidos acá.
           </p>
           <Button asChild>
