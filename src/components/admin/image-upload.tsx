@@ -51,14 +51,14 @@ export function MultiImageUpload({ value, onChange, disabled }: MultiImageUpload
   }
 
   return (
-    <div className="space-y-4 w-full">
+    <div className="w-full space-y-[13px] font-mono text-[13px] font-normal text-midnight-ink">
       {/* Grid of uploaded images */}
       {value.length > 0 && (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-wrap gap-[13px]">
           {value.map((url, i) => (
             <div
               key={url}
-              className="relative w-full aspect-[4/5] bg-muted rounded-md overflow-hidden border group"
+              className="relative aspect-square w-[96px] max-w-full overflow-hidden border border-midnight-ink bg-warm-sand"
             >
               <Image
                 src={url}
@@ -71,11 +71,12 @@ export function MultiImageUpload({ value, onChange, disabled }: MultiImageUpload
                 type="button"
                 variant="destructive"
                 size="icon"
-                className="absolute top-2 right-2 rounded-full w-8 h-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute top-0 right-0"
+                aria-label={`Quitar foto ${i + 1}`}
                 onClick={() => handleRemove(url)}
                 disabled={disabled}
               >
-                <X size={14} />
+                <X aria-hidden="true" className="size-[16px]" />
               </Button>
             </div>
           ))}
@@ -84,22 +85,25 @@ export function MultiImageUpload({ value, onChange, disabled }: MultiImageUpload
 
       {/* Upload Button */}
       {value.length < 5 && (
-        <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-muted-foreground/30 rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
-          <div className="flex flex-col items-center justify-center text-muted-foreground">
-            {isUploading ? (
-              <Loader2 className="w-6 h-6 mb-2 animate-spin text-primary" />
-            ) : (
-              <Upload className="w-6 h-6 mb-2" />
-            )}
-            <p className="text-sm font-medium">Subir foto {value.length + 1}</p>
-          </div>
+        <label
+          data-disabled={disabled || isUploading}
+          className="relative flex min-h-[96px] w-full cursor-pointer flex-col items-center justify-center border border-midnight-ink bg-bone-white p-[13px] hover:bg-warm-sand focus-within:outline-2 focus-within:outline-solid focus-within:outline-offset-2 focus-within:outline-midnight-ink data-[disabled=true]:cursor-not-allowed data-[disabled=true]:opacity-50"
+        >
           <input
             type="file"
-            className="hidden"
+            className="sr-only"
             accept="image/*"
             onChange={handleUpload}
             disabled={disabled || isUploading}
           />
+          <div className="flex flex-col items-center justify-center gap-[13px]">
+            {isUploading ? (
+              <Loader2 aria-hidden="true" className="size-[16px] animate-spin" />
+            ) : (
+              <Upload aria-hidden="true" className="size-[16px]" />
+            )}
+            <p>Subir foto {value.length + 1}</p>
+          </div>
         </label>
       )}
     </div>
