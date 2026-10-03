@@ -17,14 +17,14 @@ export default async function EditProductPage({ params }: { params: Promise<{ sl
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="mx-auto flex w-full min-w-0 max-w-[896px] flex-col gap-[24px]">
       <div>
-        <h1 className="text-3xl font-heading font-medium tracking-wide">Editar Producto</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
+        <h1 className="font-sans text-[30px] font-normal leading-none">Editar Producto</h1>
+        <p className="mt-[6px] font-sans text-[15px] font-normal leading-[1.3] text-midnight-ink">
           Actualizá los detalles de {product.title}.
         </p>
       </div>
-      <div className="bg-background border rounded-lg p-6 shadow-sm">
+      <div className="min-w-0 rounded-none border border-midnight-ink bg-bone-white p-[13px] md:p-[24px]">
         {/* Pass fetched product as initialData and slug for updating */}
         <ProductForm initialData={product} editSlug={product.slug} />
       </div>

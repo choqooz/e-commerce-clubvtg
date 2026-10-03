@@ -35,22 +35,22 @@ function getStepStatus(
 
 export function GenerationProgress({ currentStep, isGenerating }: GenerationProgressProps) {
   return (
-    <div className="space-y-0" role="list" aria-label="Progreso de generación">
+    <div className="space-y-0 text-midnight-ink" role="list" aria-label="Progreso de generación">
       {STEPS.map((step, i) => {
         const status = getStepStatus(step.key, currentStep, isGenerating);
         const isLast = i === STEPS.length - 1;
 
         return (
-          <div key={step.key} className="flex gap-3" role="listitem">
+          <div key={step.key} className="flex gap-[13px]" role="listitem">
             {/* Vertical line + icon column */}
             <div className="flex flex-col items-center">
               {/* Icon */}
               <div
                 className={cn(
-                  "flex items-center justify-center w-6 h-6 shrink-0",
-                  status === "completed" && "text-foreground",
-                  status === "current" && "text-accent",
-                  status === "pending" && "text-muted-foreground/40",
+                  "flex items-center justify-center w-[24px] h-[24px] shrink-0",
+                  status === "completed" && "text-midnight-ink",
+                  status === "current" && "text-midnight-ink bg-warm-sand",
+                  status === "pending" && "text-midnight-ink",
                 )}
               >
                 {status === "completed" && <Check size={14} strokeWidth={2} />}
@@ -64,8 +64,8 @@ export function GenerationProgress({ currentStep, isGenerating }: GenerationProg
               {!isLast && (
                 <div
                   className={cn(
-                    "w-px flex-1 min-h-4",
-                    status === "completed" ? "bg-foreground/20" : "bg-border",
+                    "w-[1px] flex-1 min-h-[18px]",
+                    status === "completed" ? "bg-midnight-ink" : "bg-ash-gray",
                   )}
                 />
               )}
@@ -74,14 +74,14 @@ export function GenerationProgress({ currentStep, isGenerating }: GenerationProg
             {/* Label */}
             <div
               className={cn(
-                "pb-4 text-sm font-sans",
-                status === "completed" && "text-foreground/70",
-                status === "current" && "text-foreground font-medium",
-                status === "pending" && "text-muted-foreground/50",
+                "pb-[18px] pt-[6px] text-[13px] font-mono font-normal leading-[1.2]",
+                status === "completed" && "text-midnight-ink",
+                status === "current" && "text-midnight-ink underline underline-offset-[3px]",
+                status === "pending" && "text-midnight-ink",
               )}
             >
               <span
-                className={cn(status === "current" && step.key === "generating" && "animate-pulse")}
+                className={cn(status === "current" && step.key === "generating" && "font-normal")}
               >
                 {step.label}
               </span>

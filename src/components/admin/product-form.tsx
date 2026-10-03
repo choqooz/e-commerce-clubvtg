@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+import { CircleAlert, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -18,10 +18,26 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { createProduct, getActiveProductTaxonomy, type ProductTaxonomyType } from "@/lib/actions/product";
+import {
+  createProduct,
+  getActiveProductTaxonomy,
+  type ProductTaxonomyType,
+} from "@/lib/actions/product";
 import { productSchema, type ProductFormValues } from "@/lib/validations/product";
 
 const NO_SUBTYPE_VALUE = "__none__";
+
+function ProductFieldError({ id, message }: { id: string; message?: string }) {
+  return (
+    <p
+      id={id}
+      className="flex items-start gap-[6px] border border-dotted border-midnight-ink bg-bone-white p-[6px] font-sans text-[15px] font-normal text-midnight-ink"
+    >
+      <CircleAlert aria-hidden="true" className="size-[16px] shrink-0" />
+      <span>{message}</span>
+    </p>
+  );
+}
 
 export function ProductForm({
   initialData,
@@ -92,13 +108,21 @@ export function ProductForm({
   const errors = form.formState.errors;
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+    <form
+      onSubmit={form.handleSubmit(onSubmit)}
+      className="space-y-[24px] bg-bone-white font-sans text-[15px] font-normal text-midnight-ink"
+    >
+      <div className="grid grid-cols-1 gap-[24px] md:grid-cols-3">
         {/* LEFT COLUMN - IMAGES */}
-        <div className="md:col-span-1 space-y-4">
-          <div>
-            <Label>Fotos del Producto</Label>
-            <div className="mt-2">
+        <div className="space-y-[13px] md:col-span-1">
+          <div
+            role="group"
+            aria-labelledby="product-images-label"
+            aria-describedby={errors.image_urls ? "product-images-error" : undefined}
+            className="space-y-[13px] border border-midnight-ink bg-warm-sand p-[13px]"
+          >
+            <Label id="product-images-label">Fotos del Producto</Label>
+            <div>
               <MultiImageUpload
                 value={form.watch("image_urls") || []}
                 onChange={(urls) => form.setValue("image_urls", urls)}
@@ -106,54 +130,70 @@ export function ProductForm({
               />
             </div>
             {errors.image_urls && (
-              <p className="text-destructive text-sm mt-1">{errors.image_urls.message}</p>
+              <ProductFieldError id="product-images-error" message={errors.image_urls.message} />
             )}
           </div>
         </div>
 
         {/* RIGHT COLUMN - DATA */}
-        <div className="md:col-span-2 space-y-6">
+        <div className="space-y-[24px] md:col-span-2">
           {/* Section 1: Título, Descripción, Precio */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Título</Label>
+          <div className="grid grid-cols-1 gap-[13px] border-t border-midnight-ink bg-warm-sand p-[13px] md:grid-cols-2">
+            <div className="space-y-[13px]">
+              <Label htmlFor="product-title">Título</Label>
               <Input
+                id="product-title"
+                aria-invalid={!!errors.title}
+                aria-describedby={errors.title ? "product-title-error" : undefined}
                 {...form.register("title")}
                 disabled={isPending}
                 placeholder="Campera Denim Oversize"
               />
-              {errors.title && <p className="text-destructive text-sm">{errors.title.message}</p>}
+              {errors.title && (
+                <ProductFieldError id="product-title-error" message={errors.title.message} />
+              )}
             </div>
 
-            <div className="space-y-2">
-              <Label>Precio (ARS)</Label>
+            <div className="space-y-[13px]">
+              <Label htmlFor="product-price">Precio (ARS)</Label>
               <Input
+                id="product-price"
+                aria-invalid={!!errors.price}
+                aria-describedby={errors.price ? "product-price-error" : undefined}
                 type="number"
                 {...form.register("price")}
                 disabled={isPending}
                 placeholder="45000"
               />
-              {errors.price && <p className="text-destructive text-sm">{errors.price.message}</p>}
+              {errors.price && (
+                <ProductFieldError id="product-price-error" message={errors.price.message} />
+              )}
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Descripción</Label>
+          <div className="space-y-[13px] border-t border-midnight-ink p-[13px]">
+            <Label htmlFor="product-description">Descripción</Label>
             <Textarea
+              id="product-description"
+              aria-invalid={!!errors.description}
+              aria-describedby={errors.description ? "product-description-error" : undefined}
               {...form.register("description")}
               disabled={isPending}
               rows={4}
               placeholder="Detalles sobre la tela, estado, época..."
             />
             {errors.description && (
-              <p className="text-destructive text-sm">{errors.description.message}</p>
+              <ProductFieldError
+                id="product-description-error"
+                message={errors.description.message}
+              />
             )}
           </div>
 
           {/* Section 2: Categoría, Subcategoría */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Categoría</Label>
+          <div className="grid grid-cols-1 gap-[13px] border-t border-midnight-ink bg-warm-sand p-[13px] md:grid-cols-2">
+            <div className="space-y-[13px]">
+              <Label htmlFor="product-category">Categoría</Label>
               <Select
                 disabled={isPending}
                 onValueChange={(id) => {
@@ -165,7 +205,11 @@ export function ProductForm({
                 }}
                 value={form.watch("product_type_id") ?? undefined}
               >
-                <SelectTrigger>
+                <SelectTrigger
+                  id="product-category"
+                  aria-invalid={!!errors.category}
+                  aria-describedby={errors.category ? "product-category-error" : undefined}
+                >
                   <SelectValue placeholder="Seleccionar" />
                 </SelectTrigger>
                 <SelectContent>
@@ -177,12 +221,12 @@ export function ProductForm({
                 </SelectContent>
               </Select>
               {errors.category && (
-                <p className="text-destructive text-sm">{errors.category.message}</p>
+                <ProductFieldError id="product-category-error" message={errors.category.message} />
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label>Subcategoría (Tipo)</Label>
+            <div className="space-y-[13px]">
+              <Label htmlFor="product-subcategory">Subcategoría (Tipo)</Label>
               <Select
                 disabled={isPending || !selectedType}
                 onValueChange={(id) => {
@@ -197,56 +241,89 @@ export function ProductForm({
                 }}
                 value={form.watch("product_subtype_id") ?? NO_SUBTYPE_VALUE}
               >
-                <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                <SelectTrigger
+                  id="product-subcategory"
+                  aria-invalid={!!errors.subcategory}
+                  aria-describedby={errors.subcategory ? "product-subcategory-error" : undefined}
+                >
+                  <SelectValue placeholder="Seleccionar" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NO_SUBTYPE_VALUE}>Sin subtipo</SelectItem>
                   {selectedType?.subtypes.map((subtype) => (
-                    <SelectItem key={subtype.id} value={subtype.id}>{subtype.name}</SelectItem>
+                    <SelectItem key={subtype.id} value={subtype.id}>
+                      {subtype.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               {errors.subcategory && (
-                <p className="text-destructive text-sm">{errors.subcategory.message}</p>
+                <ProductFieldError
+                  id="product-subcategory-error"
+                  message={errors.subcategory.message}
+                />
               )}
             </div>
           </div>
 
           {/* Section 3: Marca, Condición, Talle, Color, Medidas */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Marca</Label>
+          <div className="grid grid-cols-1 gap-[13px] border-t border-midnight-ink p-[13px] md:grid-cols-2">
+            <div className="space-y-[13px]">
+              <Label htmlFor="product-brand">Marca</Label>
               <Input
+                id="product-brand"
+                aria-invalid={!!errors.brand}
+                aria-describedby={errors.brand ? "product-brand-error" : undefined}
                 {...form.register("brand")}
                 disabled={isPending}
                 placeholder="Levi's, Adidas, Sin marca"
               />
-              {errors.brand && <p className="text-destructive text-sm">{errors.brand.message}</p>}
+              {errors.brand && (
+                <ProductFieldError id="product-brand-error" message={errors.brand.message} />
+              )}
             </div>
-            <div className="space-y-2">
-              <Label>Condición</Label>
+            <div className="space-y-[13px]">
+              <Label htmlFor="product-condition">Condición</Label>
               <Input
+                id="product-condition"
+                aria-invalid={!!errors.condition}
+                aria-describedby={errors.condition ? "product-condition-error" : undefined}
                 {...form.register("condition")}
                 disabled={isPending}
                 placeholder="10/10, Mint"
               />
               {errors.condition && (
-                <p className="text-destructive text-sm">{errors.condition.message}</p>
+                <ProductFieldError
+                  id="product-condition-error"
+                  message={errors.condition.message}
+                />
               )}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>Talle</Label>
-              <Input {...form.register("size")} disabled={isPending} placeholder="L, XL, 42" />
-            </div>
-            <div className="space-y-2">
-              <Label>Color</Label>
-              <Input {...form.register("color")} disabled={isPending} placeholder="Azul, Negro" />
-            </div>
-            <div className="space-y-2">
-              <Label>Medidas (opcional)</Label>
+          <div className="grid grid-cols-1 gap-[13px] border-t border-midnight-ink bg-warm-sand p-[13px] md:grid-cols-3">
+            <div className="space-y-[13px]">
+              <Label htmlFor="product-size">Talle</Label>
               <Input
+                id="product-size"
+                {...form.register("size")}
+                disabled={isPending}
+                placeholder="L, XL, 42"
+              />
+            </div>
+            <div className="space-y-[13px]">
+              <Label htmlFor="product-color">Color</Label>
+              <Input
+                id="product-color"
+                {...form.register("color")}
+                disabled={isPending}
+                placeholder="Azul, Negro"
+              />
+            </div>
+            <div className="space-y-[13px]">
+              <Label htmlFor="product-measurements">Medidas (opcional)</Label>
+              <Input
+                id="product-measurements"
                 {...form.register("measurements")}
                 disabled={isPending}
                 placeholder="Sisa a sisa: 60cm, Largo: 70cm"
@@ -256,14 +333,18 @@ export function ProductForm({
 
           {/* Section 4: Estado — solo en modo edición */}
           {editSlug && (
-            <div className="space-y-2">
-              <Label>Estado</Label>
+            <div className="space-y-[13px] border-t border-midnight-ink p-[13px]">
+              <Label htmlFor="product-status">Estado</Label>
               <Select
                 disabled={isPending}
                 onValueChange={(val) => form.setValue("status", val as ProductFormValues["status"])}
                 defaultValue={form.watch("status")}
               >
-                <SelectTrigger>
+                <SelectTrigger
+                  id="product-status"
+                  aria-invalid={!!errors.status}
+                  aria-describedby={errors.status ? "product-status-error" : undefined}
+                >
                   <SelectValue placeholder="Seleccionar estado" />
                 </SelectTrigger>
                 <SelectContent>
@@ -272,18 +353,20 @@ export function ProductForm({
                   <SelectItem value="archived">Archivado</SelectItem>
                 </SelectContent>
               </Select>
-              {errors.status && <p className="text-destructive text-sm">{errors.status.message}</p>}
+              {errors.status && (
+                <ProductFieldError id="product-status-error" message={errors.status.message} />
+              )}
             </div>
           )}
         </div>
       </div>
 
-      <div className="flex justify-end border-t pt-6 gap-4">
+      <div className="flex justify-end gap-[13px] border-t border-midnight-ink pt-[24px]">
         <Button type="button" variant="outline" onClick={() => router.back()} disabled={isPending}>
           Cancelar
         </Button>
         <Button type="submit" disabled={isPending}>
-          {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {isPending && <Loader2 aria-hidden="true" className="size-[16px] animate-spin" />}
           {editSlug ? "Actualizar Producto" : "Guardar Producto"}
         </Button>
       </div>

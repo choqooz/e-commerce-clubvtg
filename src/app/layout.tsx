@@ -1,22 +1,22 @@
 import { esES } from "@clerk/localizations";
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
-import { DM_Sans, Cormorant_Garamond } from "next/font/google";
+import { Inter, IBM_Plex_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { Providers } from "@/app/providers";
 import "./globals.css";
 
-const dmSans = DM_Sans({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-sans",
-  weight: ["300", "400", "500"],
+  variable: "--font-inter",
+  weight: "400",
   display: "swap",
 });
 
-const cormorant = Cormorant_Garamond({
+const ibmPlexMono = IBM_Plex_Mono({
   subsets: ["latin"],
-  variable: "--font-heading",
-  weight: ["300", "400", "500", "600"],
+  variable: "--font-ibm-plex-mono",
+  weight: "400",
   display: "swap",
 });
 
@@ -41,7 +41,7 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider localization={esES} afterSignOutUrl="/">
-      <html lang="es" className={`${dmSans.variable} ${cormorant.variable} h-full antialiased`}>
+      <html lang="es" className={`${inter.variable} ${ibmPlexMono.variable} h-full antialiased`}>
         <body className="min-h-full flex flex-col font-sans">
           <Providers>
             {children}

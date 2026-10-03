@@ -52,29 +52,31 @@ export function CatalogContent({ initialProducts }: { initialProducts: Product[]
   const clearFilters = () => setFilters(EMPTY_FILTERS);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-bone-white font-sans font-normal text-midnight-ink">
       <SiteHeader />
       <CartDrawer />
 
       <main>
         {/* Category Banners */}
-        <section className="container mx-auto px-6 pt-8 pb-6">
+        <section className="pb-[24px]">
           <CategoryBanner />
         </section>
 
         {/* Breadcrumb */}
-        <div className="container mx-auto px-6 py-4">
-          <nav className="flex items-center gap-1.5 text-xs text-muted-foreground font-sans">
-            <span className="text-foreground">Inicio</span>
+        <div className="px-[18px] py-[18px] md:px-[24px]">
+          <nav className="flex flex-wrap items-center gap-[6px] font-mono text-[13px] leading-[1.2]">
+            <span className="text-midnight-ink">Inicio</span>
             <ChevronRight size={12} />
             <span>Catálogo</span>
           </nav>
         </div>
 
         {/* Title & Description */}
-        <section className="container mx-auto px-6 pb-8">
-          <h1 className="font-heading text-4xl md:text-5xl font-light mb-4">Catálogo</h1>
-          <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed font-sans">
+        <section className="px-[18px] pb-[42px] md:px-[24px]">
+          <h1 className="mb-[24px] font-sans text-[30px] leading-none font-normal md:text-[111px]">
+            Catálogo
+          </h1>
+          <p className="max-w-[400px] font-sans text-[15px] leading-[1.3]">
             Prendas vintage únicas seleccionadas por su calidad, carácter y estilo atemporal.
             Materiales naturales, siluetas relajadas, estilo sin esfuerzo. Cada pieza es única — una
             unidad, un talle.
@@ -82,21 +84,21 @@ export function CatalogContent({ initialProducts }: { initialProducts: Product[]
         </section>
 
         {/* Category Tabs */}
-        <section className="container mx-auto px-6 pb-6">
-          <div className="flex items-center gap-6 border-b border-border overflow-x-auto">
+        <section className="px-[18px] pb-[24px] md:px-[24px]">
+          <div className="flex items-center gap-[24px] overflow-x-auto border-b border-midnight-ink">
             {CATEGORIES.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => handleCategoryChange(cat.id)}
-                className={`pb-3 text-sm tracking-wide font-sans transition-colors relative whitespace-nowrap ${
+                className={`relative min-h-[36px] shrink-0 whitespace-nowrap px-[6px] py-[6px] font-mono text-[13px] font-normal focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink ${
                   activeCategory === cat.id
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "text-midnight-ink"
+                    : "text-midnight-ink hover:underline underline-offset-4"
                 }`}
               >
                 {cat.label}
                 {activeCategory === cat.id && (
-                  <span className="absolute bottom-0 left-0 right-0 h-px bg-foreground" />
+                  <span className="absolute bottom-0 left-0 right-0 h-[1px] bg-midnight-ink" />
                 )}
               </button>
             ))}
@@ -104,10 +106,10 @@ export function CatalogContent({ initialProducts }: { initialProducts: Product[]
         </section>
 
         {/* Main Content: Sidebar + Grid */}
-        <section className="container mx-auto px-6 pb-16">
+        <section className="pb-[42px]">
           {/* Toolbar: mobile filter trigger + result count + clear */}
-          <div className="flex items-center justify-between mb-6 gap-3">
-            <div className="flex items-center gap-3">
+          <div className="mb-[24px] flex flex-wrap items-center justify-between gap-[13px] px-[18px] md:px-[24px]">
+            <div className="flex items-center gap-[13px]">
               {/* Mobile filter button */}
               <Sheet>
                 <SheetTrigger asChild>
@@ -123,14 +125,14 @@ export function CatalogContent({ initialProducts }: { initialProducts: Product[]
                   <SheetHeader>
                     <SheetTitle>Filtros</SheetTitle>
                   </SheetHeader>
-                  <div className="flex-1 overflow-y-auto px-4 py-2">
+                  <div className="min-h-0 flex-1 overflow-y-auto px-[24px] py-[6px]">
                     <CatalogFilters
                       filters={filters}
                       onFiltersChange={setFilters}
                       categoryProducts={categoryProducts}
                     />
                   </div>
-                  <SheetFooter className="border-t border-border pt-3">
+                  <SheetFooter className="border-t border-midnight-ink pt-[13px]">
                     {activeFilterCount > 0 && (
                       <Button variant="outline" onClick={clearFilters} className="w-full">
                         <X size={14} />
@@ -151,7 +153,7 @@ export function CatalogContent({ initialProducts }: { initialProducts: Product[]
               {activeFilterCount > 0 && (
                 <button
                   onClick={clearFilters}
-                  className="hidden lg:flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground font-sans transition-colors"
+                  className="hidden min-h-[36px] items-center gap-[6px] font-mono text-[13px] font-normal text-midnight-ink hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink lg:flex"
                 >
                   <X size={12} />
                   Limpiar filtros ({activeFilterCount})
@@ -160,17 +162,17 @@ export function CatalogContent({ initialProducts }: { initialProducts: Product[]
             </div>
 
             {/* Results count */}
-            <span className="text-xs text-muted-foreground font-sans whitespace-nowrap">
+            <span className="font-mono text-[13px] leading-[1.2]">
               {finalProducts.length}{" "}
               {finalProducts.length === 1 ? "prenda encontrada" : "prendas encontradas"}
             </span>
           </div>
 
           {/* Layout: sidebar (desktop) + grid */}
-          <div className="flex gap-10">
+          <div className="flex gap-[24px]">
             {/* Desktop Sidebar */}
-            <aside className="hidden lg:block w-[250px] shrink-0">
-              <div className="sticky top-6">
+            <aside className="hidden w-[250px] shrink-0 pl-[24px] lg:block">
+              <div className="sticky top-[156px] max-h-[calc(100dvh-180px)] overflow-y-auto pr-[6px] pb-[6px]">
                 <CatalogFilters
                   filters={filters}
                   onFiltersChange={setFilters}
@@ -182,23 +184,16 @@ export function CatalogContent({ initialProducts }: { initialProducts: Product[]
             {/* Product Grid */}
             <div className="flex-1 min-w-0">
               {finalProducts.length > 0 ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-x-5 gap-y-10">
+                <div className="grid grid-cols-2 gap-x-[0px] gap-y-[42px] md:grid-cols-3">
                   {finalProducts.map((product, i) => (
-                    <div
-                      key={product.id}
-                      className="animate-in fade-in slide-in-from-bottom-2 duration-500"
-                      style={{
-                        animationDelay: `${i * 80}ms`,
-                        animationFillMode: "backwards",
-                      }}
-                    >
+                    <div key={product.id} className="min-w-0">
                       <ProductCard product={product} priority={i === 0} />
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center py-20 gap-4">
-                  <p className="text-muted-foreground font-sans text-sm">
+                <div className="flex flex-col items-center justify-center gap-[13px] px-[18px] py-[42px]">
+                  <p className="font-sans text-[15px] leading-[1.3]">
                     No encontramos prendas con estos filtros.
                   </p>
                   {activeFilterCount > 0 && (

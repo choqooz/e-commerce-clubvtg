@@ -45,42 +45,43 @@ export function ProductDetailContent({
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-bone-white font-sans font-normal text-midnight-ink">
       <SiteHeader />
       <CartDrawer />
 
       <main>
         {/* Breadcrumb */}
-        <div className="container mx-auto px-6 py-4">
-          <nav className="flex items-center gap-1.5 text-xs text-muted-foreground font-sans">
-            <Link href="/" className="hover:text-foreground transition-colors">
+        <div className="px-[18px] py-[18px] md:px-[24px]">
+          <nav className="flex flex-wrap items-center gap-[6px] font-mono text-[13px] leading-[1.3]">
+            <Link
+              href="/"
+              className="hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
+            >
               Inicio
             </Link>
             <ChevronRight size={12} />
             <Link
               href={`/?category=${product.category}`}
-              className="hover:text-foreground transition-colors capitalize"
+              className="capitalize hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
             >
               {product.category}
             </Link>
             {product.subcategory && (
               <>
                 <ChevronRight size={12} />
-                <span className="hover:text-foreground transition-colors capitalize">
-                  {product.subcategory}
-                </span>
+                <span className="capitalize">{product.subcategory}</span>
               </>
             )}
             <ChevronRight size={12} />
-            <span className="text-foreground">{product.title}</span>
+            <span className="break-words text-midnight-ink">{product.title}</span>
           </nav>
         </div>
 
-        <div className="container mx-auto px-6 pb-16">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
+        <div className="pb-[42px]">
+          <div className="grid grid-cols-1 gap-[0px] lg:grid-cols-2">
             {/* Product Images Gallery */}
-            <div className="relative space-y-4">
-              <div className="relative w-full aspect-4/5 max-h-[600px] lg:max-h-[700px] bg-secondary flex items-center justify-center overflow-hidden">
+            <div className="relative min-w-0 space-y-[13px]">
+              <div className="relative flex aspect-4/5 max-h-[600px] w-full items-center justify-center overflow-hidden bg-warm-sand lg:max-h-[700px]">
                 {activeImage ? (
                   <Image
                     src={activeImage}
@@ -91,7 +92,7 @@ export function ProductDetailContent({
                     className="object-contain"
                   />
                 ) : (
-                  <span className="text-muted-foreground/30 text-lg uppercase tracking-widest font-sans">
+                  <span className="font-mono text-[13px] font-normal uppercase text-midnight-ink">
                     {product.category}
                   </span>
                 )}
@@ -99,15 +100,15 @@ export function ProductDetailContent({
 
               {/* Thumbnails */}
               {product.image_urls && product.image_urls.length > 1 && (
-                <div className="grid grid-cols-5 gap-3">
+                <div className="grid grid-cols-5 gap-[0px]">
                   {product.image_urls.map((url: string, i: number) => (
                     <button
                       key={url}
                       onClick={() => setActiveImage(url)}
-                      className={`relative aspect-4/5 bg-secondary overflow-hidden border-2 transition-all ${
+                      className={`relative aspect-4/5 overflow-hidden border bg-warm-sand focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink ${
                         activeImage === url
-                          ? "border-primary opacity-100"
-                          : "border-transparent opacity-60 hover:opacity-100"
+                          ? "border-midnight-ink"
+                          : "border-transparent hover:border-midnight-ink"
                       }`}
                     >
                       <Image
@@ -123,45 +124,61 @@ export function ProductDetailContent({
               )}
 
               {product.status === "sold" && (
-                <span className="absolute top-4 right-4 bg-muted text-muted-foreground text-xs font-sans uppercase tracking-widest px-3 py-1 font-medium">
+                <span className="absolute top-[18px] right-[18px] border border-midnight-ink bg-bone-white px-[6px] py-[2px] font-mono text-[13px] font-normal uppercase text-midnight-ink">
                   Vendido
                 </span>
               )}
               {product.status === "reserved" && (
-                <span className="absolute top-4 right-4 bg-amber-100 text-amber-800 text-xs font-sans uppercase tracking-widest px-3 py-1 font-medium">
+                <span className="absolute top-[18px] right-[18px] border border-midnight-ink bg-warm-sand px-[6px] py-[2px] font-mono text-[13px] font-normal uppercase text-midnight-ink">
                   Reservado
                 </span>
               )}
             </div>
 
             {/* Product Info */}
-            <div className="flex flex-col justify-center">
-              <h1 className="font-heading text-3xl md:text-4xl font-light mb-3">{product.title}</h1>
+            <div className="flex min-w-0 flex-col justify-center px-[18px] py-[42px] md:px-[24px] lg:px-[42px]">
+              <h1 className="mb-[13px] break-words font-sans text-[30px] leading-none font-normal">
+                {product.title}
+              </h1>
 
-              <div className="flex items-center gap-3 mb-6">
-                {product.promotion_percent ? <span className="text-sm text-muted-foreground line-through">{formatPrice(product.price)}</span> : null}
-                <span className="text-lg font-sans">{formatPrice(product.current_price ?? product.price)}</span>
-                {product.promotion_percent && product.promotion_ends_at ? <span className="text-xs font-medium text-green-700">-{product.promotion_percent}% hasta {new Intl.DateTimeFormat("es-AR", { dateStyle: "short", hourCycle: "h23", timeStyle: "medium", timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(product.promotion_ends_at))}</span> : null}
+              <div className="mb-[24px] flex flex-wrap items-center gap-[13px]">
+                {product.promotion_percent ? (
+                  <span className="text-[15px] line-through">{formatPrice(product.price)}</span>
+                ) : null}
+                <span className="font-sans text-[20px] leading-[1.3]">
+                  {formatPrice(product.current_price ?? product.price)}
+                </span>
+                {product.promotion_percent && product.promotion_ends_at ? (
+                  <span className="font-mono text-[13px] font-normal">
+                    -{product.promotion_percent}% hasta{" "}
+                    {new Intl.DateTimeFormat("es-AR", {
+                      dateStyle: "short",
+                      hourCycle: "h23",
+                      timeStyle: "medium",
+                      timeZone: "America/Argentina/Buenos_Aires",
+                    }).format(new Date(product.promotion_ends_at))}
+                  </span>
+                ) : null}
               </div>
 
-              <p className="text-sm text-muted-foreground leading-relaxed mb-8 font-sans whitespace-pre-wrap">
+              <p className="mb-[30px] whitespace-pre-wrap font-sans text-[15px] leading-[1.3]">
                 {product.description}
               </p>
 
               {/* Color */}
               {product.color && (
-                <div className="mb-6">
-                  <span className="text-xs uppercase tracking-widest font-sans font-medium mb-3 block">
+                <div className="mb-[24px]">
+                  <span className="mb-[13px] block font-mono text-[13px] font-normal uppercase">
                     Color
                   </span>
-                  <div className="flex flex-wrap gap-2 items-center">
+                  <div className="flex flex-wrap items-center gap-[13px]">
                     {product.color.split(",").map((c: string) => {
                       const colorName = c.trim();
                       const hex = COLOR_MAP[colorName.toLowerCase()] || "#cccccc";
                       return (
                         <div
                           key={colorName}
-                          className="w-6 h-6 rounded-full border border-border/50 shadow-sm relative group cursor-help transition-transform hover:scale-110"
+                          className="group relative h-[24px] w-[24px] cursor-help border border-midnight-ink"
                           style={
                             hex.includes("gradient")
                               ? { background: hex }
@@ -170,7 +187,7 @@ export function ProductDetailContent({
                           aria-label={colorName}
                         >
                           {/* Tooltip */}
-                          <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-foreground text-background text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none capitalize">
+                          <div className="pointer-events-none absolute -top-[28px] left-1/2 -translate-x-1/2 whitespace-nowrap border border-midnight-ink bg-bone-white px-[6px] py-[2px] font-mono text-[13px] font-normal capitalize text-midnight-ink opacity-0 group-hover:opacity-100">
                             {colorName}
                           </div>
                         </div>
@@ -182,16 +199,16 @@ export function ProductDetailContent({
 
               {/* Size */}
               {product.size && (
-                <div className="mb-8">
-                  <span className="text-xs uppercase tracking-widest font-sans font-medium mb-3 block">
+                <div className="mb-[30px]">
+                  <span className="mb-[13px] block font-mono text-[13px] font-normal uppercase">
                     Talle
                   </span>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="min-w-[44px] h-10 px-3 border border-foreground bg-primary text-primary-foreground text-sm font-sans flex items-center justify-center">
+                  <div className="flex flex-wrap gap-[13px]">
+                    <span className="flex min-h-[28px] min-w-[44px] items-center justify-center border border-midnight-ink bg-warm-sand px-[6px] py-[2px] font-mono text-[13px] font-normal">
                       {product.size}
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2 font-sans">
+                  <p className="mt-[6px] font-mono text-[13px] leading-[1.3]">
                     Pieza única — talle único
                   </p>
                 </div>
@@ -201,10 +218,10 @@ export function ProductDetailContent({
               <button
                 onClick={handleAddToCart}
                 disabled={product.status !== "available"}
-                className={`w-full py-3.5 text-sm uppercase tracking-widest font-sans font-medium transition-opacity mb-2 ${
+                className={`mb-[6px] min-h-[36px] w-full border border-midnight-ink px-[6px] py-[2px] font-mono text-[13px] font-normal uppercase focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink ${
                   product.status === "available"
-                    ? "bg-primary text-primary-foreground hover:opacity-90"
-                    : "bg-muted text-muted-foreground cursor-not-allowed"
+                    ? "bg-midnight-ink text-bone-white hover:underline underline-offset-4"
+                    : "cursor-not-allowed bg-warm-sand text-midnight-ink"
                 }`}
               >
                 {product.status === "available"
@@ -216,32 +233,32 @@ export function ProductDetailContent({
                       : "No Disponible"}
               </button>
 
-              <p className="text-xs text-muted-foreground text-center font-sans mb-4">
+              <p className="mb-[18px] text-center font-mono text-[13px] leading-[1.3]">
                 Envío a todo el país · Correo Argentino
               </p>
 
               {/* Details */}
               {(product.brand || product.condition || product.measurements) && (
-                <div className="border-t border-border pt-6 mt-4">
-                  <h3 className="text-xs uppercase tracking-widest font-sans font-medium mb-3">
+                <div className="mt-[18px] border-t border-midnight-ink pt-[24px]">
+                  <h3 className="mb-[13px] font-mono text-[13px] font-normal uppercase">
                     Detalles Adicionales
                   </h3>
-                  <ul className="space-y-1.5">
+                  <ul className="space-y-[6px] [&_strong]:font-normal">
                     {product.brand && (
-                      <li className="text-sm text-muted-foreground font-sans flex items-start gap-2">
-                        <span className="w-1 h-1 rounded-full bg-muted-foreground mt-1.5 shrink-0" />
+                      <li className="flex items-start gap-[6px] font-sans text-[15px] leading-[1.3]">
+                        <span className="mt-[6px] h-[4px] w-[4px] shrink-0 bg-midnight-ink" />
                         <strong>Marca:</strong> {product.brand}
                       </li>
                     )}
                     {product.condition && (
-                      <li className="text-sm text-muted-foreground font-sans flex items-start gap-2">
-                        <span className="w-1 h-1 rounded-full bg-muted-foreground mt-1.5 shrink-0" />
+                      <li className="flex items-start gap-[6px] font-sans text-[15px] leading-[1.3]">
+                        <span className="mt-[6px] h-[4px] w-[4px] shrink-0 bg-midnight-ink" />
                         <strong>Estado:</strong> {product.condition}
                       </li>
                     )}
                     {product.measurements && (
-                      <li className="text-sm text-muted-foreground font-sans flex items-start gap-2">
-                        <span className="w-1 h-1 rounded-full bg-muted-foreground mt-1.5 shrink-0" />
+                      <li className="flex items-start gap-[6px] font-sans text-[15px] leading-[1.3]">
+                        <span className="mt-[6px] h-[4px] w-[4px] shrink-0 bg-midnight-ink" />
                         <strong>Medidas:</strong> {product.measurements}
                       </li>
                     )}
@@ -257,9 +274,11 @@ export function ProductDetailContent({
 
         {/* Related Products */}
         {relatedProducts.length > 0 && (
-          <section className="container mx-auto px-6 pb-16">
-            <h2 className="section-title mb-6">También te puede gustar</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-5 gap-y-10">
+          <section className="pb-[42px]">
+            <h2 className="mb-[24px] px-[18px] font-sans text-[30px] leading-none font-normal md:px-[24px]">
+              También te puede gustar
+            </h2>
+            <div className="grid grid-cols-2 gap-x-[0px] gap-y-[42px] md:grid-cols-4">
               {relatedProducts.map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}

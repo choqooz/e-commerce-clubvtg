@@ -153,9 +153,11 @@ export function ImageUploader({ onImageSelect, disabled = false }: ImageUploader
   // ── Resizing state ──
   if (isResizing) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-accent bg-accent/5 p-8 min-h-[200px]">
-        <div className="animate-spin h-6 w-6 border-2 border-accent border-t-transparent rounded-full" />
-        <p className="text-sm text-foreground font-sans">Optimizando para IA...</p>
+      <div className="flex flex-col items-center justify-center gap-[13px] rounded-none border border-midnight-ink bg-warm-sand p-[24px] min-h-[200px]">
+        <div className="animate-spin h-[24px] w-[24px] border border-midnight-ink border-t-transparent rounded-none" />
+        <p className="text-[15px] text-midnight-ink font-sans font-normal">
+          Optimizando para IA...
+        </p>
       </div>
     );
   }
@@ -163,12 +165,12 @@ export function ImageUploader({ onImageSelect, disabled = false }: ImageUploader
   // ── Preview state ──
   if (preview) {
     return (
-      <div className="relative border border-border bg-card">
-        <div className="relative aspect-[3/4] w-full">
+      <div className="relative rounded-none border border-midnight-ink bg-bone-white">
+        <div className="relative aspect-[3/4] w-full max-h-[450px]">
           <Image src={preview} alt="Vista previa" fill className="object-cover" unoptimized />
         </div>
 
-        <div className="flex items-center justify-between p-3 border-t border-border">
+        <div className="flex flex-wrap items-center justify-between gap-[13px] p-[13px] border-t border-midnight-ink">
           <Button
             variant="outline"
             size="sm"
@@ -186,7 +188,7 @@ export function ImageUploader({ onImageSelect, disabled = false }: ImageUploader
             type="button"
             disabled={disabled}
             onClick={clearPreview}
-            className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+            className="inline-flex items-center justify-center size-[36px] rounded-none border border-midnight-ink bg-bone-white text-midnight-ink hover:bg-warm-sand focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50"
             aria-label="Quitar imagen"
           >
             <X size={16} strokeWidth={1.5} />
@@ -221,27 +223,33 @@ export function ImageUploader({ onImageSelect, disabled = false }: ImageUploader
           }
         }}
         className={cn(
-          "flex flex-col items-center justify-center gap-3 border-2 border-dashed p-8 transition-all duration-200 cursor-pointer",
+          "flex flex-col items-center justify-center gap-[13px] rounded-none border border-midnight-ink p-[24px] cursor-pointer font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2",
           "min-h-[200px]",
           isDragging
-            ? "border-accent bg-accent/5 scale-[1.01]"
-            : "border-border hover:border-foreground/40 hover:bg-muted/50",
+            ? "border-midnight-ink bg-warm-sand"
+            : "border-midnight-ink bg-bone-white hover:bg-warm-sand",
           disabled && "cursor-not-allowed opacity-50",
         )}
       >
-        <Upload size={28} strokeWidth={1} className="text-muted-foreground" />
+        <Upload size={28} strokeWidth={1} className="text-midnight-ink" />
         <div className="text-center">
-          <p className="text-sm text-foreground font-sans">Arrastrá tu foto acá</p>
-          <p className="text-xs text-muted-foreground mt-1 font-sans">
+          <p className="text-[15px] text-midnight-ink font-sans font-normal">
+            Arrastrá tu foto acá
+          </p>
+          <p className="text-[13px] text-midnight-ink mt-[6px] font-mono font-normal">
             o hacé click para seleccionar
           </p>
         </div>
-        <p className="text-[11px] text-muted-foreground/70 mt-1 font-sans">
+        <p className="text-[13px] text-midnight-ink mt-[6px] font-mono font-normal">
           Máximo 10 MB — JPG, PNG o WebP
         </p>
       </div>
 
-      {error && <p className="text-xs text-destructive mt-2 font-sans">{error}</p>}
+      {error && (
+        <p className="text-[15px] text-midnight-ink mt-[13px] p-[13px] border border-dotted border-midnight-ink bg-warm-sand font-sans font-normal break-words">
+          {error}
+        </p>
+      )}
 
       <input
         ref={inputRef}

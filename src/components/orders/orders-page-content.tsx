@@ -19,19 +19,19 @@ const STATUS_CONFIG: Record<
 > = {
   pending: {
     label: "Pendiente",
-    className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+    className: "bg-warm-sand text-midnight-ink border-midnight-ink",
   },
   paid: {
     label: "Pagado",
-    className: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+    className: "bg-bone-white text-midnight-ink border-midnight-ink",
   },
   shipped: {
     label: "Enviado",
-    className: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+    className: "bg-warm-sand text-midnight-ink border-midnight-ink",
   },
   cancelled: {
     label: "Cancelado",
-    className: "",
+    className: "bg-bone-white text-midnight-ink border-midnight-ink border-dotted",
     variant: "destructive",
   },
 };
@@ -44,9 +44,9 @@ interface OrdersPageContentProps {
 
 export function OrdersPageContent({ orders }: OrdersPageContentProps) {
   return (
-    <div className="container mx-auto px-4 py-10">
-      <div className="mx-auto max-w-3xl space-y-6">
-        <h1 className="text-3xl font-heading font-light tracking-wide">Mis Pedidos</h1>
+    <div className="w-full px-[18px] py-[42px] md:px-[30px] bg-bone-white text-midnight-ink font-sans font-normal text-[15px] leading-[1.3]">
+      <div className="mx-auto min-w-0 max-w-[768px] space-y-[24px]">
+        <h1 className="text-[30px] leading-[1.2] font-sans font-normal">Mis Pedidos</h1>
 
         {orders.map((order) => (
           <OrderCard key={order.id} order={order} />
@@ -67,16 +67,16 @@ function OrderCard({ order }: { order: OrderHistoryOrder }) {
   });
 
   return (
-    <article className="rounded-lg border bg-background shadow-sm">
+    <article className="min-w-0 border border-midnight-ink bg-bone-white">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-4">
-        <div className="flex items-center gap-3">
-          <span className="font-mono text-sm font-medium">#{order.id.slice(0, 8)}</span>
+      <div className="flex flex-wrap items-center justify-between gap-[6px] px-[13px] py-[18px]">
+        <div className="flex flex-wrap items-center gap-[13px]">
+          <span className="font-mono text-[13px] font-normal">#{order.id.slice(0, 8)}</span>
           <Badge variant={config.variant ?? "outline"} className={config.className}>
             {config.label}
           </Badge>
         </div>
-        <time className="text-sm text-muted-foreground">{formattedDate}</time>
+        <time className="text-[13px] font-mono text-midnight-ink">{formattedDate}</time>
       </div>
 
       <Separator />
@@ -84,20 +84,20 @@ function OrderCard({ order }: { order: OrderHistoryOrder }) {
       {/* Tracking info */}
       {order.status === "shipped" && order.tracking_number && (
         <>
-          <div className="flex items-center gap-2 px-5 py-3 bg-blue-50 dark:bg-blue-950/20">
-            <Truck className="size-4 text-blue-600 dark:text-blue-400 shrink-0" />
-            <span className="text-sm">
+          <div className="flex flex-wrap items-center gap-[6px] px-[13px] py-[13px] bg-warm-sand">
+            <Truck className="size-[16px] text-midnight-ink shrink-0" />
+            <span className="min-w-0 text-[15px] break-words">
               Número de seguimiento:{" "}
-              <span className="font-mono font-medium">{order.tracking_number}</span>
+              <span className="font-mono text-[13px] font-normal break-all">{order.tracking_number}</span>
             </span>
             <a
               href={`https://www.correoargentino.com.ar/formularios/e-comercio?id=${order.tracking_number}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="ml-auto inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+              className="ml-auto inline-flex min-h-[36px] items-center gap-[6px] text-[13px] font-mono text-midnight-ink hover:underline focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2"
             >
               Rastrear
-              <ExternalLink className="size-3.5" />
+              <ExternalLink className="size-[14px]" />
             </a>
           </div>
           <Separator />
@@ -105,7 +105,7 @@ function OrderCard({ order }: { order: OrderHistoryOrder }) {
       )}
 
       {/* Items */}
-      <div className="px-5 py-4 space-y-3">
+      <div className="px-[13px] py-[18px] space-y-[13px]">
         {order.order_items.map((item) => (
           <OrderItemRow key={item.id} item={item} />
         ))}
@@ -113,18 +113,18 @@ function OrderCard({ order }: { order: OrderHistoryOrder }) {
 
       <Separator />
 
-      <div className="px-5 py-4">
+      <div className="px-[13px] py-[18px]">
         <OrderPricingHistory order={order} />
       </div>
 
       <Separator />
 
       {/* Footer — Total */}
-      <div className="flex items-center justify-between px-5 py-3">
-        <span className="text-sm text-muted-foreground">
+      <div className="flex flex-wrap items-center justify-between gap-[13px] px-[13px] py-[13px]">
+        <span className="text-[13px] font-mono text-midnight-ink">
           {order.order_items.length} {order.order_items.length === 1 ? "producto" : "productos"}
         </span>
-        <span className="text-base font-semibold">{formatHistoricalOrderTotal(order)}</span>
+        <span className="text-[20px] font-normal">{formatHistoricalOrderTotal(order)}</span>
       </div>
     </article>
   );
@@ -137,20 +137,20 @@ function OrderItemRow({ item }: { item: OrderHistoryOrder["order_items"][number]
   const imageUrl = product?.image_urls?.[0];
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-[13px]">
       {imageUrl ? (
-        <Link href={product?.slug ? `/product/${product.slug}` : "#"} className="shrink-0">
+        <Link href={product?.slug ? `/product/${product.slug}` : "#"} className="shrink-0 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2">
           <Image
             src={imageUrl}
             alt={product?.title ?? "Producto"}
             width={60}
             height={60}
-            className="rounded-md object-cover size-[60px]"
+            className="object-cover size-[60px]"
           />
         </Link>
       ) : (
-        <div className="shrink-0 size-[60px] rounded-md bg-muted flex items-center justify-center">
-          <Package className="size-5 text-muted-foreground" />
+        <div className="shrink-0 size-[60px] bg-warm-sand flex items-center justify-center">
+          <Package className="size-[20px] text-midnight-ink" />
         </div>
       )}
 
@@ -158,14 +158,14 @@ function OrderItemRow({ item }: { item: OrderHistoryOrder["order_items"][number]
         {product?.slug ? (
           <Link
             href={`/product/${product.slug}`}
-            className="text-sm font-medium hover:underline line-clamp-1"
+            className="text-[15px] font-normal hover:underline line-clamp-1 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2"
           >
             {product.title}
           </Link>
         ) : (
-          <span className="text-sm font-medium line-clamp-1">Producto</span>
+          <span className="text-[15px] font-normal line-clamp-1">Producto</span>
         )}
-        <p className="text-sm text-muted-foreground">{formatHistoricalOrderTotal({ total_amount: item.price, total_cents: item.final_cents })}</p>
+        <p className="text-[15px] text-midnight-ink">{formatHistoricalOrderTotal({ total_amount: item.price, total_cents: item.final_cents })}</p>
       </div>
     </div>
   );

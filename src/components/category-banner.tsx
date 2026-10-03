@@ -1,20 +1,22 @@
 export function CategoryBanner() {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div className="relative overflow-hidden bg-secondary aspect-[16/9] md:aspect-[16/7]">
-        <div className="absolute inset-0 bg-gradient-to-t from-foreground/60 to-transparent" />
-        <div className="absolute bottom-6 left-6">
-          <h2 className="font-heading text-2xl md:text-3xl text-white font-light">Outerwear</h2>
-          <p className="text-white/80 text-sm font-sans mt-1">
+    <div className="grid grid-cols-1 gap-[13px] text-midnight-ink md:grid-cols-2 md:gap-[24px]">
+      <div className="relative overflow-hidden rounded-none bg-warm-sand aspect-[16/9] md:aspect-[16/7]">
+        <div className="absolute inset-0 border border-midnight-ink" />
+        <div className="absolute bottom-[24px] left-[24px] right-[24px] md:bottom-[42px] md:left-[42px]">
+          <h2 className="font-sans text-[30px] font-normal leading-[1]">Outerwear</h2>
+          <p className="mt-[13px] font-mono text-[13px] font-normal leading-[1.2]">
             Camperas, abrigos y blazers vintage
           </p>
         </div>
       </div>
-      <div className="relative overflow-hidden bg-secondary aspect-[16/9] md:aspect-[16/7]">
-        <div className="absolute inset-0 bg-gradient-to-t from-foreground/60 to-transparent" />
-        <div className="absolute bottom-6 left-6">
-          <h2 className="font-heading text-2xl md:text-3xl text-white font-light">Knitwear</h2>
-          <p className="text-white/80 text-sm font-sans mt-1">Sweaters y cardigans de colección</p>
+      <div className="relative overflow-hidden rounded-none bg-bone-white aspect-[16/9] md:aspect-[16/7]">
+        <div className="absolute inset-0 border border-midnight-ink" />
+        <div className="absolute bottom-[24px] left-[24px] right-[24px] md:bottom-[42px] md:left-[42px]">
+          <h2 className="font-sans text-[30px] font-normal leading-[1]">Knitwear</h2>
+          <p className="mt-[13px] font-mono text-[13px] font-normal leading-[1.2]">
+            Sweaters y cardigans de colección
+          </p>
         </div>
       </div>
     </div>
