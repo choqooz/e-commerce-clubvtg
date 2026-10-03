@@ -29,12 +29,12 @@ export function CreditPackCard({
   return (
     <div
       className={cn(
-        "relative border border-border bg-card p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-foreground/20",
-        popular && "border-accent bg-accent/5 shadow-sm",
+        "relative min-w-0 border border-midnight-ink bg-bone-white p-[13px] pt-[30px] text-midnight-ink font-sans font-normal leading-[1.3]",
+        popular && "bg-warm-sand",
       )}
     >
       {popular && (
-        <Badge className="absolute -top-2.5 left-4 bg-accent text-accent-foreground text-[10px] uppercase tracking-widest">
+        <Badge className="absolute -top-[13px] left-[13px] bg-midnight-ink text-bone-white border-midnight-ink text-[13px] font-mono font-normal uppercase">
           Más Popular
         </Badge>
       )}
@@ -42,29 +42,29 @@ export function CreditPackCard({
       {/* Pack name */}
       <p
         className={cn(
-          "text-xs uppercase tracking-widest font-sans",
-          popular ? "text-accent font-medium" : "text-muted-foreground",
+          "text-[13px] uppercase font-mono font-normal",
+          popular ? "text-midnight-ink" : "text-midnight-ink",
         )}
       >
         {name}
       </p>
 
       {/* Credit count — big number */}
-      <p className="font-heading text-4xl font-medium mt-3">
+      <p className="font-sans text-[30px] font-normal mt-[13px]">
         {credits}
-        <span className="text-base text-muted-foreground ml-1.5 font-sans font-normal">
+        <span className="text-[15px] text-midnight-ink ml-[6px] font-sans font-normal">
           créditos
         </span>
       </p>
 
       {/* Price */}
-      <p className="text-sm text-foreground/70 mt-2 font-sans">{formatPrice(price)}</p>
+      <p className="text-[15px] text-midnight-ink mt-[6px] font-sans">{formatPrice(price)}</p>
 
       {/* Buy button */}
       <Button
         variant={popular ? "default" : "outline"}
         size="lg"
-        className="w-full mt-5"
+        className="w-full mt-[24px] whitespace-normal"
         disabled={loading}
         onClick={() => onSelect(packId)}
       >

@@ -77,15 +77,15 @@ export function CouponSelection() {
   }
 
   return (
-    <section className="space-y-4 border-t border-border pt-6" aria-labelledby="coupon-selection-heading">
+    <section className="space-y-[18px] border-t border-midnight-ink pt-[24px] text-midnight-ink font-sans font-normal text-[15px] leading-[1.3]" aria-labelledby="coupon-selection-heading">
       <div>
-        <h3 id="coupon-selection-heading" className="font-heading text-xl">Promociones y cupón</h3>
-        <p className="mt-1 text-sm font-sans text-muted-foreground">
+        <h3 id="coupon-selection-heading" className="font-sans font-normal text-[20px]">Promociones y cupón</h3>
+        <p className="mt-[6px] text-[15px] font-sans text-midnight-ink">
           Cotizá un cupón sin reservarlo. La selección final se valida nuevamente al iniciar el pago.
         </p>
       </div>
 
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div className="flex flex-col gap-[6px] sm:flex-row sm:flex-wrap">
         <label className="sr-only" htmlFor="coupon-code">Código de cupón</label>
         <input
           id="coupon-code"
@@ -93,38 +93,38 @@ export function CouponSelection() {
           onChange={(event) => replaceCoupon(event.target.value)}
           disabled={isLoading}
           placeholder="Código de cupón"
-          className="min-w-0 flex-1 border border-border bg-transparent p-3 text-sm font-sans uppercase focus:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          className="min-w-0 flex-1 h-[36px] rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] text-[16px] md:text-[15px] font-sans font-normal uppercase focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         />
         {couponCode ? (
-          <button type="button" onClick={removeCoupon} disabled={isLoading} className="inline-flex items-center justify-center gap-2 border border-border px-4 py-3 text-xs font-sans font-medium uppercase tracking-widest hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50">
+          <button type="button" onClick={removeCoupon} disabled={isLoading} className="inline-flex min-h-[36px] items-center justify-center gap-[6px] border border-midnight-ink bg-bone-white px-[6px] py-[2px] text-[13px] font-mono font-normal uppercase hover:bg-warm-sand focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
             <X size={14} /> Quitar
           </button>
         ) : null}
-        <button type="button" onClick={() => void requestQuote()} disabled={isLoading || couponCode.trim() === "" || items.length === 0} className="bg-primary px-5 py-3 text-xs font-sans font-medium uppercase tracking-widest text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
-          {isLoading ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : "Cotizar"}
+        <button type="button" onClick={() => void requestQuote()} disabled={isLoading || couponCode.trim() === "" || items.length === 0} className="min-h-[36px] border border-midnight-ink bg-midnight-ink px-[6px] py-[2px] text-[13px] font-mono font-normal uppercase text-bone-white hover:underline focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+          {isLoading ? <Loader2 className="mx-auto h-[16px] w-[16px] animate-spin" /> : "Cotizar"}
         </button>
       </div>
 
-      {error ? <p role="alert" className="text-sm font-sans text-destructive">{error}</p> : null}
+      {error ? <p role="alert" className="text-[13px] font-sans text-midnight-ink border-l border-dotted border-midnight-ink pl-[6px]">{error}</p> : null}
 
       {quote ? (
-        <fieldset className="space-y-3 border border-border bg-secondary/20 p-4" aria-describedby="coupon-selection-note">
-          <legend className="px-1 text-sm font-sans font-medium">Elegí cómo aplicar tu descuento</legend>
-          <p id="coupon-selection-note" className="text-xs font-sans text-muted-foreground">
+        <fieldset className="min-w-0 space-y-[13px] border border-midnight-ink bg-warm-sand p-[13px]" aria-describedby="coupon-selection-note">
+          <legend className="px-[6px] text-[13px] font-mono font-normal">Elegí cómo aplicar tu descuento</legend>
+          <p id="coupon-selection-note" className="text-[15px] font-sans text-midnight-ink">
             Sin una selección explícita se conservan las promociones. El cupón y las promociones no se combinan.
           </p>
-          <label className="flex cursor-pointer items-start gap-3 border border-border bg-background p-3 has-[:checked]:border-primary">
-            <input type="radio" name="pricing-source" checked={couponSource !== CUSTOMER_COUPON_SOURCES.COUPON} onChange={clearCouponSelection} className="mt-1" />
-            <span className="flex-1 text-sm font-sans">
-              <span className="block font-medium">Promociones</span>
-              <span className="block text-muted-foreground">Descuento: {formatQuoteCents(quote.promotionDiscountCents)} · Total con envío: {formatQuoteCents(quote.promotionsPayableCents)}</span>
+          <label className="flex cursor-pointer items-start gap-[13px] border border-midnight-ink bg-bone-white p-[13px] has-[:checked]:bg-warm-sand">
+            <input type="radio" name="pricing-source" checked={couponSource !== CUSTOMER_COUPON_SOURCES.COUPON} onChange={clearCouponSelection} className="mt-[2px] size-[16px] shrink-0 accent-midnight-ink focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2" />
+            <span className="min-w-0 flex-1 text-[15px] font-sans">
+              <span className="block font-mono text-[13px] font-normal">Promociones</span>
+              <span className="block text-midnight-ink">Descuento: {formatQuoteCents(quote.promotionDiscountCents)} · Total con envío: {formatQuoteCents(quote.promotionsPayableCents)}</span>
             </span>
           </label>
-          <label className="flex cursor-pointer items-start gap-3 border border-border bg-background p-3 has-[:checked]:border-primary">
-            <input type="radio" name="pricing-source" checked={couponSource === CUSTOMER_COUPON_SOURCES.COUPON} onChange={() => void selectCouponQuote()} disabled={isLoading} className="mt-1" />
-            <span className="flex-1 text-sm font-sans">
-              <span className="block font-medium">Usar cupón {couponCode.trim().toUpperCase()}</span>
-              <span className="block text-muted-foreground">Descuento: {formatQuoteCents(quote.couponDiscountCents)} · Total con envío: {formatQuoteCents(quote.couponPayableCents)}</span>
+          <label className="flex cursor-pointer items-start gap-[13px] border border-midnight-ink bg-bone-white p-[13px] has-[:checked]:bg-warm-sand">
+            <input type="radio" name="pricing-source" checked={couponSource === CUSTOMER_COUPON_SOURCES.COUPON} onChange={() => void selectCouponQuote()} disabled={isLoading} className="mt-[2px] size-[16px] shrink-0 accent-midnight-ink focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50" />
+            <span className="min-w-0 flex-1 text-[15px] font-sans">
+              <span className="block font-mono text-[13px] font-normal">Usar cupón {couponCode.trim().toUpperCase()}</span>
+              <span className="block text-midnight-ink">Descuento: {formatQuoteCents(quote.couponDiscountCents)} · Total con envío: {formatQuoteCents(quote.couponPayableCents)}</span>
             </span>
           </label>
         </fieldset>
