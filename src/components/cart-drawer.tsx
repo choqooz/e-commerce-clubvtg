@@ -8,31 +8,40 @@ import { useCart } from "@/contexts/cart-context";
 import { formatPrice } from "@/lib/config";
 
 export function CartDrawer() {
-  const { couponCode, items, removeItem, setCouponCode, totalItems, totalPrice, isOpen, setIsOpen } = useCart();
+  const {
+    couponCode,
+    items,
+    removeItem,
+    setCouponCode,
+    totalItems,
+    totalPrice,
+    isOpen,
+    setIsOpen,
+  } = useCart();
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
-      <SheetContent aria-describedby={undefined} className="w-full sm:max-w-md bg-background border-border flex flex-col">
-        <SheetHeader className="border-b border-border pb-4">
-          <SheetTitle className="font-heading text-xl font-normal tracking-wide">
+      <SheetContent
+        aria-describedby={undefined}
+        className="flex w-full min-h-0 flex-col border-midnight-ink bg-bone-white font-sans font-normal text-midnight-ink sm:max-w-[448px]"
+      >
+        <SheetHeader className="shrink-0 border-b border-midnight-ink pb-[18px]">
+          <SheetTitle className="font-sans text-[20px] leading-[1.3] font-normal">
             Carrito ({totalItems})
           </SheetTitle>
         </SheetHeader>
 
         {items.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-sm text-muted-foreground font-sans">Tu carrito está vacío</p>
+          <div className="flex flex-1 items-center justify-center px-[24px]">
+            <p className="font-sans text-[15px] leading-[1.3]">Tu carrito está vacío</p>
           </div>
         ) : (
           <>
-            <div className="flex-1 overflow-y-auto py-4 space-y-4">
+            <div className="min-h-0 flex-1 space-y-[18px] overflow-y-auto px-[24px] py-[18px]">
               {items.map((item) => (
-                <div
-                  key={item.product.id}
-                  className="flex gap-4 animate-in fade-in slide-in-from-right-2 duration-200"
-                >
+                <div key={item.product.id} className="flex gap-[13px]">
                   {/* Product image */}
-                  <div className="relative w-20 h-24 bg-secondary shrink-0 flex items-center justify-center overflow-hidden">
+                  <div className="relative flex h-[96px] w-[80px] shrink-0 items-center justify-center overflow-hidden bg-warm-sand">
                     {item.product.image_urls && item.product.image_urls.length > 0 ? (
                       <Image
                         src={item.product.image_urls[0]}
@@ -42,21 +51,25 @@ export function CartDrawer() {
                         className="object-cover"
                       />
                     ) : (
-                      <span className="text-[8px] text-muted-foreground/50 uppercase tracking-widest">
+                      <span className="break-all px-[6px] text-center font-mono text-[13px] font-normal uppercase text-midnight-ink">
                         {item.product.category}
                       </span>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-sans truncate">{item.product.title}</h4>
-                    <p className="text-xs text-muted-foreground font-sans mt-0.5">
+                    <h4 className="truncate font-sans text-[15px] leading-[1.3]">
+                      {item.product.title}
+                    </h4>
+                    <p className="mt-[2px] font-mono text-[13px] leading-[1.3]">
                       {item.product.color} · Talle {item.product.size}
                     </p>
-                    <p className="text-sm font-sans mt-1">{formatPrice(item.product.price)}</p>
+                    <p className="mt-[6px] font-sans text-[15px] leading-[1.3]">
+                      {formatPrice(item.product.price)}
+                    </p>
                   </div>
                   <button
                     onClick={() => removeItem(item.product.id)}
-                    className="text-muted-foreground hover:text-destructive transition-colors duration-200 self-start p-1 hover:bg-destructive/10"
+                    className="flex h-[28px] w-[28px] shrink-0 items-center justify-center self-start border border-midnight-ink bg-bone-white text-midnight-ink hover:bg-warm-sand focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
                     aria-label="Quitar producto"
                   >
                     <X size={14} />
@@ -65,26 +78,33 @@ export function CartDrawer() {
               ))}
             </div>
 
-            <div className="border-t border-border pt-4 space-y-4">
-              <div className="space-y-2">
-                <label htmlFor="cart-coupon-code" className="text-xs font-sans font-medium uppercase tracking-widest">Cupón</label>
+            <div className="max-h-[60dvh] shrink-0 space-y-[13px] overflow-y-auto border-t border-midnight-ink bg-warm-sand p-[24px]">
+              <div className="space-y-[6px]">
+                <label
+                  htmlFor="cart-coupon-code"
+                  className="font-mono text-[13px] font-normal uppercase"
+                >
+                  Cupón
+                </label>
                 <input
                   id="cart-coupon-code"
                   value={couponCode}
                   onChange={(event) => setCouponCode(event.target.value)}
                   placeholder="Ingresalo para cotizarlo en checkout"
-                  className="w-full border border-border bg-transparent p-3 text-sm font-sans uppercase focus:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="h-[36px] w-full rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] font-sans text-[16px] font-normal uppercase text-midnight-ink placeholder:text-concrete-gray md:text-[15px] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
                 />
-                <p className="text-xs font-sans text-muted-foreground">Elegirás entre el cupón y las promociones antes de pagar.</p>
+                <p className="font-sans text-[15px] leading-[1.3]">
+                  Elegirás entre el cupón y las promociones antes de pagar.
+                </p>
               </div>
-              <div className="flex justify-between text-sm font-sans">
+              <div className="flex flex-wrap justify-between gap-[6px] font-mono text-[13px] leading-[1.3]">
                 <span>Total</span>
-                <span className="font-medium">{formatPrice(totalPrice)}</span>
+                <span className="font-normal">{formatPrice(totalPrice)}</span>
               </div>
               <Link
                 href="/checkout"
                 onClick={() => setIsOpen(false)}
-                className="w-full bg-primary text-primary-foreground py-3.5 text-sm uppercase tracking-widest font-sans font-medium hover:opacity-90 transition-all duration-200 text-center block"
+                className="flex min-h-[36px] w-full items-center justify-center border border-midnight-ink bg-midnight-ink px-[6px] py-[2px] text-center font-mono text-[13px] font-normal uppercase text-bone-white hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
               >
                 Ir al Checkout
               </Link>

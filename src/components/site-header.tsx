@@ -21,7 +21,7 @@ function CreditBadge() {
   return (
     <Link
       href="/credits"
-      className="flex items-center gap-1 text-xs font-sans text-foreground/70 hover:text-foreground transition-colors duration-200 hover:scale-105"
+      className="flex min-h-[36px] items-center gap-[6px] font-mono text-[13px] font-normal text-midnight-ink hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
     >
       <Sparkles size={14} strokeWidth={1.5} />
       <span>{credits}</span>
@@ -35,72 +35,80 @@ export function SiteHeader() {
   const { isSignedIn } = useAuth();
 
   return (
-    <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
+    <header className="sticky top-0 z-50 border-b border-midnight-ink bg-bone-white font-sans font-normal text-midnight-ink">
       {/* Announcement bar */}
-      <div className="bg-primary text-primary-foreground text-center py-2 text-xs tracking-widest uppercase font-sans">
+      <div className="border-b border-midnight-ink px-[18px] py-[11px] text-center font-mono text-[13px] leading-[1.2] font-normal uppercase">
         Envío a todo el país · Correo Argentino
       </div>
 
-      <div className="container mx-auto px-6">
-        <div className="flex items-center justify-between h-16">
+      <div className="px-[18px] md:px-[24px]">
+        <div className="relative flex min-h-[72px] items-center justify-between gap-[13px] py-[18px]">
           {/* Nav links (desktop) */}
-          <nav className="hidden md:flex items-center gap-8">
-            <Link href="/" className="nav-link nav-link-active transition-colors duration-200">
+          <nav className="hidden items-center gap-[30px] md:flex">
+            <Link
+              href="/"
+              className="font-mono text-[13px] font-normal hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
+            >
               Catálogo
             </Link>
           </nav>
 
-          {/* Logo (centered) */}
-          <Link href="/" className="absolute left-1/2 -translate-x-1/2">
-            <h1 className="font-heading text-2xl tracking-wider font-medium">clubvtg</h1>
+          {/* Wordmark stays in flow on mobile so controls cannot overlap it. */}
+          <Link
+            href="/"
+            className="shrink-0 md:absolute md:left-1/2 md:-translate-x-1/2 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
+          >
+            <h1 className="font-sans text-[20px] leading-[1.3] font-normal">clubvtg</h1>
           </Link>
 
           {/* Right icons */}
-          <div className="flex items-center gap-5 ml-auto">
+          <div className="ml-auto flex items-center gap-[6px] sm:gap-[13px] md:gap-[18px]">
             <button
               onClick={() => setSearchOpen(!searchOpen)}
-              className="text-foreground/70 hover:text-foreground transition-colors"
+              className="flex h-[36px] w-[28px] items-center justify-center text-midnight-ink focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
               aria-label="Buscar"
             >
               <Search size={18} strokeWidth={1.5} />
             </button>
 
-            {/* Clerk Auth */}
+            {/* Clerk Auth: the managed control and appearance remain unchanged. */}
             {isSignedIn ? (
               <>
                 <CreditBadge />
-                <UserButton
-                  appearance={{
-                    elements: {
-                      avatarBox: "w-7 h-7",
-                    },
-                  }}
-                >
-                  <UserButton.MenuItems>
-                    <UserButton.Link
-                      label="Mi Perfil"
-                      labelIcon={<User size={16} />}
-                      href="/profile"
-                    />
-                    <UserButton.Link
-                      label="Mis Pedidos"
-                      labelIcon={<Package size={16} />}
-                      href="/orders"
-                    />
-                    <UserButton.Link
-                      label="Créditos"
-                      labelIcon={<CreditCard size={16} />}
-                      href="/credits"
-                    />
-                    <UserButton.Action label="manageAccount" />
-                    <UserButton.Action label="signOut" />
-                  </UserButton.MenuItems>
-                </UserButton>
+                <div className="flex min-h-[36px] items-center">
+                  <UserButton
+                    appearance={{
+                      elements: {
+                        avatarBox: "w-7 h-7",
+                      },
+                    }}
+                  >
+                    <UserButton.MenuItems>
+                      <UserButton.Link
+                        label="Mi Perfil"
+                        labelIcon={<User size={16} />}
+                        href="/profile"
+                      />
+                      <UserButton.Link
+                        label="Mis Pedidos"
+                        labelIcon={<Package size={16} />}
+                        href="/orders"
+                      />
+                      <UserButton.Link
+                        label="Créditos"
+                        labelIcon={<CreditCard size={16} />}
+                        href="/credits"
+                      />
+                      <UserButton.Action label="manageAccount" />
+                      <UserButton.Action label="signOut" />
+                    </UserButton.MenuItems>
+                  </UserButton>
+                </div>
               </>
             ) : (
               <SignInButton mode="modal">
                 <button
-                  className="text-xs uppercase tracking-widest font-sans font-medium text-foreground/70 hover:text-foreground transition-colors"
+                  className="min-h-[36px] px-[6px] py-[2px] font-mono text-[13px] font-normal uppercase text-midnight-ink hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
                   aria-label="Iniciar sesión"
                 >
                   Entrar
@@ -110,12 +118,12 @@ export function SiteHeader() {
 
             <button
               onClick={() => setIsOpen(true)}
-              className="text-foreground/70 hover:text-foreground transition-colors relative"
+              className="relative flex h-[36px] w-[36px] items-center justify-center text-midnight-ink focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
               aria-label="Carrito"
             >
               <ShoppingBag size={18} strokeWidth={1.5} />
               {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1.5 w-4 h-4 bg-accent text-accent-foreground text-[10px] flex items-center justify-center rounded-full">
+                <span className="absolute -top-[2px] -right-[2px] flex min-h-[18px] min-w-[18px] items-center justify-center border border-midnight-ink bg-bone-white px-[2px] font-mono text-[13px] font-normal">
                   {totalItems}
                 </span>
               )}
@@ -123,13 +131,13 @@ export function SiteHeader() {
           </div>
         </div>
 
-        {/* Search bar (expandable) */}
+        {/* Search bar (expandable, no search behavior is introduced). */}
         {searchOpen && (
-          <div className="pb-4 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="pb-[18px]">
             <input
               type="text"
               placeholder="Buscar prendas..."
-              className="w-full border-b border-foreground/20 bg-transparent py-2 text-sm outline-none placeholder:text-muted-foreground font-sans"
+              className="h-[36px] w-full rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] font-sans text-[16px] font-normal text-midnight-ink placeholder:text-concrete-gray md:text-[15px] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
               autoFocus
             />
           </div>
