@@ -162,7 +162,7 @@ export function ImageZoomModal({ src, alt, open, onClose }: ImageZoomModalProps)
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogPortal>
-        <DialogOverlay className="bg-black/90" />
+        <DialogOverlay className="bg-warm-sand" />
         <div
           ref={containerRef}
           className="fixed inset-0 z-50 flex items-center justify-center"
@@ -176,14 +176,14 @@ export function ImageZoomModal({ src, alt, open, onClose }: ImageZoomModalProps)
           <button
             type="button"
             onClick={onClose}
-            className="absolute top-4 right-4 z-10 flex size-10 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
+            className="absolute top-[18px] right-[18px] z-10 flex size-[36px] items-center justify-center rounded-none border border-midnight-ink bg-bone-white font-mono text-[13px] font-normal text-midnight-ink hover:bg-warm-sand focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2"
             aria-label="Cerrar"
           >
             <X size={20} strokeWidth={1.5} />
           </button>
 
           {/* Zoom indicator badge */}
-          <div className="absolute bottom-4 right-4 z-10 rounded-full bg-black/60 px-2.5 py-1 text-xs font-mono text-white tabular-nums">
+          <div className="absolute right-[18px] bottom-[18px] z-10 flex h-[36px] items-center rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] font-mono text-[13px] leading-[1.2] font-normal text-midnight-ink tabular-nums">
             {scale.toFixed(1)}x
           </div>
 

@@ -14,8 +14,8 @@ export function CreditBalance({ credits, className }: CreditBalanceProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 text-xs font-medium tracking-wide transition-colors",
-        isEmpty ? "text-muted-foreground/60" : "text-foreground/70 hover:text-foreground",
+        "inline-flex items-center gap-[6px] font-mono text-[13px] leading-[1.2] font-normal",
+        isEmpty ? "text-midnight-ink/70" : "text-midnight-ink",
         className,
       )}
     >
