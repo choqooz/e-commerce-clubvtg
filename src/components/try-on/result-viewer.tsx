@@ -20,15 +20,15 @@ export function ResultViewer({
   const [zoomOpen, setZoomOpen] = useState(false);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-[18px] text-midnight-ink font-normal">
       {/* Side-by-side on desktop, stacked on mobile */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-[18px]">
         {/* Original */}
         <div>
-          <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2 font-sans">
+          <p className="text-[13px] text-midnight-ink mb-[6px] font-mono font-normal break-words">
             Tu foto
           </p>
-          <div className="relative aspect-[3/4] w-full max-h-[450px] overflow-hidden border border-border bg-secondary">
+          <div className="relative aspect-[3/4] w-full max-h-[450px] overflow-hidden rounded-none bg-warm-sand">
             <Image
               src={originalImageUrl}
               alt="Foto original"
@@ -41,13 +41,13 @@ export function ResultViewer({
 
         {/* Result — clickable for zoom */}
         <div>
-          <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2 font-sans">
+          <p className="text-[13px] text-midnight-ink mb-[6px] font-mono font-normal break-words">
             Probándote: {productTitle}
           </p>
           <button
             type="button"
             onClick={() => setZoomOpen(true)}
-            className="group relative aspect-[3/4] w-full max-h-[450px] overflow-hidden border border-border bg-secondary cursor-zoom-in"
+            className="group relative aspect-[3/4] w-full max-h-[450px] overflow-hidden rounded-none bg-warm-sand cursor-zoom-in focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2"
             aria-label={`Ampliar resultado: ${productTitle}`}
           >
             <Image
@@ -58,8 +58,8 @@ export function ResultViewer({
               className="object-cover"
             />
             {/* Hover hint overlay */}
-            <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/30">
-              <span className="flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-xs font-sans text-white opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="absolute bottom-[6px] left-[6px] right-[6px] flex items-center justify-end">
+              <span className="flex items-center gap-[6px] rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] text-[13px] font-mono font-normal text-midnight-ink">
                 <ZoomIn size={14} strokeWidth={1.5} />
                 Click para ampliar
               </span>
@@ -74,8 +74,8 @@ export function ResultViewer({
           href={resultImageUrl}
           download={`clubvtg-tryon-${productTitle.toLowerCase().replace(/\s+/g, "-")}.jpg`}
           className={cn(
-            "inline-flex items-center gap-1.5 text-xs uppercase tracking-widest font-sans",
-            "text-foreground/70 hover:text-foreground transition-colors",
+            "inline-flex min-h-[36px] items-center gap-[6px] text-[13px] font-mono font-normal",
+            "text-midnight-ink hover:underline focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2",
           )}
         >
           <Download size={14} strokeWidth={1.5} />
