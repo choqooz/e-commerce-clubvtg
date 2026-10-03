@@ -2,14 +2,67 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Keep existing component variants available; the redesigned UI has no dark token theme. */
 @custom-variant dark (&:is(.dark *));
 
+/* Literal Refero Tailwind v4 export. Reference font names do not load font files. */
+@theme {
+  /* Colors */
+  --color-midnight-ink: #000000;
+  --color-bone-white: #ffffff;
+  --color-warm-sand: #ebe6dc;
+  --color-concrete-gray: #8c8c8c;
+  --color-ash-gray: #b3b3b3;
+
+  /* Typography */
+  --font-f-grotesk:
+    "F-Grotesk", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
+  --font-maison-neue-mono:
+    "Maison-Neue-Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Typography — Scale */
+  --text-caption: 13px;
+  --leading-caption: 1.2;
+  --text-body-sm: 15px;
+  --leading-body-sm: 1.19;
+  --text-subheading: 20px;
+  --leading-subheading: 1.3;
+  --text-heading: 30px;
+  --leading-heading: 1;
+  --text-display: 111px;
+  --leading-display: 1;
+
+  /* Spacing — exact exported names intentionally override numeric utilities. */
+  --spacing-6: 6px;
+  --spacing-18: 18px;
+  --spacing-24: 24px;
+  --spacing-30: 30px;
+  --spacing-36: 36px;
+  --spacing-42: 42px;
+  --spacing-156: 156px;
+
+  /* Tailwind companions for text-* line heights and named shape utilities. */
+  --text-caption--line-height: 1.2;
+  --text-body-sm--line-height: 1.19;
+  --text-subheading--line-height: 1.3;
+  --text-heading--line-height: 1;
+  --text-display--line-height: 1;
+  --font-weight-regular: 400;
+  --radius-tags: 0px;
+  --radius-cards: 0px;
+  --radius-inputs: 0px;
+  --radius-buttons: 0px;
+}
+
+/* Project compatibility aliases, not additional Refero export tokens. */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: "DM Sans", system-ui, sans-serif;
-  --font-heading: "Cormorant Garamond", Georgia, serif;
-  --font-mono: var(--font-geist-mono);
+  /* These distinct next/font variables keep the installed substitutes in use. */
+  --font-sans: var(--font-inter);
+  --font-heading: var(--font-inter);
+  --font-mono: var(--font-ibm-plex-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -49,77 +102,97 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* ── Light Mode (Vintage warm neutrals) ── */
 :root {
-  --background: hsl(40, 20%, 97%);
-  --foreground: hsl(30, 10%, 12%);
-  --card: hsl(40, 15%, 95%);
-  --card-foreground: hsl(30, 10%, 12%);
-  --popover: hsl(40, 20%, 97%);
-  --popover-foreground: hsl(30, 10%, 12%);
-  --primary: hsl(30, 10%, 12%);
-  --primary-foreground: hsl(40, 20%, 97%);
-  --secondary: hsl(35, 12%, 90%);
-  --secondary-foreground: hsl(30, 10%, 12%);
-  --muted: hsl(35, 10%, 92%);
-  --muted-foreground: hsl(30, 8%, 45%);
-  --accent: hsl(25, 30%, 50%);
-  --accent-foreground: hsl(40, 20%, 97%);
-  --destructive: hsl(0, 72%, 51%);
-  --border: hsl(35, 15%, 88%);
-  --input: hsl(35, 15%, 88%);
-  --ring: hsl(30, 10%, 12%);
-  --radius: 0px;
-  --sale: hsl(0, 72%, 51%);
-  --chart-1: hsl(35, 20%, 85%);
-  --chart-2: hsl(30, 10%, 55%);
-  --chart-3: hsl(25, 15%, 45%);
-  --chart-4: hsl(20, 12%, 35%);
-  --chart-5: hsl(30, 10%, 25%);
-  --sidebar: hsl(40, 15%, 95%);
-  --sidebar-foreground: hsl(30, 10%, 12%);
-  --sidebar-primary: hsl(30, 10%, 12%);
-  --sidebar-primary-foreground: hsl(40, 20%, 97%);
-  --sidebar-accent: hsl(35, 12%, 90%);
-  --sidebar-accent-foreground: hsl(30, 10%, 12%);
-  --sidebar-border: hsl(35, 15%, 88%);
-  --sidebar-ring: hsl(30, 10%, 12%);
-}
+  /* Literal Refero CSS Custom Properties export — light only. */
+  /* Colors */
+  --color-midnight-ink: #000000;
+  --color-bone-white: #ffffff;
+  --color-warm-sand: #ebe6dc;
+  --color-concrete-gray: #8c8c8c;
+  --color-ash-gray: #b3b3b3;
 
-/* ── Dark Mode (Warm dark vintage) ── */
-.dark {
-  --background: hsl(30, 10%, 8%);
-  --foreground: hsl(40, 15%, 90%);
-  --card: hsl(30, 10%, 10%);
-  --card-foreground: hsl(40, 15%, 90%);
-  --popover: hsl(30, 10%, 8%);
-  --popover-foreground: hsl(40, 15%, 90%);
-  --primary: hsl(40, 15%, 90%);
-  --primary-foreground: hsl(30, 10%, 8%);
-  --secondary: hsl(30, 8%, 15%);
-  --secondary-foreground: hsl(40, 15%, 90%);
-  --muted: hsl(30, 8%, 18%);
-  --muted-foreground: hsl(35, 10%, 55%);
-  --accent: hsl(25, 30%, 50%);
-  --accent-foreground: hsl(40, 20%, 97%);
-  --destructive: hsl(0, 63%, 31%);
-  --border: hsl(30, 8%, 18%);
-  --input: hsl(30, 8%, 18%);
-  --ring: hsl(40, 15%, 90%);
-  --sale: hsl(0, 72%, 51%);
-  --chart-1: hsl(35, 20%, 85%);
-  --chart-2: hsl(30, 10%, 55%);
-  --chart-3: hsl(25, 15%, 45%);
-  --chart-4: hsl(20, 12%, 35%);
-  --chart-5: hsl(30, 10%, 25%);
-  --sidebar: hsl(30, 10%, 10%);
-  --sidebar-foreground: hsl(40, 15%, 90%);
-  --sidebar-primary: hsl(40, 15%, 90%);
-  --sidebar-primary-foreground: hsl(30, 10%, 8%);
-  --sidebar-accent: hsl(30, 8%, 15%);
-  --sidebar-accent-foreground: hsl(40, 15%, 90%);
-  --sidebar-border: hsl(30, 8%, 18%);
-  --sidebar-ring: hsl(40, 15%, 90%);
+  /* Typography — Font Families (references, not installed originals) */
+  --font-f-grotesk:
+    "F-Grotesk", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
+  --font-maison-neue-mono:
+    "Maison-Neue-Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Typography — Scale */
+  --text-caption: 13px;
+  --leading-caption: 1.2;
+  --text-body-sm: 15px;
+  --leading-body-sm: 1.19;
+  --text-subheading: 20px;
+  --leading-subheading: 1.3;
+  --text-heading: 30px;
+  --leading-heading: 1;
+  --text-display: 111px;
+  --leading-display: 1;
+
+  /* Typography — Weights */
+  --font-weight-regular: 400;
+
+  /* Spacing */
+  --spacing-unit: 6px;
+  --spacing-6: 6px;
+  --spacing-18: 18px;
+  --spacing-24: 24px;
+  --spacing-30: 30px;
+  --spacing-36: 36px;
+  --spacing-42: 42px;
+  --spacing-156: 156px;
+
+  /* Layout */
+  --section-gap: 42px;
+  --card-padding: 13px;
+  --element-gap: 13px;
+
+  /* Named Radii */
+  --radius-tags: 0px;
+  --radius-cards: 0px;
+  --radius-inputs: 0px;
+  --radius-buttons: 0px;
+
+  /* Surfaces */
+  --surface-canvas: #ffffff;
+  --surface-warm-band: #ebe6dc;
+  --surface-muted-field: #8c8c8c;
+
+  /* Project-specific semantic mapping to the reference palette and surfaces. */
+  --background: var(--surface-canvas);
+  --foreground: var(--color-midnight-ink);
+  --card: var(--surface-canvas);
+  --card-foreground: var(--color-midnight-ink);
+  --popover: var(--surface-canvas);
+  --popover-foreground: var(--color-midnight-ink);
+  --primary: var(--color-midnight-ink);
+  --primary-foreground: var(--color-bone-white);
+  --secondary: var(--surface-warm-band);
+  --secondary-foreground: var(--color-midnight-ink);
+  --muted: var(--surface-warm-band);
+  --muted-foreground: var(--color-concrete-gray);
+  --accent: var(--surface-warm-band);
+  --accent-foreground: var(--color-midnight-ink);
+  --destructive: var(--color-midnight-ink);
+  --border: var(--color-midnight-ink);
+  --input: var(--color-midnight-ink);
+  --ring: var(--color-midnight-ink);
+  --radius: var(--radius-cards);
+  --sale: var(--color-midnight-ink);
+  --chart-1: var(--color-midnight-ink);
+  --chart-2: var(--color-concrete-gray);
+  --chart-3: var(--color-ash-gray);
+  --chart-4: var(--color-warm-sand);
+  --chart-5: var(--color-bone-white);
+  --sidebar: var(--surface-canvas);
+  --sidebar-foreground: var(--color-midnight-ink);
+  --sidebar-primary: var(--color-midnight-ink);
+  --sidebar-primary-foreground: var(--color-bone-white);
+  --sidebar-accent: var(--surface-warm-band);
+  --sidebar-accent-foreground: var(--color-midnight-ink);
+  --sidebar-border: var(--color-midnight-ink);
+  --sidebar-ring: var(--color-midnight-ink);
 }
 
 /* ── Base styles ── */
@@ -128,7 +201,7 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground text-body-sm font-regular;
     font-family: var(--font-sans);
   }
   html {
@@ -141,16 +214,16 @@
   h5,
   h6 {
     font-family: var(--font-heading);
+    font-weight: var(--font-weight-regular);
   }
 }
 
-/* ── Component classes (migrated from template) ── */
+/* ── Component classes (migrated from template; structure retained) ── */
 @layer components {
   .nav-link {
-    @apply text-sm tracking-wide uppercase text-foreground/70 hover:text-foreground transition-colors duration-200;
-    font-family: var(--font-sans);
-    font-weight: 400;
-    letter-spacing: 0.08em;
+    @apply text-caption tracking-normal uppercase text-foreground hover:underline transition-colors duration-200;
+    font-family: var(--font-mono);
+    font-weight: var(--font-weight-regular);
   }
 
   .nav-link-active {
@@ -166,21 +239,23 @@
   }
 
   .product-card-title {
-    @apply text-sm font-normal mt-3 text-foreground;
+    @apply text-body-sm font-regular mt-3 text-foreground;
     font-family: var(--font-sans);
   }
 
   .product-card-price {
-    @apply text-sm text-muted-foreground mt-1;
+    @apply text-caption font-regular text-muted-foreground mt-1;
+    font-family: var(--font-mono);
   }
 
   .section-title {
     font-family: var(--font-heading);
-    @apply text-2xl font-normal tracking-normal;
+    @apply text-heading font-regular tracking-normal;
   }
 
   .badge-sale {
-    @apply absolute top-2 right-2 text-xs px-2 py-1 font-medium tracking-wide;
+    @apply absolute top-2 right-2 text-caption px-2 py-1 font-regular tracking-normal;
+    font-family: var(--font-mono);
     background: var(--sale);
     color: var(--primary-foreground);
   }
