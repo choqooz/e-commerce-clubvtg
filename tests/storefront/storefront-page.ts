@@ -22,7 +22,13 @@ export class StorefrontPage extends BasePage {
 
   async openFirstProduct(): Promise<void> {
     await expect(this.productLinks).not.toHaveCount(0);
-    await this.productLinks.first().click();
+    const productLink = this.productLinks.first();
+    const href = await productLink.getAttribute("href");
+    expect(href, "The selected product link must have a navigation destination").not.toBeNull();
+    const productURL = new URL(href!, new URL(this.page.url()).origin).href;
+
+    await productLink.click();
+    await this.page.waitForURL(productURL, { waitUntil: "commit" });
   }
 
   async addFirstProductToCart(): Promise<void> {

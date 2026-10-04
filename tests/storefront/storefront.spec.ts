@@ -14,9 +14,18 @@ test(
     await storefront.addFirstProductToCart();
     await expect(storefront.cartDialog.getByRole("heading", { name: "Carrito (1)" })).toBeVisible();
 
+    const checkoutReturnURL = new URL("/checkout", new URL(page.url()).origin).href;
     await Promise.all([
       expect(page).toHaveURL(
-        /^https:\/\/[a-z0-9-]+\.accounts\.dev\/sign-in\?redirect_url=http%3A%2F%2F(?:127\.0\.0\.1|localhost)%3A3000%2Fcheckout(?:&.*)?$/,
+        (url) =>
+          url.protocol === "https:" &&
+          /^[a-z0-9-]+\.accounts\.dev$/.test(url.host) &&
+          url.pathname === "/sign-in" &&
+          url.username === "" &&
+          url.password === "" &&
+          url.hash === "" &&
+          url.searchParams.getAll("redirect_url").length === 1 &&
+          url.searchParams.get("redirect_url") === checkoutReturnURL,
       ),
       storefront.beginCheckout(),
     ]);

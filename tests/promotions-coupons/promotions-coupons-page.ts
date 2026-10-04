@@ -34,19 +34,29 @@ export class CustomerPromotionsCouponsPage extends BasePage {
   async addConfiguredProductToCart(): Promise<void> {
     await this.addToCartButton.click();
     await expect(this.cartDialog).toBeVisible();
-    await this.cartDialog.getByRole("link", { name: "Ir al Checkout" }).click();
+    const checkoutLink = this.cartDialog.getByRole("link", { name: "Ir al Checkout" });
+    const href = await checkoutLink.getAttribute("href");
+    expect(href, "The selected checkout link must have a navigation destination").not.toBeNull();
+    const checkoutURL = new URL(href!, new URL(this.page.url()).origin).href;
+
+    await checkoutLink.click();
+    await this.page.waitForURL(checkoutURL, { waitUntil: "commit" });
     await expect(this.checkoutForm).toBeVisible();
   }
 
   async quoteCoupon(code: string): Promise<void> {
     await this.couponCodeInput.fill(code);
     await this.checkoutForm.getByRole("button", { name: "Cotizar" }).click();
-    await expect(this.checkoutForm.getByRole("group", { name: "Elegí cómo aplicar tu descuento" })).toBeVisible();
+    await expect(
+      this.checkoutForm.getByRole("group", { name: "Elegí cómo aplicar tu descuento" }),
+    ).toBeVisible();
   }
 
   async chooseCoupon(code: string): Promise<void> {
     await this.checkoutForm.getByRole("radio", { name: `Usar cupón ${code}` }).check();
-    await expect(this.checkoutForm.getByRole("radio", { name: `Usar cupón ${code}` })).toBeChecked();
+    await expect(
+      this.checkoutForm.getByRole("radio", { name: `Usar cupón ${code}` }),
+    ).toBeChecked();
   }
 
   async handOffToCheckoutProvider(customerEmail: string): Promise<void> {
@@ -71,7 +81,17 @@ export class CustomerPromotionsCouponsPage extends BasePage {
     const pricingHistory = order.getByTestId("order-pricing-history");
     await expect(pricingHistory).toBeVisible();
     await expect(pricingHistory.getByText("Total a pagar", { exact: true })).toBeVisible();
-    await expect(pricingHistory.getByText("Total a pagar", { exact: true }).locator("xpath=following-sibling::dd[1]")).toHaveText((totalCents / 100).toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }));
+    await expect(
+      pricingHistory
+        .getByText("Total a pagar", { exact: true })
+        .locator("xpath=following-sibling::dd[1]"),
+    ).toHaveText(
+      (totalCents / 100).toLocaleString("es-AR", {
+        style: "currency",
+        currency: "ARS",
+        maximumFractionDigits: 0,
+      }),
+    );
   }
 }
 
@@ -96,11 +116,15 @@ export class AdminPromotionsCouponsPage extends BasePage {
     await form.getByLabel("Tipo de descuento").selectOption("percentage");
     await form.getByLabel("Descuento", { exact: true }).fill("10");
     if (replacementCode) {
-      await form.getByLabel("Cupón a reemplazar").selectOption({ label: `Reemplazar ${replacementCode}` });
+      await form
+        .getByLabel("Cupón a reemplazar")
+        .selectOption({ label: `Reemplazar ${replacementCode}` });
       await form.getByLabel("Motivo de reemplazo").fill("Fixture lifecycle replacement");
     }
     await form.getByRole("button", { name: "Guardar cupón" }).click();
-    await expect(this.page.getByTestId("coupon-list").getByText(code, { exact: true })).toBeVisible();
+    await expect(
+      this.page.getByTestId("coupon-list").getByText(code, { exact: true }),
+    ).toBeVisible();
   }
 
   async deactivateIfActive(code: string): Promise<void> {
@@ -113,6 +137,9 @@ export class AdminPromotionsCouponsPage extends BasePage {
   }
 
   coupon(code: string): Locator {
-    return this.page.getByTestId("coupon-list").locator("article").filter({ has: this.page.getByText(code, { exact: true }) });
+    return this.page
+      .getByTestId("coupon-list")
+      .locator("article")
+      .filter({ has: this.page.getByText(code, { exact: true }) });
   }
 }
