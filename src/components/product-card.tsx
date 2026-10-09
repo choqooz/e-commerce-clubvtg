@@ -22,7 +22,7 @@ export function ProductCard({
   return (
     <Link
       href={`/product/${product.slug}`}
-      className="product-card rounded-none bg-bone-white font-sans text-[15px] font-normal text-midnight-ink focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-[2px]"
+      className="product-card block min-w-0 rounded-none bg-bone-white font-sans text-[15px] font-normal text-midnight-ink focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-[2px]"
     >
       <div className="relative overflow-hidden">
         {/* Product image */}
@@ -33,7 +33,7 @@ export function ProductCard({
               alt={product.title}
               fill
               priority={priority}
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              sizes="(min-width: 768px) 25vw, 50vw"
               className="object-cover"
             />
           ) : (
@@ -45,31 +45,34 @@ export function ProductCard({
       </div>
 
       {/* Info */}
-      <h3 className="mt-[13px] font-sans text-[15px] font-normal leading-[1.2]">{product.title}</h3>
-      <div className="mt-[6px] flex flex-wrap items-center gap-[6px] font-mono text-[13px] font-normal">
+      <h3 className="mt-[13px] px-[13px] font-mono text-[13px] font-normal leading-[1.2]">
+        {product.title}
+      </h3>
+      <div className="mt-[6px] flex flex-wrap items-center gap-[6px] px-[13px] font-mono text-[13px] font-normal">
         {product.promotion_percent ? (
           <span className="line-through">{formatPrice(product.price)}</span>
         ) : null}
         <span>{formatPrice(currentPrice)}</span>
-        {product.promotion_percent ? (
-          <span className="rounded-none border border-midnight-ink bg-warm-sand px-[6px] py-[2px]">
-            -{product.promotion_percent}%
-          </span>
-        ) : null}
+        {product.promotion_percent ? <span>-{product.promotion_percent}%</span> : null}
       </div>
       {promotionEnd ? (
-        <span className="mt-[6px] block font-mono text-[13px] font-normal">
+        <span className="mt-[6px] block px-[13px] font-mono text-[13px] font-normal">
           Hasta {promotionEnd}
         </span>
       ) : null}
 
       {/* Color + size */}
-      <div className="mt-[13px] flex items-center gap-[6px]">
+      <div className="mt-[6px] flex flex-wrap items-center gap-[6px] px-[13px]">
         <span className="font-mono text-[13px] font-normal">
           {product.size ? `Talle ${product.size}` : "Talle Único"}
           {product.color ? ` • ${product.color}` : ""}
         </span>
       </div>
+      {product.status !== "available" && (
+        <p className="mt-[6px] px-[13px] font-mono text-[13px] font-normal">
+          {{ reserved: "Reservado", sold: "Vendido", archived: "No disponible" }[product.status]}
+        </p>
+      )}
     </Link>
   );
 }

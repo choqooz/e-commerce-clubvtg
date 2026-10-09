@@ -5,10 +5,12 @@ import { Children, isValidElement, type ReactElement, type ReactNode } from "rea
 import { renderToStaticMarkup } from "react-dom/server";
 import { compile } from "tailwindcss";
 import ts from "typescript";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Product } from "@/lib/types";
 import { CATEGORIES, formatPrice } from "@/lib/config";
 import { COLOR_MAP } from "@/lib/constants";
+
+type CatalogSnapshot = import("./catalog-url-state").CatalogSnapshot;
 
 // Shallow hooks/SSR only. Effects and callbacks run explicitly against mocks, never live services.
 const probe = vi.hoisted(() => ({
@@ -18,8 +20,17 @@ const probe = vi.hoisted(() => ({
   pathname: "/admin",
   states: [] as unknown[],
   stateIndex: 0,
+  catalogHooks: false,
+  serverRender: false,
+  refIndex: 0,
+  refs: [] as { current: unknown }[],
+  store: null as null | {
+    subscribe: (callback: () => void) => () => void;
+    snapshot: () => CatalogSnapshot;
+    serverSnapshot: () => CatalogSnapshot;
+  },
   setState: vi.fn(),
-  effects: [] as (() => void)[],
+  effects: [] as (() => void | (() => void))[],
   cart: {
     items: [] as { product: Product; quantity: number }[],
     totalItems: 0,
@@ -37,13 +48,34 @@ vi.mock("react", async (original) => ({
   ...(await original<typeof import("react")>()),
   useState: (initial: unknown) => {
     const index = probe.stateIndex++;
-    return [index < probe.states.length ? probe.states[index] : initial, probe.setState];
+    if (!probe.catalogHooks)
+      return [index < probe.states.length ? probe.states[index] : initial, probe.setState];
+    if (index >= probe.states.length) probe.states[index] = initial;
+    return [
+      probe.states[index],
+      (value: unknown) => {
+        probe.setState(value);
+        probe.states[index] = typeof value === "function" ? value(probe.states[index]) : value;
+      },
+    ];
   },
-  useEffect: (effect: () => void) => {
+  useEffect: (effect: () => void | (() => void)) => {
     probe.effects.push(effect);
   },
   useId: () => "shipping-pause-instruction",
-  useRef: (initial: unknown) => ({ current: initial }),
+  useRef: (initial: unknown) => {
+    if (!probe.catalogHooks) return { current: initial };
+    const index = probe.refIndex++;
+    return probe.refs[index] ?? (probe.refs[index] = { current: initial });
+  },
+  useSyncExternalStore: (
+    subscribe: (callback: () => void) => () => void,
+    snapshot: () => CatalogSnapshot,
+    serverSnapshot: () => CatalogSnapshot,
+  ) => {
+    probe.store = { subscribe, snapshot, serverSnapshot };
+    return probe.serverRender ? serverSnapshot() : snapshot();
+  },
 }));
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({ isSignedIn: probe.signedIn, userId: probe.signedIn ? probe.userId : null }),
@@ -171,6 +203,11 @@ beforeEach(() => {
     pathname: "/admin",
     states: [],
     stateIndex: 0,
+    catalogHooks: false,
+    serverRender: false,
+    refIndex: 0,
+    refs: [],
+    store: null,
     effects: [],
   });
   Object.assign(probe.cart, {
@@ -184,6 +221,80 @@ beforeEach(() => {
     ReturnType<typeof getUserCredits>
   >);
 });
+
+afterEach(() => vi.unstubAllGlobals());
+
+// In-memory history and explicit shallow retries; no DOM mount, Next router or service runs.
+function catalogBrowser(initial = "/?tag=one&tag=two&keep=1") {
+  const events = new EventTarget();
+  const entries = [new URL(initial, "https://store.example")];
+  let index = 0;
+  const location = { pathname: "", search: "", hash: "" };
+  const sync = () =>
+    Object.assign(location, {
+      pathname: entries[index].pathname,
+      search: entries[index].search,
+      hash: entries[index].hash,
+    });
+  sync();
+  const pushState = vi.fn((_state: unknown, _title: string, url: string) => {
+    entries.splice(index + 1);
+    entries.push(new URL(url, entries[index]));
+    index++;
+    sync();
+  });
+  const move = (offset: number) => {
+    index += offset;
+    sync();
+    events.dispatchEvent(new Event("popstate"));
+  };
+  const focus = vi.fn();
+  const scrollIntoView = vi.fn();
+  const frames: (() => void)[] = [];
+  vi.stubGlobal("document", { getElementById: vi.fn(() => ({ focus, scrollIntoView })) });
+  vi.stubGlobal("window", {
+    location,
+    history: { pushState },
+    addEventListener: events.addEventListener.bind(events),
+    removeEventListener: events.removeEventListener.bind(events),
+    dispatchEvent: events.dispatchEvent.bind(events),
+    requestAnimationFrame: (callback: () => void) => frames.push(callback),
+    cancelAnimationFrame: vi.fn(),
+    matchMedia: () => ({ matches: false }),
+  });
+  return {
+    location,
+    pushState,
+    events,
+    back: () => move(-1),
+    forward: () => move(1),
+    frames,
+    focus,
+    scrollIntoView,
+  };
+}
+function renderCatalog(
+  initialProducts: Product[],
+  publicTypeNames: string[] = [],
+  typesLoadError = false,
+) {
+  probe.catalogHooks = true;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    probe.stateIndex = 0;
+    probe.refIndex = 0;
+    probe.effects = [];
+    const before = probe.setState.mock.calls.length;
+    const tree = CatalogContent({ initialProducts, publicTypeNames, typesLoadError });
+    if (probe.setState.mock.calls.length === before) return tree;
+  }
+  throw new Error("Catalog state did not settle");
+}
+const catalogButton = (tree: ReactNode, label: string) =>
+  elements(tree, "button").find(
+    (element) => html(element.props.children).replace(/<[^>]*>/g, "") === label,
+  )!;
+const chooseCollection = (tree: ReactNode, value: string) =>
+  (elements(tree, "select")[0].props.onChange as (event: unknown) => void)({ target: { value } });
 
 describe("Navigation contracts", () => {
   it("keeps announcement, wordmark, catalog, modal sign-in and zero-count cart", () => {
@@ -286,56 +397,339 @@ describe("Navigation contracts", () => {
 });
 
 describe("Storefront state, data and callback preservation", () => {
-  it("composes accepted banner, filters, cards and shared chrome without changing initial data", () => {
-    const tree = CatalogContent({ initialProducts: [garment, second] });
+  const publicNames = [
+    "Camisas",
+    "Sin prendas",
+    "ropa única 👕",
+    "all",
+    "home",
+    "__proto__",
+    "tops",
+    "legacy:tops",
+    "  Lino  ",
+  ];
+
+  it("composes entry and shared chrome on passive home, then mounts filters/cards only in collection", () => {
+    const browser = catalogBrowser();
+    const products = [garment, second];
+    const before = JSON.stringify(products);
+    let tree = renderCatalog(products);
     expect(elements(tree, SiteHeader)).toHaveLength(1);
     expect(elements(tree, SiteFooter)).toHaveLength(1);
     expect(elements(tree, CartDrawer)).toHaveLength(1);
-    expect(elements(tree, CategoryBanner)).toHaveLength(1);
+    expect(elements(tree, CategoryBanner)[0].props.initialProducts).toBe(products);
+    expect(elements(tree, ProductCard)).toHaveLength(0);
+    expect(elements(tree, CatalogFilters)).toHaveLength(0);
+    const target = elements(tree, "section").find((section) => section.props.id === "catalog")!;
+    expect(target.props).toMatchObject({
+      hidden: true,
+      tabIndex: -1,
+      "aria-label": "Catálogo de prendas",
+    });
+    probe.effects[0]();
+    expect(browser.frames).toHaveLength(0); // Ordinary home never steals focus.
+    const all = button(tree, "Ver todas las prendas");
+    expect(all.props).toMatchObject({ type: "button", "aria-controls": "catalog" });
+    click(all);
+    tree = renderCatalog(products);
+    expect(elements(tree, CategoryBanner)).toHaveLength(0);
+    expect(elements(tree, "aside")).toHaveLength(0);
+    expect(elements(tree, "nav")).toHaveLength(0); // Compact select replaces the old tabs.
+    expect(elements(tree, "select")[0].props).toMatchObject({
+      id: "collection-category",
+      value: "all",
+    });
+    expect(elements(tree, "label")[0].props.htmlFor).toBe("collection-category");
     expect(
       elements(tree, ProductCard).map((card) => [card.props.product, card.props.priority]),
     ).toEqual([
       [garment, true],
       [second, false],
     ]);
-    for (const filter of elements(tree, CatalogFilters))
-      expect(filter.props).toMatchObject({
-        filters: EMPTY_FILTERS,
-        categoryProducts: [garment, second],
-        onFiltersChange: probe.setState,
-      });
-    const tabs = elements(tree, "button");
-    expect(tabs.map((tab) => Children.toArray(tab.props.children)[0])).toEqual(
-      CATEGORIES.map((category) => category.label),
+    expect(elements(tree, CatalogFilters)).toHaveLength(1);
+    // The preserved Sheet mock aliases every export to one function; identify its direct right content.
+    const filterSheets = elements(tree, Sheet).filter((sheet) =>
+      Children.toArray(sheet.props.children).some(
+        (child) => isValidElement(child) && (child as Element).props.side === "right",
+      ),
     );
-    click(tabs[1]);
-    expect(probe.setState).toHaveBeenCalledWith(CATEGORIES[1].id);
+    expect(filterSheets).toHaveLength(1); // One sheet at every viewport, not duplicated filters.
+    expect(elements(tree, CatalogFilters)[0].props).toMatchObject({
+      filters: EMPTY_FILTERS,
+      categoryProducts: products,
+    });
+    const changeFilters = elements(tree, CatalogFilters)[0].props.onFiltersChange as (
+      value: unknown,
+    ) => void;
+    changeFilters(EMPTY_FILTERS);
+    expect(probe.setState).toHaveBeenCalledWith(EMPTY_FILTERS);
     expect(html(tree)).toContain("2 prendas encontradas");
+    expect(JSON.stringify(products)).toBe(before);
   });
 
   it("retains category narrowing, subcategory-only reset, active count, clear and empty state", () => {
+    catalogBrowser("/?category=tops#catalog");
+    const top = { ...garment, category: "tops" };
+    const bottom = { ...second, category: "bottoms" };
     const filters = { ...EMPTY_FILTERS, subcategory: "camisas", sizes: ["M"] };
-    probe.states = ["hombre", filters];
-    const tree = CatalogContent({ initialProducts: [garment, second] });
-    expect(elements(tree, ProductCard).map((card) => card.props.product)).toEqual([garment]);
-    expect(elements(tree, CatalogFilters)[0].props.categoryProducts).toEqual([garment]);
+    probe.states = ["legacy:tops", filters];
+    let tree = renderCatalog([top, bottom]);
+    expect(elements(tree, ProductCard).map((card) => card.props.product)).toEqual([top]);
+    expect(elements(tree, CatalogFilters)[0].props.categoryProducts).toEqual([top]);
     expect(html(tree)).toContain("1 prenda encontrada");
-    click(elements(tree, "button")[0]);
+    expect(html(tree)).toContain("Filtros (2)");
+    chooseCollection(tree, "legacy:tops");
     const updater = probe.setState.mock.calls.find(([value]) => typeof value === "function")![0];
     expect(updater(filters)).toEqual({ ...filters, subcategory: null });
-    click(
-      elements(tree, "button").find(
-        (element) => element.props.onClick && element.props.className?.includes("lg:flex"),
-      )!,
-    );
+    tree = renderCatalog([top, bottom]);
+    click(catalogButton(tree, "Limpiar filtros (1)"));
     expect(probe.setState).toHaveBeenCalledWith(EMPTY_FILTERS);
-    probe.stateIndex = 0;
-    probe.states = ["hombre", { ...EMPTY_FILTERS, sizes: ["XXL"] }];
-    const empty = CatalogContent({ initialProducts: [garment] });
+    tree = renderCatalog([top, bottom]);
+    expect(elements(tree, CatalogFilters)[0].props.filters).toBe(EMPTY_FILTERS);
+    probe.states = ["legacy:tops", { ...EMPTY_FILTERS, sizes: ["XXL"] }];
+    const empty = renderCatalog([top]);
     expect(elements(empty, ProductCard)).toHaveLength(0);
     expect(html(empty)).toContain("No encontramos prendas con estos filtros.");
     expect(html(empty)).toContain("Limpiar filtros");
   });
+
+  it.each(CATEGORIES)(
+    "opens the configured entry $id with exact legacy product scope",
+    ({ id }) => {
+      const browser = catalogBrowser();
+      const products = CATEGORIES.filter((category) => category.id !== "all").map((category) => ({
+        ...garment,
+        id: category.id,
+        category: category.id,
+      }));
+      let tree = renderCatalog(products);
+      (elements(tree, CategoryBanner)[0].props.onCategoryChange as (category: string) => void)(id);
+      tree = renderCatalog(products);
+      const selection = id === "all" ? "all" : `legacy:${id}`;
+      expect(elements(tree, "select")[0].props.value).toBe(selection);
+      expect(elements(tree, "option").map((option) => option.props.value)).toEqual(
+        id === "all" ? ["all"] : ["all", selection],
+      );
+      const expected =
+        id === "all" ? products : products.filter((product) => product.category === id);
+      expect(elements(tree, CatalogFilters)[0].props.categoryProducts).toEqual(expected);
+      expect(
+        elements(tree, ProductCard).map((card) => [card.props.product, card.props.priority]),
+      ).toEqual(expected.map((product, index) => [product, index === 0]));
+      expect(new URLSearchParams(browser.location.search).get("category")).toBe(
+        id === "all" ? null : id,
+      );
+      expect(browser.location.hash).toBe("#catalog");
+    },
+  );
+
+  it.each(publicNames)(
+    "uses the complete public name list and exactly filters stored name %s",
+    (name) => {
+      const names = publicNames;
+      const products = names
+        .filter((name) => name !== "Sin prendas")
+        .map((category) => ({
+          ...garment,
+          id: category,
+          category,
+        }));
+      const browser = catalogBrowser(`/?category=${encodeURIComponent(name)}`);
+      const tree = renderCatalog(products, [...names, "Camisas", "", " "]);
+      const select = elements(tree, "select")[0];
+      expect(select.props.value).toBe(`type:${name}`);
+      expect(
+        elements(select, "option").map((option) => [option.props.value, option.props.children]),
+      ).toEqual([["all", "Todo"], ...names.map((name) => [`type:${name}`, name])]);
+      expect(elements(select, "optgroup")).toHaveLength(0);
+      const expected = products.filter((product) => product.category === name);
+      expect(elements(tree, CatalogFilters)[0].props.categoryProducts).toEqual(expected);
+      expect(elements(tree, ProductCard).map((card) => card.props.product)).toEqual(expected);
+      if (!expected.length)
+        expect(html(tree)).toContain("No encontramos prendas con estos filtros.");
+      expect(browser.pushState).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["unknown", "camisas", "", " ", "Camisas&category=Camisas"])(
+    "opens Todo for invalid/case-mismatched/duplicate query %s",
+    (value) => {
+      catalogBrowser(`/?category=${value}`);
+      const products = [garment, second];
+      const tree = renderCatalog(products, ["Camisas"]);
+      expect(elements(tree, "select")[0].props.value).toBe("all");
+      expect(elements(tree, CatalogFilters)[0].props.categoryProducts).toBe(products);
+      expect(elements(tree, ProductCard)).toHaveLength(2);
+    },
+  );
+
+  it.each([false, true])(
+    "distinguishes the honest empty public list from load error %s",
+    (error) => {
+      catalogBrowser("/#catalog");
+      const tree = renderCatalog([garment], [], error);
+      expect(elements(tree, "option").map((option) => option.props.children)).toEqual(["Todo"]);
+      expect(elements(tree, ProductCard)).toHaveLength(1);
+      expect(html(tree)).toContain(
+        error
+          ? "No pudimos cargar las categorías. Intentá de nuevo más tarde."
+          : "No hay categorías creadas disponibles.",
+      );
+      expect(html(tree)).not.toContain(
+        error
+          ? "No hay categorías creadas disponibles."
+          : "No pudimos cargar las categorías. Intentá de nuevo más tarde.",
+      );
+    },
+  );
+
+  it("restores collection/history and foreign parameters while resetting only subcategory", () => {
+    const browser = catalogBrowser("/?tag=one&tag=two&keep=1#catalog");
+    const names = ["tops", "bottoms"];
+    const products = [
+      { ...garment, category: "tops" },
+      { ...garment, id: "bottom", category: "bottoms", subcategory: "pantalones" },
+    ];
+    const filters = {
+      ...EMPTY_FILTERS,
+      subcategory: "camisas",
+      sizes: ["M"],
+      brands: ["Original"],
+      colors: ["azul"],
+      conditions: ["Muy bueno"],
+      priceBracket: 0,
+    };
+    const before = JSON.stringify({ products, filters });
+    probe.states = ["all", filters];
+    let tree = renderCatalog(products, names);
+    const onChange = vi.fn(() => {
+      tree = renderCatalog(products, names);
+    });
+    const cleanup = probe.store!.subscribe(onChange);
+    chooseCollection(tree, "type:tops");
+    expect(elements(tree, CatalogFilters)[0].props.filters).toEqual({
+      ...filters,
+      subcategory: null,
+    });
+    expect(elements(tree, ProductCard)[0].props.product).toBe(products[0]);
+    chooseCollection(tree, "type:bottoms");
+    probe.states[1] = filters;
+    browser.back();
+    expect(elements(tree, "select")[0].props.value).toBe("type:tops");
+    expect(elements(tree, CatalogFilters)[0].props.filters).toEqual({
+      ...filters,
+      subcategory: null,
+    });
+    browser.forward();
+    expect(elements(tree, "select")[0].props.value).toBe("type:bottoms");
+    expect(elements(tree, ProductCard)[0].props.product).toBe(products[1]);
+    probe.states[1] = filters;
+    tree = renderCatalog(products, names);
+    const pushes = browser.pushState.mock.calls.length;
+    chooseCollection(tree, "type:bottoms"); // Same selection still clears only subcategory.
+    tree = renderCatalog(products, names);
+    expect(probe.states[1]).toEqual({ ...filters, subcategory: null });
+    expect(browser.pushState).toHaveBeenCalledTimes(pushes);
+    probe.setState.mockClear();
+    for (const value of ["tops", "type:missing", "legacy:tops", "legacy:bottoms", "legacy:all"])
+      chooseCollection(tree, value);
+    expect(probe.setState).not.toHaveBeenCalled();
+    expect(browser.pushState).toHaveBeenCalledTimes(pushes);
+    click(catalogButton(tree, "Volver al inicio"));
+    expect(elements(tree, CategoryBanner)).toHaveLength(1);
+    expect(browser.location).toEqual({
+      pathname: "/",
+      search: "?tag=one&tag=two&keep=1",
+      hash: "",
+    });
+    expect(probe.states[1]).toEqual({ ...filters, subcategory: null });
+    browser.back();
+    expect(elements(tree, "select")[0].props.value).toBe("type:bottoms");
+    browser.forward();
+    expect(elements(tree, CategoryBanner)).toHaveLength(1);
+    expect(JSON.stringify({ products, filters })).toBe(before);
+    const calls = onChange.mock.calls.length;
+    cleanup();
+    browser.events.dispatchEvent(new Event("hashchange"));
+    browser.events.dispatchEvent(new Event("popstate"));
+    expect(onChange).toHaveBeenCalledTimes(calls);
+  });
+
+  it("consumes the unchanged detail breadcrumb after an SSR-safe home snapshot", () => {
+    const product = { ...garment, category: "tops" };
+    const link = descendants(detail(product)).find(
+      (element) => element.props.href === "/?category=tops",
+    )!;
+    expect(link).toBeDefined();
+    vi.stubGlobal("window", undefined);
+    probe.serverRender = true;
+    const server = renderCatalog([product, second]);
+    expect(elements(server, CategoryBanner)).toHaveLength(1);
+    expect(elements(server, ProductCard)).toHaveLength(0);
+    expect(probe.store!.serverSnapshot()).toBe("home");
+    probe.effects[0](); // Passive server snapshot; not mounted hydration evidence.
+    const browser = catalogBrowser(link.props.href as string);
+    probe.serverRender = false;
+    let client = renderCatalog([product, second], ["tops"]);
+    expect(elements(client, "select")[0].props.value).toBe("type:tops");
+    expect(elements(client, ProductCard)[0].props.product).toBe(product);
+    click(catalogButton(client, "Volver al inicio"));
+    client = renderCatalog([product, second], ["tops"]);
+    (elements(client, CategoryBanner)[0].props.onCategoryChange as (category: string) => void)(
+      "tops",
+    );
+    expect(probe.store!.snapshot()).toBe("type:tops"); // Created names win over colliding legacy IDs.
+    expect(new URLSearchParams(browser.location.search).get("category")).toBe("tops");
+  });
+
+  it.each([false, true])(
+    "requests collection focus/scroll with reduced motion %s against mocks",
+    (reduced) => {
+      const browser = catalogBrowser("/#catalog");
+      window.matchMedia = vi.fn(() => ({
+        matches: reduced,
+      })) as unknown as typeof window.matchMedia;
+      renderCatalog([]);
+      const cancel = probe.effects[0]() as () => void;
+      expect(browser.frames).toHaveLength(1);
+      browser.frames[0]();
+      expect(document.getElementById).toHaveBeenCalledWith("catalog");
+      expect(browser.focus).toHaveBeenCalledWith({ preventScroll: true });
+      expect(browser.scrollIntoView).toHaveBeenCalledWith({
+        block: "start",
+        behavior: reduced ? "instant" : "smooth",
+      });
+      cancel();
+      expect(window.cancelAnimationFrame).toHaveBeenCalledWith(1);
+    },
+  );
+
+  it.each(["available", "reserved", "sold", "archived"] as const)(
+    "keeps Card %s stock truth, slug link, promoted price and unchanged input",
+    (status) => {
+      const product = { ...garment, status };
+      const before = JSON.stringify(product);
+      const tree = ProductCard({ product, priority: true });
+      const markup = html(tree);
+      expect(markup).toContain(`href="/product/${product.slug}"`);
+      expect(markup).toContain(formatPrice(product.current_price!));
+      expect(markup).toContain(formatPrice(product.price));
+      expect(markup).toContain("-20%");
+      expect(markup).toContain('sizes="(min-width: 768px) 25vw, 50vw"');
+      expect(markup).toContain('src="/shirt-front.jpg"');
+      expect(markup).not.toContain("shirt-back.jpg");
+      const label = {
+        available: null,
+        reserved: "Reservado",
+        sold: "Vendido",
+        archived: "No disponible",
+      }[status];
+      if (label) expect(markup).toContain(label);
+      else expect(markup).not.toMatch(/Reservado|Vendido|No disponible|En stock/);
+      expect(JSON.stringify(product)).toBe(before);
+      expect(probe.cart.addItem).not.toHaveBeenCalled();
+    },
+  );
 
   it.each(["available", "reserved", "sold", "archived"] as const)(
     "retains %s availability, feedback and add-cart guard",
@@ -499,6 +893,7 @@ const paths = [
   "site-footer.tsx",
   "admin/sidebar.tsx",
   "catalog-content.tsx",
+  "product-card.tsx",
   "product-detail-content.tsx",
   "cart-drawer.tsx",
 ];
@@ -547,7 +942,7 @@ function signatures(text: string) {
 
 describe("Source-preservation and actual in-memory Tailwind CSS", () => {
   it.each(paths)(
-    "preserves %s against its accepted chrome identity or original nonpresentation baseline",
+    "preserves %s against its accepted chrome/catalog/Card identity or original nonpresentation baseline",
     (path) => {
       const baseline = execFileSync(
         "git",
@@ -564,6 +959,14 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
           "site-footer.tsx": "e465e234f641f23ab346cf4e9a281c03b77f7dc580f10e3817fe0fc971b76575",
         };
         expect(createHash("sha256").update(source(path)).digest("hex")).toBe(acceptedChrome[path]);
+      } else if (path === "catalog-content.tsx" || path === "product-card.tsx") {
+        // Accepted collection gating/URL state and Card stock/sizes supersede the old premise.
+        // Pin every byte, including all AST nodes; behavior contracts above qualify the change.
+        const acceptedCatalog = {
+          "catalog-content.tsx": "c1669224b4e6d8bbcfee0053d8f3c884b3ede34ab8cc684e3a091ef5442b3679",
+          "product-card.tsx": "48ecbea82bd741f41f4d24529429bea80103a83afc9d6f6c10369325d79ce5a6",
+        };
+        expect(createHash("sha256").update(source(path)).digest("hex")).toBe(acceptedCatalog[path]);
       } else {
         expect(signatures(source(path))).toEqual(signatures(baseline));
       }
@@ -611,7 +1014,10 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
     };
     for (const [name, property, value] of [
       ["w-[240px]", "width", "240px"],
-      ["w-[250px]", "width", "250px"],
+      // Collection is now full-width with a compact select, not the old 250px sidebar.
+      ["min-w-0", "min-width", "calc(var(--spacing) * 0)"],
+      ["gap-x-[10px]", "column-gap", "10px"],
+      ["gap-y-[24px]", "row-gap", "24px"],
       ["w-[80px]", "width", "80px"],
       ["h-[96px]", "height", "96px"],
       ["h-[36px]", "height", "36px"],
@@ -623,14 +1029,14 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
       ["px-[18px]", "padding-inline", "18px"],
       ["py-[8px]", "padding-block", "8px"],
       ["p-[24px]", "padding", "24px"],
-      ["top-[156px]", "top", "156px"],
-      ["max-h-[calc(100dvh-180px)]", "max-height", "calc(100dvh - 180px)"],
+      ["scroll-mt-[156px]", "scroll-margin-top", "156px"],
+      ["max-w-full", "max-width", "100%"],
       ["max-h-[60dvh]", "max-height", "60dvh"],
       ["sm:max-w-[448px]", "max-width", "448px"],
       ["w-full", "width", "100%"],
       ["min-h-0", "min-height", "calc(var(--spacing) * 0)"],
       ["overflow-y-auto", "overflow-y", "auto"],
-      ["overflow-x-auto", "overflow-x", "auto"],
+      ["flex-wrap", "flex-wrap", "wrap"], // Compact controls wrap instead of scrolling old tabs.
       ["rounded-none", "border-radius", "0"],
       ["border", "border-width", "1px"],
       ["border-midnight-ink", "border-color", "var(--color-midnight-ink)"],
@@ -645,7 +1051,7 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
       ["md:text-[111px]", "font-size", "111px"],
       ["md:flex", "display", "flex"],
       ["lg:grid-cols-2", "grid-template-columns", "repeat(2, minmax(0, 1fr))"],
-      ["md:grid-cols-3", "grid-template-columns", "repeat(3, minmax(0, 1fr))"],
+      ["md:grid-cols-4", "grid-template-columns", "repeat(4, minmax(0, 1fr))"],
       ["focus-visible:outline-2", "outline-width", "2px"],
       ["focus-visible:outline-solid", "outline-style", "solid"],
       ["focus-visible:outline-midnight-ink", "outline-color", "var(--color-midnight-ink)"],

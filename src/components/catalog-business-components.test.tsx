@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { COLOR_MAP, FILTER_COLORS, PRICE_BRACKETS } from "@/lib/constants";
-import { formatPrice } from "@/lib/config";
+import { CATEGORIES, formatPrice } from "@/lib/config";
 import type { Product } from "@/lib/types";
 import { ProductCard } from "./product-card";
 import { CategoryBanner } from "./category-banner";
@@ -110,7 +110,7 @@ describe("Redesigned UI catalog surfaces", () => {
       expect(html).toContain('alt="Campera vintage"');
       expect(html).toContain("%2Ffirst.jpg");
       expect(html).not.toContain("second.jpg");
-      expect(html).toContain('sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"');
+      expect(html).toContain('sizes="(min-width: 768px) 25vw, 50vw"');
       expect(html.includes('rel="preload"')).toBe(priority);
       expect(html).not.toContain("product-card-image");
       expect(classTokens(html)).toEqual(
@@ -136,27 +136,39 @@ describe("Redesigned UI catalog surfaces", () => {
     expect(html).not.toContain(" • ");
   });
 
-  it("keeps the two text-only banner panels and labels", () => {
-    const html = renderToStaticMarkup(<CategoryBanner />);
-    for (const label of [
-      "Outerwear",
-      "Knitwear",
-      "Camperas, abrigos y blazers vintage",
-      "Sweaters y cardigans de colección",
-    ])
-      expect(html).toContain(label);
-    expect(html.match(/<h2 /g)).toHaveLength(2);
-    expect(html).not.toMatch(/<img|gradient/);
+  it.each([
+    ["available", null],
+    ["reserved", "Reservado"],
+    ["sold", "Vendido"],
+    ["archived", "No disponible"],
+  ] as const)(
+    "keeps real %s status and product link without claiming cover stock",
+    (status, label) => {
+      const html = renderToStaticMarkup(<ProductCard product={product({ status })} />);
+      expect(html).toContain('href="/product/campera-vintage"');
+      if (label) expect(html).toContain(label);
+      else expect(html).not.toMatch(/Reservado|Vendido|No disponible|En stock/);
+    },
+  );
+
+  it("renders all six category entry actions with flat, regular-type surfaces", () => {
+    const html = renderToStaticMarkup(
+      <CategoryBanner initialProducts={[]} onCategoryChange={() => {}} />,
+    );
+    for (const category of CATEGORIES.filter((category) => category.id !== "all"))
+      expect(html).toContain(`aria-label="Ver ${category.label} en el catálogo"`);
+    expect(buttons(html)).toHaveLength(6);
+    expect(html).not.toContain("Ver Todo en el catálogo");
     expect(classTokens(html)).toEqual(
       expect.arrayContaining([
-        "text-[30px]",
+        "md:text-[30px]",
         "font-sans",
         "font-normal",
         "font-mono",
         "text-[13px]",
         "bg-warm-sand",
-        "bg-bone-white",
-        "md:grid-cols-2",
+        "md:grid-cols-4",
+        "gap-[10px]",
       ]),
     );
     expectFlat(html);
