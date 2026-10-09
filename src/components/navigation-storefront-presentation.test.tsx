@@ -940,9 +940,41 @@ function signatures(text: string) {
   return { attributes, copy, preambles };
 }
 
+// Normalize only the accepted detail's explicit accessibility/image presentation delta.
+// Keep its original attribute order, business expressions, copy and function preambles protected.
+function detailSignatures(text: string) {
+  const original = signatures(text);
+  const attribute = (value: string) => signatures(`<div ${value} />`).attributes[0];
+  const additions = new Set(
+    [
+      'aria-label="Ruta del producto"',
+      'role="group"',
+      'aria-label="Galería del producto"',
+      'id="product-active-image"',
+      'type="button"',
+      "aria-label={`Ver vista ${i + 1} de ${product.title}`}",
+      "aria-pressed={activeImage === url}",
+      'aria-controls="product-active-image"',
+    ].map(attribute),
+  );
+  const replacements = new Map(
+    [
+      ["preload", "priority"],
+      ['sizes="(min-width: 1024px) 58.33vw, 100vw"', 'sizes="(max-width: 1024px) 100vw, 50vw"'],
+      ['sizes="(min-width: 768px) 84px, 72px"', 'sizes="10vw"'],
+    ].map(([accepted, previous]) => [attribute(accepted), attribute(previous)]),
+  );
+  return {
+    ...original,
+    attributes: original.attributes
+      .filter((value) => !additions.has(value))
+      .map((value) => replacements.get(value) ?? value),
+  };
+}
+
 describe("Source-preservation and actual in-memory Tailwind CSS", () => {
   it.each(paths)(
-    "preserves %s against its accepted chrome/catalog/Card identity or original nonpresentation baseline",
+    "preserves %s against its accepted chrome/catalog/Card/detail identity or original nonpresentation baseline",
     (path) => {
       const baseline = execFileSync(
         "git",
@@ -967,6 +999,13 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
           "product-card.tsx": "48ecbea82bd741f41f4d24529429bea80103a83afc9d6f6c10369325d79ce5a6",
         };
         expect(createHash("sha256").update(source(path)).digest("hex")).toBe(acceptedCatalog[path]);
+      } else if (path === "product-detail-content.tsx") {
+        // Pin all accepted bytes as well as retaining the old semantic/business baseline.
+        // The copied product-shopping suite independently exercises the presentation additions.
+        expect(createHash("sha256").update(source(path)).digest("hex")).toBe(
+          "2097e1c4f5fc623e3d9d9a8f5697f41cf7998cec96c4340f4546754fb93558f0",
+        );
+        expect(detailSignatures(source(path))).toEqual(signatures(baseline));
       } else {
         expect(signatures(source(path))).toEqual(signatures(baseline));
       }
@@ -1050,7 +1089,18 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
       ["md:text-[15px]", "font-size", "15px"],
       ["md:text-[111px]", "font-size", "111px"],
       ["md:flex", "display", "flex"],
-      ["lg:grid-cols-2", "grid-template-columns", "repeat(2, minmax(0, 1fr))"],
+      // Accepted detail uses a top-aligned 7:5 spread rather than the old equal columns.
+      [
+        "lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]",
+        "grid-template-columns",
+        "minmax(0,7fr) minmax(0,5fr)",
+      ],
+      ["items-start", "align-items", "flex-start"],
+      ["sm:aspect-square", "aspect-ratio", "1 / 1"],
+      ["lg:aspect-4/5", "aspect-ratio", "4/5"],
+      ["w-[72px]", "width", "72px"],
+      ["md:w-[84px]", "width", "84px"],
+      ["min-h-[48px]", "min-height", "48px"],
       ["md:grid-cols-4", "grid-template-columns", "repeat(4, minmax(0, 1fr))"],
       ["focus-visible:outline-2", "outline-width", "2px"],
       ["focus-visible:outline-solid", "outline-style", "solid"],
@@ -1061,7 +1111,10 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
     }
     for (const [name, media] of [
       ["md:flex", "(width >= 48rem)"],
-      ["lg:grid-cols-2", "(width >= 64rem)"],
+      ["lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]", "(width >= 64rem)"],
+      ["sm:aspect-square", "(width >= 40rem)"],
+      ["lg:aspect-4/5", "(width >= 64rem)"],
+      ["md:w-[84px]", "(width >= 48rem)"],
       ["sm:max-w-[448px]", "(width >= 40rem)"],
     ]) {
       expect(utility(name)).toContain(`@media ${media}`);
