@@ -866,7 +866,7 @@ describe("Storefront state, data and callback preservation", () => {
       "Elegirás entre el cupón y las promociones antes de pagar.",
     ])
       expect(markup).toContain(copy);
-    expect(markup).toContain('sizes="80px"');
+    expect(markup).toContain('sizes="(min-width: 640px) 104px, 88px"');
     expect(markup).toContain('src="/shirt-front.jpg"');
     const input = elements(tree, "input")[0];
     expect(input.props).toMatchObject({
@@ -972,9 +972,22 @@ function detailSignatures(text: string) {
   };
 }
 
+// Normalize only the accepted cart thumbnail's responsive source-size hint.
+// Preserve every other attribute, business expression, copy and function preamble.
+function cartSignatures(text: string) {
+  const original = signatures(text);
+  const attribute = (value: string) => signatures(`<div ${value} />`).attributes[0];
+  const acceptedSize = attribute('sizes="(min-width: 640px) 104px, 88px"');
+  const previousSize = attribute('sizes="80px"');
+  return {
+    ...original,
+    attributes: original.attributes.map((value) => (value === acceptedSize ? previousSize : value)),
+  };
+}
+
 describe("Source-preservation and actual in-memory Tailwind CSS", () => {
   it.each(paths)(
-    "preserves %s against its accepted chrome/catalog/Card/detail identity or original nonpresentation baseline",
+    "preserves %s against its accepted chrome/catalog/Card/detail/cart identity or original nonpresentation baseline",
     (path) => {
       const baseline = execFileSync(
         "git",
@@ -1006,6 +1019,13 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
           "2097e1c4f5fc623e3d9d9a8f5697f41cf7998cec96c4340f4546754fb93558f0",
         );
         expect(detailSignatures(source(path))).toEqual(signatures(baseline));
+      } else if (path === "cart-drawer.tsx") {
+        // Pin all accepted bytes alongside the original business/semantic baseline.
+        // The complete cart-shopping suite exercises callbacks, totals and presentation.
+        expect(createHash("sha256").update(source(path)).digest("hex")).toBe(
+          "cac19caeaff6e3e5746a0bb4b3d8ae7275ed84929cdec33cb4af43b25d15b816",
+        );
+        expect(cartSignatures(source(path))).toEqual(signatures(baseline));
       } else {
         expect(signatures(source(path))).toEqual(signatures(baseline));
       }
@@ -1057,10 +1077,28 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
       ["min-w-0", "min-width", "calc(var(--spacing) * 0)"],
       ["gap-x-[10px]", "column-gap", "10px"],
       ["gap-y-[24px]", "row-gap", "24px"],
-      ["w-[80px]", "width", "80px"],
-      ["h-[96px]", "height", "96px"],
-      ["h-[36px]", "height", "36px"],
-      ["w-[28px]", "width", "28px"],
+      // Accepted cart replaces fixed thumbnails and small removal targets with portrait rows.
+      ["w-[88px]", "width", "88px"],
+      ["sm:w-[104px]", "width", "104px"],
+      ["aspect-4/5", "aspect-ratio", "4/5"],
+      ["h-[36px]", "height", "36px"], // Retained header search field.
+      ["h-[44px]", "height", "44px"],
+      ["w-[44px]", "width", "44px"],
+      ["h-[48px]", "height", "48px"],
+      ["[&>[data-slot=sheet-close]]:size-[44px]", "width", "44px"],
+      ["[&>[data-slot=sheet-close]]:size-[44px]", "height", "44px"],
+      ["overscroll-contain", "overscroll-behavior", "contain"],
+      ["gap-[0px]", "gap", "0px"],
+      [
+        "pb-[max(24px,env(safe-area-inset-bottom))]",
+        "padding-bottom",
+        "max(24px, env(safe-area-inset-bottom))",
+      ],
+      [
+        "sm:pb-[max(30px,env(safe-area-inset-bottom))]",
+        "padding-bottom",
+        "max(30px, env(safe-area-inset-bottom))",
+      ],
       ["min-h-[72px]", "min-height", "72px"],
       ["gap-[13px]", "gap", "13px"],
       ["gap-x-[0px]", "column-gap", "0px"],
@@ -1071,7 +1109,7 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
       ["scroll-mt-[156px]", "scroll-margin-top", "156px"],
       ["max-w-full", "max-width", "100%"],
       ["max-h-[60dvh]", "max-height", "60dvh"],
-      ["sm:max-w-[448px]", "max-width", "448px"],
+      ["sm:max-w-[560px]", "max-width", "560px"],
       ["w-full", "width", "100%"],
       ["min-h-0", "min-height", "calc(var(--spacing) * 0)"],
       ["overflow-y-auto", "overflow-y", "auto"],
@@ -1086,6 +1124,7 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
       ["font-normal", "font-weight", "var(--font-weight-normal)"],
       ["text-[13px]", "font-size", "13px"],
       ["text-[16px]", "font-size", "16px"],
+      ["text-[30px]", "font-size", "30px"],
       ["md:text-[15px]", "font-size", "15px"],
       ["md:text-[111px]", "font-size", "111px"],
       ["md:flex", "display", "flex"],
@@ -1115,7 +1154,9 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
       ["sm:aspect-square", "(width >= 40rem)"],
       ["lg:aspect-4/5", "(width >= 64rem)"],
       ["md:w-[84px]", "(width >= 48rem)"],
-      ["sm:max-w-[448px]", "(width >= 40rem)"],
+      ["sm:max-w-[560px]", "(width >= 40rem)"],
+      ["sm:w-[104px]", "(width >= 40rem)"],
+      ["sm:pb-[max(30px,env(safe-area-inset-bottom))]", "(width >= 40rem)"],
     ]) {
       expect(utility(name)).toContain(`@media ${media}`);
     }
