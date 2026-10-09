@@ -24,25 +24,39 @@ const suites = [
   ["023_taxonomy", 23, "taxonomy"],
   ["024_promotion_authority", 24],
   ["025_coupon_checkout", 25],
-    ["026_discount_settlement", 27],
-    ["028_coupon_admin_lifecycle", 28],
-    ["029_promotion_revision", 20260901172015],
-    ["030_coupon_runtime_proofs", 20260901172015],
-    ["031_resumable_product_checkout", 20260905033240],
-    ["032_harden_production_data_api_grants", 20260910021122],
-    ["033_orders_uuid_compatibility", 20260912202105],
-    ["034_seed_apparel_taxonomy", 20260914053236, "apparel_taxonomy"],
-    ["035_credit_late_approval_settlement", 20260914232034],
-  ];
+  ["026_discount_settlement", 27],
+  ["028_coupon_admin_lifecycle", 28],
+  ["029_promotion_revision", 20260901172015],
+  ["030_coupon_runtime_proofs", 20260901172015],
+  ["031_resumable_product_checkout", 20260905033240],
+  ["032_harden_production_data_api_grants", 20260910021122],
+  ["033_orders_uuid_compatibility", 20260912202105],
+  ["034_seed_apparel_taxonomy", 20260914053236, "apparel_taxonomy"],
+  ["035_credit_late_approval_settlement", 20260914232034],
+  ["public_catalog_type_names", "_public_catalog_type_names.sql", "public_catalog_type_names"],
+];
 
 function run(command, args, options = {}) {
   return new Promise((resolveRun, rejectRun) => {
-    const child = spawn(command, args, { cwd: root, stdio: ["ignore", "pipe", "pipe"], timeout: 120_000, ...options });
+    const child = spawn(command, args, {
+      cwd: root,
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: 120_000,
+      ...options,
+    });
     let output = "";
-    child.stdout.on("data", (chunk) => { output += chunk; });
-    child.stderr.on("data", (chunk) => { output += chunk; });
+    child.stdout.on("data", (chunk) => {
+      output += chunk;
+    });
+    child.stderr.on("data", (chunk) => {
+      output += chunk;
+    });
     child.on("error", rejectRun);
-    child.on("close", (code) => code === 0 ? resolveRun(output) : rejectRun(new Error(`${command} ${args.join(" ")} exited ${code}\n${output}`)));
+    child.on("close", (code) =>
+      code === 0
+        ? resolveRun(output)
+        : rejectRun(new Error(`${command} ${args.join(" ")} exited ${code}\n${output}`)),
+    );
   });
 }
 
@@ -55,7 +69,9 @@ async function cleanup(container) {
   try {
     await docker(["rm", "-f", container]);
     await docker(["container", "inspect", container]).then(
-      () => { throw new Error(`container still exists: ${container}`); },
+      () => {
+        throw new Error(`container still exists: ${container}`);
+      },
       () => undefined,
     );
     console.log(`CLEANED ${container}`);
@@ -79,12 +95,28 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 
 function psql(container, file, variables = {}) {
   const options = [
-    "-c", "app.disposable_test=true",
-    "-c", `app.disposable_dblink_connection=postgresql://postgres:${password}@127.0.0.1:5432/${database}`,
+    "-c",
+    "app.disposable_test=true",
+    "-c",
+    `app.disposable_dblink_connection=postgresql://postgres:${password}@127.0.0.1:5432/${database}`,
   ];
   if (variables.retention) options.push("-c", "app.retention_predecessor_fixture=true");
-  const args = ["exec", "-e", `PGOPTIONS=${options.join(" ")}`, container, "psql", "-X", "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", database];
-  for (const [name, value] of Object.entries(variables)) if (value !== true) args.push("-v", `${name}=${value}`);
+  const args = [
+    "exec",
+    "-e",
+    `PGOPTIONS=${options.join(" ")}`,
+    container,
+    "psql",
+    "-X",
+    "-v",
+    "ON_ERROR_STOP=1",
+    "-U",
+    "postgres",
+    "-d",
+    database,
+  ];
+  for (const [name, value] of Object.entries(variables))
+    if (value !== true) args.push("-v", `${name}=${value}`);
   return docker([...args, "-f", file]);
 }
 
@@ -101,45 +133,104 @@ async function ready(container) {
 }
 
 async function runSuite(suite, migrationFiles) {
-  const [name, maxMigration, phase] = suite;
+  const [name, migrationCutoff, phase] = suite;
+  // Resolve CLI-generated versions by suffix, never by a hand-maintained timestamp.
+  const matches =
+    typeof migrationCutoff === "string"
+      ? migrationFiles.filter(({ file }) => file.endsWith(migrationCutoff))
+      : [];
+  if (typeof migrationCutoff === "string" && matches.length !== 1) {
+    throw new Error(`expected exactly one migration for ${migrationCutoff}`);
+  }
+  const maxMigration = typeof migrationCutoff === "string" ? matches[0].number : migrationCutoff;
   const container = `clubvtg-db-test-${process.pid}-${name}`;
   activeContainers.add(container);
   try {
-    await docker(["run", "--rm", "-d", "--name", container, "-e", `POSTGRES_PASSWORD=${password}`, "-e", `POSTGRES_DB=${database}`, "-v", `${root}:/workspace:ro`, "postgres:17"]);
+    await docker([
+      "run",
+      "--rm",
+      "-d",
+      "--name",
+      container,
+      "-e",
+      `POSTGRES_PASSWORD=${password}`,
+      "-e",
+      `POSTGRES_DB=${database}`,
+      "-v",
+      `${root}:/workspace:ro`,
+      "postgres:17",
+    ]);
     await ready(container);
     await psql(container, supportSql);
-    for (const migration of migrationFiles.filter(({ number }) => number <= maxMigration && (phase !== "taxonomy" || number < maxMigration))) await psql(container, migration.file);
+    for (const migration of migrationFiles.filter(
+      ({ number }) => number <= maxMigration && (phase !== "taxonomy" || number < maxMigration),
+    ))
+      await psql(container, migration.file);
     if (phase === "bonus") {
-      await psql(container, "/workspace/scripts/database-test-fixtures.sql", { fixture_bonus: "1" });
+      await psql(container, "/workspace/scripts/database-test-fixtures.sql", {
+        fixture_bonus: "1",
+      });
       await psql(container, "/workspace/supabase/migrations/019_prepare_registration_bonus.sql");
     }
     if (phase === "retention") {
-      await psql(container, `/workspace/supabase/tests/database/${name}.test.sql`, { predecessor_fixture_only: "1", retention: true });
+      await psql(container, `/workspace/supabase/tests/database/${name}.test.sql`, {
+        predecessor_fixture_only: "1",
+        retention: true,
+      });
       await psql(container, "/workspace/supabase/migrations/020_prepare_financial_retention.sql");
-      await psql(container, "/workspace/scripts/database-test-fixtures.sql", { fixture_retention: "1" });
+      await psql(container, "/workspace/scripts/database-test-fixtures.sql", {
+        fixture_retention: "1",
+      });
     }
     if (phase === "anonymization") {
-      await psql(container, "/workspace/scripts/database-test-fixtures.sql", { fixture_anonymization: "1" });
+      await psql(container, "/workspace/scripts/database-test-fixtures.sql", {
+        fixture_anonymization: "1",
+      });
       await psql(container, "/workspace/supabase/migrations/021_prepare_clerk_anonymization.sql");
     }
     if (phase === "activation") {
-      await psql(container, `/workspace/supabase/tests/database/${name}.test.sql`, { pre_activation: "1" });
+      await psql(container, `/workspace/supabase/tests/database/${name}.test.sql`, {
+        pre_activation: "1",
+      });
       await psql(container, "/workspace/supabase/migrations/022_activate_clerk_lifecycle.sql");
     }
     if (phase === "taxonomy") {
-      await psql(container, `/workspace/supabase/tests/database/${name}.test.sql`, { pre_taxonomy: "1" });
-      await psql(container, `/workspace/supabase/migrations/023_scheduled_promotions_foundation.sql`);
+      await psql(container, `/workspace/supabase/tests/database/${name}.test.sql`, {
+        pre_taxonomy: "1",
+      });
+      await psql(
+        container,
+        `/workspace/supabase/migrations/023_scheduled_promotions_foundation.sql`,
+      );
     }
     if (phase === "apparel_taxonomy") {
-      const migration = migrationFiles.find(({ file }) => file.endsWith("_seed_apparel_taxonomy.sql"));
+      const migration = migrationFiles.find(({ file }) =>
+        file.endsWith("_seed_apparel_taxonomy.sql"),
+      );
       if (!migration) throw new Error("apparel taxonomy migration not found");
       await psql(container, migration.file);
       await psql(container, `/workspace/supabase/tests/database/${name}.test.sql`);
-      await psql(container, `/workspace/supabase/tests/database/${name}.test.sql`, { prepare_idempotency: "1" });
+      await psql(container, `/workspace/supabase/tests/database/${name}.test.sql`, {
+        prepare_idempotency: "1",
+      });
       await psql(container, migration.file);
-      return { name, output: await psql(container, `/workspace/supabase/tests/database/${name}.test.sql`, { post_idempotency: "1" }) };
+      return {
+        name,
+        output: await psql(container, `/workspace/supabase/tests/database/${name}.test.sql`, {
+          post_idempotency: "1",
+        }),
+      };
     }
-    const output = await psql(container, `/workspace/supabase/tests/database/${name}.test.sql`, phase === "retention" ? { retention: true } : {});
+    if (phase === "public_catalog_type_names") {
+      await psql(container, `/workspace/supabase/tests/database/${name}.test.sql`);
+      // Prove permission/policy reapplication is safe, then repeat the role proofs.
+      await psql(container, matches[0].file);
+    }
+    const output = await psql(
+      container,
+      `/workspace/supabase/tests/database/${name}.test.sql`,
+      phase === "retention" ? { retention: true } : {},
+    );
     return { name, output };
   } finally {
     await cleanup(container);
@@ -148,16 +239,21 @@ async function runSuite(suite, migrationFiles) {
 
 async function main() {
   try {
-    await docker(["version", "--format", "{{.Server.Version}}"]).then((version) => console.log(`Docker server ${version.trim()}`));
+    await docker(["version", "--format", "{{.Server.Version}}"]).then((version) =>
+      console.log(`Docker server ${version.trim()}`),
+    );
   } catch (error) {
     console.error(`Docker is required for isolated database tests.\n${error.message}`);
     process.exitCode = 1;
     return;
   }
-  const migrationFiles = (await readdir(migrationsDir)).sort().map((name) => ({
-    file: `/workspace/supabase/migrations/${name}`,
-    number: Number.parseInt(name, 10),
-  })).filter(({ number }) => Number.isInteger(number));
+  const migrationFiles = (await readdir(migrationsDir))
+    .sort()
+    .map((name) => ({
+      file: `/workspace/supabase/migrations/${name}`,
+      number: Number.parseInt(name, 10),
+    }))
+    .filter(({ number }) => Number.isInteger(number));
   const results = [];
   for (const suite of suites) {
     if (interrupted) break;
@@ -169,7 +265,9 @@ async function main() {
       console.error(`FAIL ${suite[0]}\n${error.message}`);
     }
   }
-  console.log(`Database suites: ${results.filter(({ passed }) => passed).length}/${suites.length} passed`);
+  console.log(
+    `Database suites: ${results.filter(({ passed }) => passed).length}/${suites.length} passed`,
+  );
   if (results.some(({ passed }) => !passed) || interrupted) process.exitCode = 1;
 }
 
