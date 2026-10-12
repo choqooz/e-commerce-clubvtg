@@ -47,15 +47,75 @@ const paths = [
   "src/components/credits/credit-pack-card.tsx",
   "src/components/orders/orders-page-content.tsx",
 ];
+// Retain all profile, credits, pack and order baseline guards until their own units.
+const checkoutPaths = new Set(paths.slice(0, 7));
 const source = (path: string) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
 const parse = (text: string) =>
   ts.createSourceFile("surface.tsx", text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 
+// Restore only the accepted checkout groups and exact field/error associations.
+// No later profile, credits, pack or order presentation is normalized here.
+function originalCheckoutPresentation(text: string, path: string): string {
+  if (path === "src/components/checkout-form.tsx") {
+    text = text.replace(/<(\/?)fieldset\b/g, "<$1div").replace(/<(\/?)legend\b/g, "<$1h3");
+    for (const field of [
+      "fullName",
+      "email",
+      "dni",
+      "phone",
+      "street",
+      "number",
+      "floorOrApt",
+      "city",
+      "province",
+      "zipCode",
+    ]) {
+      for (const attribute of [
+        `id="checkout-${field}"`,
+        `htmlFor="checkout-${field}"`,
+        `id="checkout-${field}-error"`,
+        `aria-invalid={Boolean(form.formState.errors.${field})}`,
+      ])
+        text = text.replace(attribute, "");
+      text = text.replace(
+        new RegExp(
+          `aria-describedby=\\{\\s*form\\.formState\\.errors\\.${field}\\s*\\?\\s*"checkout-${field}-error"\\s*:\\s*undefined\\s*\\}`,
+        ),
+        "",
+      );
+    }
+    text = text.replaceAll('aria-live="polite"', "").replace("aria-busy={isSubmitting}", "");
+  }
+  if (path === "src/app/(shop)/checkout/page.tsx") {
+    text = text
+      .replace(/<(\/?)aside\b/g, "<$1div")
+      .replace('aria-labelledby="checkout-summary-heading"', "")
+      .replace('id="checkout-summary-heading"', "")
+      .replace('sizes="(min-width: 1280px) 104px, 88px"', 'sizes="64px"');
+  }
+  return text;
+}
+
+function isRenderedText(value: unknown): value is [ts.SyntaxKind.JsxText, string] {
+  return Array.isArray(value) && value[0] === ts.SyntaxKind.JsxText && typeof value[1] === "string";
+}
+
 // Preservation evidence, not interaction coverage: compare the entire syntax tree,
 // excluding only className, JSX formatting whitespace and redundant parentheses.
 // The parser already normalizes trailing commas; handlers, guards and money remain.
-function behavior(node: ts.Node): unknown {
-  if (ts.isParenthesizedExpression(node)) return behavior(node.expression);
+function behavior(node: ts.Node, normalizeCheckoutSpaces = false): unknown {
+  if (ts.isParenthesizedExpression(node)) return behavior(node.expression, normalizeCheckoutSpaces);
+  // Checkout's wrapped explicit space is equivalent to inline rendered text.
+  // Leave the unrelated baseline normalizer unchanged, including meaningful spaces.
+  if (
+    normalizeCheckoutSpaces &&
+    ts.isJsxExpression(node) &&
+    node.expression &&
+    ts.isStringLiteral(node.expression) &&
+    node.expression.text === " " &&
+    (ts.isJsxElement(node.parent) || ts.isJsxFragment(node.parent))
+  )
+    return [ts.SyntaxKind.JsxText, " "];
   if (
     (ts.isJsxAttribute(node) || ts.isPropertyAssignment(node)) &&
     (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name)) &&
@@ -81,8 +141,12 @@ function behavior(node: ts.Node): unknown {
   }
   const children: unknown[] = [];
   ts.forEachChild(node, (child) => {
-    const value = behavior(child);
-    if (value !== undefined) children.push(value);
+    const value = behavior(child, normalizeCheckoutSpaces);
+    if (value === undefined) return;
+    const previous = children.at(-1);
+    if (normalizeCheckoutSpaces && isRenderedText(previous) && isRenderedText(value))
+      previous[1] += value[1];
+    else children.push(value);
   });
   return [
     node.kind,
@@ -162,7 +226,11 @@ describe("G56B checkout/account behavior preservation", () => {
       const baseline = execFileSync("git", ["show", `${ORIGINAL_PRE_REDESIGN_COMMIT}:${path}`], {
         encoding: "utf8",
       });
-      expect(behavior(parse(source(path)))).toEqual(behavior(parse(baseline)));
+      if (checkoutPaths.has(path))
+        expect(behavior(parse(originalCheckoutPresentation(source(path), path)), true)).toEqual(
+          behavior(parse(baseline), true),
+        );
+      else expect(behavior(parse(source(path)))).toEqual(behavior(parse(baseline)));
     },
   );
 
@@ -175,6 +243,44 @@ describe("G56B checkout/account behavior preservation", () => {
     expect(behavior(parse(baseline.replace("enabled: true", "enabled: false")))).not.toEqual(
       behavior(parse(baseline)),
     );
+  });
+
+  it("normalizes wrapped checkout error associations without hiding a different expression or business prop", () => {
+    const path = "src/components/checkout-form.tsx";
+    const singleLine =
+      '<input aria-describedby={form.formState.errors.fullName ? "checkout-fullName-error" : undefined} disabled={isSubmitting} />';
+    const wrapped =
+      '<input aria-describedby={\n form.formState.errors.fullName ? "checkout-fullName-error" : undefined\n} disabled={isSubmitting} />';
+    const signature = (text: string) =>
+      behavior(parse(originalCheckoutPresentation(text, path)), true);
+    expect(signature(wrapped)).toEqual(signature(singleLine));
+    for (const [before, after] of [
+      ["errors.fullName", "errors.email"],
+      ["checkout-fullName-error", "checkout-email-error"],
+      ["undefined", '"other-description"'],
+      ["disabled={isSubmitting}", "disabled={false}"],
+    ])
+      expect(signature(wrapped.replace(before, after))).not.toEqual(signature(singleLine));
+  });
+
+  it("normalizes explicit checkout JSX spaces while preserving copy, expressions and meaningful spacing", () => {
+    const inline = "<span>Descuento: {amount} · Total con envío: {total}</span>";
+    const wrapped = '<span>\n Descuento: {amount} · Total con envío:{" "}\n {total}\n</span>';
+    const signature = (text: string) => behavior(parse(text), true);
+    expect(signature(wrapped)).toEqual(signature(inline));
+    for (const [before, after] of [
+      ['{" "}', ""],
+      ['{" "}', '{"  "}'],
+      ["Descuento:", "Precio:"],
+      ["{total}", "{subtotal}"],
+    ])
+      expect(signature(wrapped.replace(before, after))).not.toEqual(signature(inline));
+    expect(signature('<p>A{" "}B</p>')).toEqual(signature("<p>A B</p>"));
+    expect(signature('<p>A{" "}{" "}B</p>')).not.toEqual(signature("<p>A B</p>"));
+    // The profile/credits/orders comparison still uses the exact original normalizer.
+    expect(behavior(parse(wrapped))).not.toEqual(behavior(parse(inline)));
+    for (const path of paths.filter((path) => !checkoutPaths.has(path)))
+      expect(originalCheckoutPresentation(source(path), path)).toBe(source(path));
   });
 
   it("does not normalize away handlers, guards, copy, links, money or nonclass props", () => {
@@ -255,16 +361,20 @@ describe("Actual source classes compiled with the installed Tailwind theme", () 
       throw new Error(`Unbalanced CSS utility: ${name}`);
     };
     const checks = [
-      ["h-[36px]", "height", "36px"],
+      // Only checkout-exclusive field/image/action values change in this prefix.
+      ["h-[48px]", "height", "48px"],
+      ["min-h-[48px]", "min-height", "48px"],
       ["min-h-[36px]", "min-height", "36px"],
-      ["w-[64px]", "width", "64px"],
-      ["h-[80px]", "height", "80px"],
+      ["w-[88px]", "width", "88px"],
+      ["h-[110px]", "height", "110px"],
       ["px-[6px]", "padding-inline", "6px"],
-      ["py-[2px]", "padding-block", "2px"],
+      ["py-[12px]", "padding-block", "12px"],
       ["px-[18px]", "padding-inline", "18px"],
       ["md:px-[30px]", "padding-inline", "30px"],
       ["p-[13px]", "padding", "13px"],
       ["md:p-[24px]", "padding", "24px"],
+      ["p-[24px]", "padding", "24px"],
+      ["xl:p-[36px]", "padding", "36px"],
       ["pb-[42px]", "padding-bottom", "42px"],
       ["gap-[18px]", "gap", "18px"],
       ["gap-[42px]", "gap", "42px"],
@@ -287,7 +397,7 @@ describe("Actual source classes compiled with the installed Tailwind theme", () 
       ["font-normal", "font-weight", "var(--font-weight-normal)"],
       ["text-[13px]", "font-size", "13px"],
       ["text-[16px]", "font-size", "16px"],
-      ["md:text-[15px]", "font-size", "15px"],
+      ["sm:text-[60px]", "font-size", "60px"],
       ["sm:flex-row", "flex-direction", "row"],
       ["md:grid-cols-3", "grid-template-columns", "repeat(3, minmax(0, 1fr))"],
       ["md:grid-cols-4", "grid-template-columns", "repeat(4, minmax(0, 1fr))"],
@@ -302,7 +412,8 @@ describe("Actual source classes compiled with the installed Tailwind theme", () 
     const responsive = [
       ["sm:flex-row", "40rem"],
       ["md:px-[30px]", "48rem"],
-      ["md:text-[15px]", "48rem"],
+      ["sm:text-[60px]", "40rem"],
+      ["xl:p-[36px]", "80rem"],
       ["md:grid-cols-3", "48rem"],
       ["md:grid-cols-4", "48rem"],
       ["lg:grid-cols-12", "64rem"],
