@@ -47,14 +47,15 @@ const paths = [
   "src/components/credits/credit-pack-card.tsx",
   "src/components/orders/orders-page-content.tsx",
 ];
-// Retain all profile, credits, pack and order baseline guards until their own units.
+// Retain all eleven baseline paths; normalize only accepted checkout and credit presentation.
 const checkoutPaths = new Set(paths.slice(0, 7));
+const creditPaths = new Set(paths.slice(8, 10));
 const source = (path: string) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
 const parse = (text: string) =>
   ts.createSourceFile("surface.tsx", text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 
-// Restore only the accepted checkout groups and exact field/error associations.
-// No later profile, credits, pack or order presentation is normalized here.
+// Restore only accepted checkout/credit groups and exact heading/field associations.
+// No later profile or order presentation is normalized here.
 function originalCheckoutPresentation(text: string, path: string): string {
   if (path === "src/components/checkout-form.tsx") {
     text = text.replace(/<(\/?)fieldset\b/g, "<$1div").replace(/<(\/?)legend\b/g, "<$1h3");
@@ -92,6 +93,22 @@ function originalCheckoutPresentation(text: string, path: string): string {
       .replace('aria-labelledby="checkout-summary-heading"', "")
       .replace('id="checkout-summary-heading"', "")
       .replace('sizes="(min-width: 1280px) 104px, 88px"', 'sizes="64px"');
+  }
+  // V5 adds named credit groups and pack headings only. Keep every amount,
+  // purchase callback, pending guard, configured pack and Spanish instruction.
+  if (path === "src/components/credits/credits-page-content.tsx") {
+    text = text
+      .replace(/<(\/?)header\b/g, "<$1div")
+      .replace(/<(\/?)section\b/g, "<$1div")
+      .replace(/\s+(?:id|aria-labelledby)="credits-(?:balance|packs|help)-heading"/g, "")
+      .replace(/<h2([^>]*)>(\s*¿Cómo funcionan los créditos\?\s*)<\/h2>/, "<h3$1>$2</h3>");
+  }
+  if (path === "src/components/credits/credit-pack-card.tsx") {
+    text = text
+      .replace(/<(\/?)article\b/g, "<$1div")
+      .replace(/<(\/?)h3\b/g, "<$1p")
+      .replace(/\s+aria-labelledby=\{`credit-pack-\$\{packId\}`\}/g, "")
+      .replace(/\s+id=\{`credit-pack-\$\{packId\}`\}/g, "");
   }
   return text;
 }
@@ -179,6 +196,8 @@ describe("Bounded actual component SSR (not browser interaction coverage)", () =
         onSelect={onSelect}
       />,
     );
+    expect(markup).toContain('<article aria-labelledby="credit-pack-popular"');
+    expect(markup).toMatch(/<h3 id="credit-pack-popular"[^>]*>Pack Popular<\/h3>/);
     expect(markup).toContain("Pack Popular");
     expect(markup).toContain("20<span");
     expect(markup).toContain("créditos");
@@ -226,7 +245,7 @@ describe("G56B checkout/account behavior preservation", () => {
       const baseline = execFileSync("git", ["show", `${ORIGINAL_PRE_REDESIGN_COMMIT}:${path}`], {
         encoding: "utf8",
       });
-      if (checkoutPaths.has(path))
+      if (checkoutPaths.has(path) || creditPaths.has(path))
         expect(behavior(parse(originalCheckoutPresentation(source(path), path)), true)).toEqual(
           behavior(parse(baseline), true),
         );
@@ -277,10 +296,44 @@ describe("G56B checkout/account behavior preservation", () => {
       expect(signature(wrapped.replace(before, after))).not.toEqual(signature(inline));
     expect(signature('<p>A{" "}B</p>')).toEqual(signature("<p>A B</p>"));
     expect(signature('<p>A{" "}{" "}B</p>')).not.toEqual(signature("<p>A B</p>"));
-    // The profile/credits/orders comparison still uses the exact original normalizer.
+    // The profile/orders comparison still uses the exact original normalizer.
     expect(behavior(parse(wrapped))).not.toEqual(behavior(parse(inline)));
-    for (const path of paths.filter((path) => !checkoutPaths.has(path)))
+    for (const path of paths.filter((path) => !checkoutPaths.has(path) && !creditPaths.has(path)))
       expect(originalCheckoutPresentation(source(path), path)).toBe(source(path));
+  });
+
+  it("restores only V5 credit groups and exact associations without hiding business props", () => {
+    const pagePath = "src/components/credits/credits-page-content.tsx";
+    const packPath = "src/components/credits/credit-pack-card.tsx";
+    const signature = (text: string, path: string) =>
+      behavior(parse(originalCheckoutPresentation(text, path)));
+    const grouped =
+      '<section aria-labelledby="credits-help-heading"><h2 id="credits-help-heading">¿Cómo funcionan los créditos?</h2><p>Se descuenta 1 crédito.</p></section>';
+    const original =
+      "<div><h3>¿Cómo funcionan los créditos?</h3><p>Se descuenta 1 crédito.</p></div>";
+    expect(signature(grouped, pagePath)).toEqual(signature(original, pagePath));
+    for (const [before, after] of [
+      ["credits-help-heading", "different-heading"],
+      ["1 crédito", "2 créditos"],
+      ["¿Cómo funcionan los créditos?", "¿Cómo funcionan las compras?"],
+    ])
+      expect(signature(grouped.replace(before, after), pagePath)).not.toEqual(
+        signature(original, pagePath),
+      );
+    const pack =
+      "<article aria-labelledby={`credit-pack-${packId}`}><h3 id={`credit-pack-${packId}`}>{name}</h3><Button disabled={loading} onClick={() => onSelect(packId)}>{formatPrice(price)}</Button></article>";
+    const oldPack =
+      "<div><p>{name}</p><Button disabled={loading} onClick={() => onSelect(packId)}>{formatPrice(price)}</Button></div>";
+    expect(signature(pack, packPath)).toEqual(signature(oldPack, packPath));
+    for (const [before, after] of [
+      ["credit-pack-${packId}", "credit-pack-${name}"],
+      ["disabled={loading}", "disabled={false}"],
+      ["onSelect(packId)", 'onSelect("pro")'],
+      ["formatPrice(price)", "formatPrice(price * 2)"],
+    ])
+      expect(signature(pack.replace(before, after), packPath)).not.toEqual(
+        signature(oldPack, packPath),
+      );
   });
 
   it("does not normalize away handlers, guards, copy, links, money or nonclass props", () => {
@@ -361,7 +414,7 @@ describe("Actual source classes compiled with the installed Tailwind theme", () 
       throw new Error(`Unbalanced CSS utility: ${name}`);
     };
     const checks = [
-      // Only checkout-exclusive field/image/action values change in this prefix.
+      // Checkout values remain guarded; V5 credit spacing has its complete dedicated suite.
       ["h-[48px]", "height", "48px"],
       ["min-h-[48px]", "min-height", "48px"],
       ["min-h-[36px]", "min-height", "36px"],
@@ -371,8 +424,6 @@ describe("Actual source classes compiled with the installed Tailwind theme", () 
       ["py-[12px]", "padding-block", "12px"],
       ["px-[18px]", "padding-inline", "18px"],
       ["md:px-[30px]", "padding-inline", "30px"],
-      ["p-[13px]", "padding", "13px"],
-      ["md:p-[24px]", "padding", "24px"],
       ["p-[24px]", "padding", "24px"],
       ["xl:p-[36px]", "padding", "36px"],
       ["pb-[42px]", "padding-bottom", "42px"],
