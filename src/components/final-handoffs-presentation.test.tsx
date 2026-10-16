@@ -393,7 +393,9 @@ describe("Installed Tailwind CSS compiled only in memory", () => {
       ["min-h-[36px]", "min-height", "36px"],
       ["h-[36px]", "height", "36px"],
       ["px-[18px]", "padding-inline", "18px"],
-      ["py-[42px]", "padding-block", "42px"],
+      ["py-[42px]", "padding-block", "42px"], // Unchanged credit handoff.
+      ["pt-0", "padding-top", "calc(var(--spacing) * 0)"],
+      ["pb-[42px]", "padding-bottom", "42px"],
       ["px-[6px]", "padding-inline", "6px"],
       ["py-[2px]", "padding-block", "2px"],
       ["space-y-[24px]", "--tw-space-y-reverse", "0"],

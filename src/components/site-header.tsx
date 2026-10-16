@@ -358,6 +358,7 @@ export function SiteHeader() {
 
             <button
               onClick={() => setIsOpen(true)}
+              data-cart-trigger
               className="relative flex h-[44px] w-[44px] shrink-0 items-center justify-center text-midnight-ink focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
               aria-label="Carrito"
             >
