@@ -48,7 +48,11 @@ export function CheckoutForm() {
       const event = checkoutStartedEvent(items.length, totalPrice);
       posthog?.capture(event.event, event.properties);
       // Create Order and MP Preference
-      const res = await createCheckoutPreference(data, items, toCouponCheckoutSelection({ couponCode, source: couponSource }));
+      const res = await createCheckoutPreference(
+        data,
+        items,
+        toCouponCheckoutSelection({ couponCode, source: couponSource }),
+      );
 
       if (!res.success) {
         toast.error(res.error || "Ocurrió un error al procesar el pago");
@@ -57,7 +61,9 @@ export function CheckoutForm() {
       }
 
       if (res.resumed) {
-        toast.info("Hay un pago pendiente. Retomaremos la misma orden con los datos de envío, contacto y precio originales.");
+        toast.info(
+          "Hay un pago pendiente. Retomaremos la misma orden con los datos de envío, contacto y precio originales.",
+        );
         await new Promise((resolve) => setTimeout(resolve, 1500));
       }
 
@@ -79,174 +85,309 @@ export function CheckoutForm() {
   };
 
   return (
-    <form data-testid="checkout-form" onSubmit={form.handleSubmit(onSubmit)} className="min-w-0 space-y-[24px] font-sans font-normal text-[15px] leading-[1.3] text-midnight-ink">
-      <div className="space-y-[18px]">
-        <h3 className="font-sans font-normal text-[20px]">Datos de Contacto</h3>
+    <form
+      data-testid="checkout-form"
+      aria-busy={isSubmitting}
+      onSubmit={form.handleSubmit(onSubmit)}
+      className="min-w-0 space-y-[42px] font-sans font-normal text-[15px] leading-[1.5] text-midnight-ink"
+    >
+      <fieldset className="min-w-0 space-y-[24px]">
+        <legend className="mb-[24px] font-sans font-normal text-[24px] leading-[1.3]">
+          Datos de Contacto
+        </legend>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-[18px]">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-[24px]">
           <div className="min-w-0 space-y-[6px]">
-            <label className="text-[13px] uppercase font-mono font-normal">
+            <label
+              htmlFor="checkout-fullName"
+              className="block text-[13px] uppercase font-mono font-normal"
+            >
               Nombre Completo
             </label>
             <input
               {...form.register("fullName")}
+              id="checkout-fullName"
               aria-label="Nombre Completo"
-              className="w-full min-w-0 h-[36px] rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] text-[16px] md:text-[15px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-invalid={Boolean(form.formState.errors.fullName)}
+              aria-describedby={
+                form.formState.errors.fullName ? "checkout-fullName-error" : undefined
+              }
+              className="w-full min-w-0 h-[48px] rounded-none border border-midnight-ink bg-bone-white px-[13px] py-[12px] text-[16px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="Juan Pérez"
               disabled={isSubmitting}
             />
             {form.formState.errors.fullName && (
-              <p className="text-midnight-ink text-[13px] border-l border-dotted border-midnight-ink pl-[6px]">{form.formState.errors.fullName.message}</p>
+              <p
+                id="checkout-fullName-error"
+                aria-live="polite"
+                className="text-midnight-ink text-[15px] leading-[1.5] border-l-2 border-midnight-ink pl-[13px] py-[6px]"
+              >
+                {form.formState.errors.fullName.message}
+              </p>
             )}
           </div>
 
           <div className="min-w-0 space-y-[6px]">
-            <label className="text-[13px] uppercase font-mono font-normal">Email</label>
+            <label
+              htmlFor="checkout-email"
+              className="block text-[13px] uppercase font-mono font-normal"
+            >
+              Email
+            </label>
             <input
               {...form.register("email")}
+              id="checkout-email"
               aria-label="Email"
+              aria-invalid={Boolean(form.formState.errors.email)}
+              aria-describedby={form.formState.errors.email ? "checkout-email-error" : undefined}
               type="email"
-              className="w-full min-w-0 h-[36px] rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] text-[16px] md:text-[15px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full min-w-0 h-[48px] rounded-none border border-midnight-ink bg-bone-white px-[13px] py-[12px] text-[16px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="juan@ejemplo.com"
               disabled={isSubmitting}
             />
             {form.formState.errors.email && (
-              <p className="text-midnight-ink text-[13px] border-l border-dotted border-midnight-ink pl-[6px]">{form.formState.errors.email.message}</p>
+              <p
+                id="checkout-email-error"
+                aria-live="polite"
+                className="text-midnight-ink text-[15px] leading-[1.5] border-l-2 border-midnight-ink pl-[13px] py-[6px]"
+              >
+                {form.formState.errors.email.message}
+              </p>
             )}
           </div>
 
           <div className="min-w-0 space-y-[6px]">
-            <label className="text-[13px] uppercase font-mono font-normal">DNI</label>
+            <label
+              htmlFor="checkout-dni"
+              className="block text-[13px] uppercase font-mono font-normal"
+            >
+              DNI
+            </label>
             <input
               {...form.register("dni")}
+              id="checkout-dni"
               aria-label="DNI"
-              className="w-full min-w-0 h-[36px] rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] text-[16px] md:text-[15px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-invalid={Boolean(form.formState.errors.dni)}
+              aria-describedby={form.formState.errors.dni ? "checkout-dni-error" : undefined}
+              className="w-full min-w-0 h-[48px] rounded-none border border-midnight-ink bg-bone-white px-[13px] py-[12px] text-[16px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="12345678"
               disabled={isSubmitting}
             />
             {form.formState.errors.dni && (
-              <p className="text-midnight-ink text-[13px] border-l border-dotted border-midnight-ink pl-[6px]">{form.formState.errors.dni.message}</p>
+              <p
+                id="checkout-dni-error"
+                aria-live="polite"
+                className="text-midnight-ink text-[15px] leading-[1.5] border-l-2 border-midnight-ink pl-[13px] py-[6px]"
+              >
+                {form.formState.errors.dni.message}
+              </p>
             )}
           </div>
 
           <div className="min-w-0 space-y-[6px]">
-            <label className="text-[13px] uppercase font-mono font-normal">
+            <label
+              htmlFor="checkout-phone"
+              className="block text-[13px] uppercase font-mono font-normal"
+            >
               Teléfono
             </label>
             <input
               {...form.register("phone")}
+              id="checkout-phone"
               aria-label="Teléfono"
-              className="w-full min-w-0 h-[36px] rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] text-[16px] md:text-[15px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-invalid={Boolean(form.formState.errors.phone)}
+              aria-describedby={form.formState.errors.phone ? "checkout-phone-error" : undefined}
+              className="w-full min-w-0 h-[48px] rounded-none border border-midnight-ink bg-bone-white px-[13px] py-[12px] text-[16px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="11 1234 5678"
               disabled={isSubmitting}
             />
             {form.formState.errors.phone && (
-              <p className="text-midnight-ink text-[13px] border-l border-dotted border-midnight-ink pl-[6px]">{form.formState.errors.phone.message}</p>
+              <p
+                id="checkout-phone-error"
+                aria-live="polite"
+                className="text-midnight-ink text-[15px] leading-[1.5] border-l-2 border-midnight-ink pl-[13px] py-[6px]"
+              >
+                {form.formState.errors.phone.message}
+              </p>
             )}
           </div>
         </div>
-      </div>
+      </fieldset>
 
-      <div className="space-y-[18px] pt-[24px] border-t border-midnight-ink">
-        <h3 className="font-sans font-normal text-[20px]">Datos de Envío (Correo Argentino)</h3>
+      <fieldset className="min-w-0 space-y-[24px] border-t border-midnight-ink pt-[30px]">
+        <legend className="mb-[24px] pr-[18px] font-sans font-normal text-[24px] leading-[1.3]">
+          Datos de Envío (Correo Argentino)
+        </legend>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-[18px]">
-          <div className="min-w-0 space-y-[6px] col-span-2 md:col-span-2">
-            <label className="text-[13px] uppercase font-mono font-normal">Calle</label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-[24px]">
+          <div className="min-w-0 space-y-[6px] col-span-1 sm:col-span-2 md:col-span-2">
+            <label
+              htmlFor="checkout-street"
+              className="block text-[13px] uppercase font-mono font-normal"
+            >
+              Calle
+            </label>
             <input
               {...form.register("street")}
+              id="checkout-street"
               aria-label="Calle"
-              className="w-full min-w-0 h-[36px] rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] text-[16px] md:text-[15px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-invalid={Boolean(form.formState.errors.street)}
+              aria-describedby={form.formState.errors.street ? "checkout-street-error" : undefined}
+              className="w-full min-w-0 h-[48px] rounded-none border border-midnight-ink bg-bone-white px-[13px] py-[12px] text-[16px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="Av. Rivadavia"
               disabled={isSubmitting}
             />
             {form.formState.errors.street && (
-              <p className="text-midnight-ink text-[13px] border-l border-dotted border-midnight-ink pl-[6px]">{form.formState.errors.street.message}</p>
+              <p
+                id="checkout-street-error"
+                aria-live="polite"
+                className="text-midnight-ink text-[15px] leading-[1.5] border-l-2 border-midnight-ink pl-[13px] py-[6px]"
+              >
+                {form.formState.errors.street.message}
+              </p>
             )}
           </div>
 
           <div className="min-w-0 space-y-[6px] col-span-1">
-            <label className="text-[13px] uppercase font-mono font-normal">
+            <label
+              htmlFor="checkout-number"
+              className="block text-[13px] uppercase font-mono font-normal"
+            >
               Número
             </label>
             <input
               {...form.register("number")}
+              id="checkout-number"
               aria-label="Número"
-              className="w-full min-w-0 h-[36px] rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] text-[16px] md:text-[15px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-invalid={Boolean(form.formState.errors.number)}
+              aria-describedby={form.formState.errors.number ? "checkout-number-error" : undefined}
+              className="w-full min-w-0 h-[48px] rounded-none border border-midnight-ink bg-bone-white px-[13px] py-[12px] text-[16px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="1234"
               disabled={isSubmitting}
             />
             {form.formState.errors.number && (
-              <p className="text-midnight-ink text-[13px] border-l border-dotted border-midnight-ink pl-[6px]">{form.formState.errors.number.message}</p>
+              <p
+                id="checkout-number-error"
+                aria-live="polite"
+                className="text-midnight-ink text-[15px] leading-[1.5] border-l-2 border-midnight-ink pl-[13px] py-[6px]"
+              >
+                {form.formState.errors.number.message}
+              </p>
             )}
           </div>
 
           <div className="min-w-0 space-y-[6px] col-span-1">
-            <label className="text-[13px] uppercase font-mono font-normal">
+            <label
+              htmlFor="checkout-floorOrApt"
+              className="block text-[13px] uppercase font-mono font-normal"
+            >
               Piso/Dpto
             </label>
             <input
               {...form.register("floorOrApt")}
-              className="w-full min-w-0 h-[36px] rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] text-[16px] md:text-[15px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              id="checkout-floorOrApt"
+              className="w-full min-w-0 h-[48px] rounded-none border border-midnight-ink bg-bone-white px-[13px] py-[12px] text-[16px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="4B (Opcional)"
               disabled={isSubmitting}
             />
           </div>
 
-          <div className="min-w-0 space-y-[6px] col-span-2 md:col-span-2">
-            <label className="text-[13px] uppercase font-mono font-normal">
+          <div className="min-w-0 space-y-[6px] col-span-1 sm:col-span-2 md:col-span-2">
+            <label
+              htmlFor="checkout-city"
+              className="block text-[13px] uppercase font-mono font-normal"
+            >
               Ciudad
             </label>
             <input
               {...form.register("city")}
+              id="checkout-city"
               aria-label="Ciudad"
-              className="w-full min-w-0 h-[36px] rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] text-[16px] md:text-[15px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-invalid={Boolean(form.formState.errors.city)}
+              aria-describedby={form.formState.errors.city ? "checkout-city-error" : undefined}
+              className="w-full min-w-0 h-[48px] rounded-none border border-midnight-ink bg-bone-white px-[13px] py-[12px] text-[16px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="CABA"
               disabled={isSubmitting}
             />
             {form.formState.errors.city && (
-              <p className="text-midnight-ink text-[13px] border-l border-dotted border-midnight-ink pl-[6px]">{form.formState.errors.city.message}</p>
+              <p
+                id="checkout-city-error"
+                aria-live="polite"
+                className="text-midnight-ink text-[15px] leading-[1.5] border-l-2 border-midnight-ink pl-[13px] py-[6px]"
+              >
+                {form.formState.errors.city.message}
+              </p>
             )}
           </div>
 
           <div className="min-w-0 space-y-[6px] col-span-1 md:col-span-1">
-            <label className="text-[13px] uppercase font-mono font-normal">
+            <label
+              htmlFor="checkout-province"
+              className="block text-[13px] uppercase font-mono font-normal"
+            >
               Provincia
             </label>
             <input
               {...form.register("province")}
+              id="checkout-province"
               aria-label="Provincia"
-              className="w-full min-w-0 h-[36px] rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] text-[16px] md:text-[15px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-invalid={Boolean(form.formState.errors.province)}
+              aria-describedby={
+                form.formState.errors.province ? "checkout-province-error" : undefined
+              }
+              className="w-full min-w-0 h-[48px] rounded-none border border-midnight-ink bg-bone-white px-[13px] py-[12px] text-[16px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="Buenos Aires"
               disabled={isSubmitting}
             />
             {form.formState.errors.province && (
-              <p className="text-midnight-ink text-[13px] border-l border-dotted border-midnight-ink pl-[6px]">{form.formState.errors.province.message}</p>
+              <p
+                id="checkout-province-error"
+                aria-live="polite"
+                className="text-midnight-ink text-[15px] leading-[1.5] border-l-2 border-midnight-ink pl-[13px] py-[6px]"
+              >
+                {form.formState.errors.province.message}
+              </p>
             )}
           </div>
 
           <div className="min-w-0 space-y-[6px] col-span-1 md:col-span-1">
-            <label className="text-[13px] uppercase font-mono font-normal">CP</label>
+            <label
+              htmlFor="checkout-zipCode"
+              className="block text-[13px] uppercase font-mono font-normal"
+            >
+              CP
+            </label>
             <input
               {...form.register("zipCode")}
+              id="checkout-zipCode"
               aria-label="CP"
-              className="w-full min-w-0 h-[36px] rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] text-[16px] md:text-[15px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-invalid={Boolean(form.formState.errors.zipCode)}
+              aria-describedby={
+                form.formState.errors.zipCode ? "checkout-zipCode-error" : undefined
+              }
+              className="w-full min-w-0 h-[48px] rounded-none border border-midnight-ink bg-bone-white px-[13px] py-[12px] text-[16px] font-sans font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="1000"
               disabled={isSubmitting}
             />
             {form.formState.errors.zipCode && (
-              <p className="text-midnight-ink text-[13px] border-l border-dotted border-midnight-ink pl-[6px]">{form.formState.errors.zipCode.message}</p>
+              <p
+                id="checkout-zipCode-error"
+                aria-live="polite"
+                className="text-midnight-ink text-[15px] leading-[1.5] border-l-2 border-midnight-ink pl-[13px] py-[6px]"
+              >
+                {form.formState.errors.zipCode.message}
+              </p>
             )}
           </div>
         </div>
-      </div>
+      </fieldset>
 
       <CouponSelection />
 
       <button
         type="submit"
         disabled={isSubmitting || items.length === 0}
-        className="w-full min-h-[36px] py-[2px] px-[6px] mt-[30px] border border-midnight-ink bg-midnight-ink text-bone-white font-mono text-[13px] font-normal uppercase flex items-center justify-center gap-[6px] hover:underline disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2"
+        className="w-full min-h-[48px] py-[12px] px-[18px] mt-[30px] border border-midnight-ink bg-midnight-ink text-bone-white font-mono text-[13px] font-normal uppercase flex items-center justify-center gap-[13px] hover:underline disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2"
       >
         {isSubmitting ? (
           <>
@@ -258,7 +399,7 @@ export function CheckoutForm() {
         )}
       </button>
 
-      <p className="text-[13px] text-center text-midnight-ink font-mono">
+      <p className="mx-auto max-w-[48ch] text-[13px] leading-[1.5] text-center text-midnight-ink font-mono">
         Al proceder, serás redirigido al sitio seguro de MercadoPago.
       </p>
     </form>

@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRef } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useCart } from "@/contexts/cart-context";
 import { formatPrice } from "@/lib/config";
@@ -17,11 +18,19 @@ export function CartDrawer() {
     totalPrice,
     isOpen,
     setIsOpen,
+    restoreCartFocus,
   } = useCart();
+  const navigatingToCheckout = useRef(false);
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetContent
+        onOpenAutoFocus={() => {
+          navigatingToCheckout.current = false;
+        }}
+        onCloseAutoFocus={(event) => {
+          if (!navigatingToCheckout.current && restoreCartFocus?.()) event.preventDefault();
+        }}
         aria-describedby={undefined}
         className="flex w-full min-h-0 flex-col gap-[0px] overflow-hidden rounded-none border-midnight-ink bg-bone-white font-sans font-normal text-midnight-ink sm:max-w-[560px] [&>[data-slot=sheet-close]]:size-[44px]"
       >
@@ -110,7 +119,10 @@ export function CartDrawer() {
               </div>
               <Link
                 href="/checkout"
-                onClick={() => setIsOpen(false)}
+                onClick={() => {
+                  navigatingToCheckout.current = true;
+                  setIsOpen(false);
+                }}
                 className="flex min-h-[48px] w-full items-center justify-center rounded-none border border-midnight-ink bg-midnight-ink px-[18px] py-[12px] text-center font-mono text-[13px] font-normal uppercase text-bone-white hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
               >
                 Ir al Checkout

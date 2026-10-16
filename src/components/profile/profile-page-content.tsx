@@ -38,9 +38,12 @@ export function ProfilePageContent({ user, credits, tryOnHistory }: ProfilePageC
 
       <main>
         {/* Breadcrumb */}
-        <div className="w-full px-[18px] py-[18px] md:px-[30px]">
-          <nav className="flex flex-wrap items-center gap-[6px] text-[13px] text-midnight-ink font-mono">
-            <Link href="/" className="hover:underline focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2">
+        <div className="w-full px-[18px] pt-[18px] pb-[6px] md:px-[30px] md:pb-[12px]">
+          <nav className="flex min-h-[48px] flex-wrap items-center gap-[6px] text-[13px] text-midnight-ink font-mono md:mx-auto md:max-w-[1200px]">
+            <Link
+              href="/"
+              className="inline-flex min-h-[48px] items-center hover:underline focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2"
+            >
               Inicio
             </Link>
             <ChevronRight size={12} />
@@ -49,67 +52,99 @@ export function ProfilePageContent({ user, credits, tryOnHistory }: ProfilePageC
         </div>
 
         <div className="w-full px-[18px] pb-[42px] md:px-[30px]">
-          <div className="max-w-[672px] min-w-0 mx-auto space-y-[42px]">
+          <div className="sr-only md:not-sr-only md:mx-auto md:mb-[18px] md:max-w-[1200px]">
+            <h1 className="font-sans text-[48px] font-normal leading-[1.2]">Mi cuenta</h1>
+            <p className="mt-[12px] font-sans text-[15px] leading-[1.5]">
+              Gestioná tus datos, pedidos y créditos
+            </p>
+          </div>
+          <div className="mx-auto grid min-w-0 max-w-[1200px] gap-[30px] lg:grid-cols-12 lg:gap-x-[42px] lg:gap-y-[42px]">
             {/* Section 1: User Info */}
-            <div className="flex flex-col items-center space-y-[18px]">
+            <header className="grid min-w-0 grid-cols-[96px_minmax(0,1fr)] items-start gap-[18px] pt-0 pb-[24px] md:pt-0 lg:col-span-12 lg:gap-[30px] lg:pb-[42px]">
               <Image
                 src={user.imageUrl}
                 alt={displayName}
                 width={96}
                 height={96}
-                className="size-[96px] rounded-none object-cover"
+                className="size-[96px] rounded-full object-cover row-span-1 md:row-span-2"
               />
-              <div className="min-w-0 max-w-full text-center space-y-[6px]">
-                <h1 className="text-[30px] leading-[1.2] font-sans font-normal break-words">{displayName}</h1>
-                <p className="text-[15px] text-midnight-ink font-sans break-words">{user.email}</p>
+              <div className="min-w-0 max-w-full space-y-[12px]">
+                <h2 className="break-words font-sans text-[30px] font-normal leading-[1.2] sm:text-[36px] lg:text-[48px]">
+                  {displayName}
+                </h2>
+                <p className="break-all font-sans text-[15px] leading-[1.5] text-midnight-ink">
+                  {user.email}
+                </p>
                 {user.emailVerified ? (
-                  <Badge className="bg-warm-sand text-midnight-ink border-midnight-ink">
+                  <Badge className="min-w-0 max-w-full whitespace-normal break-words bg-warm-sand text-midnight-ink border-midnight-ink">
                     Email verificado
                   </Badge>
                 ) : (
-                  <Badge className="bg-bone-white text-midnight-ink border-midnight-ink">
+                  <Badge className="min-w-0 max-w-full whitespace-normal break-words bg-bone-white text-midnight-ink border-midnight-ink">
                     Verificar email
                   </Badge>
                 )}
               </div>
-              <Button variant="outline" size="sm" onClick={() => openUserProfile()}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="col-span-2 col-start-1 row-start-2 h-auto min-h-[48px] min-w-0 max-w-full w-fit justify-self-center whitespace-normal break-words px-[12px] py-[12px] leading-[1.5] md:col-span-1 md:col-start-2 md:justify-self-start"
+                onClick={() => openUserProfile()}
+              >
                 <Settings className="size-[16px] mr-[6px]" />
                 Gestionar cuenta
               </Button>
-            </div>
+            </header>
 
-            <Separator />
+            <Separator className="lg:col-span-12" />
 
             {/* Section 2: Credits */}
-            <div className="text-center space-y-[18px]">
-              <div className="inline-flex items-center justify-center size-[48px] bg-warm-sand">
+            <section
+              aria-labelledby="profile-balance-heading"
+              className="min-w-0 space-y-[24px] bg-warm-sand p-[24px] lg:col-span-5 lg:p-[36px]"
+            >
+              <div className="inline-flex size-[48px] items-center justify-center border border-midnight-ink">
                 <Sparkles className="size-[24px] text-midnight-ink" />
               </div>
               <div>
-                <p className="text-[13px] text-midnight-ink font-mono mb-[6px]">Tu balance</p>
-                <p className="text-[30px] font-sans font-normal">
+                <h2
+                  id="profile-balance-heading"
+                  className="mb-[12px] font-mono text-[13px] font-normal text-midnight-ink"
+                >
+                  Tu balance
+                </h2>
+                <p className="flex flex-wrap items-baseline gap-[12px] font-sans text-[60px] font-normal leading-[1.1] sm:text-[72px]">
                   {credits}
-                  <span className="text-[15px] text-midnight-ink ml-[6px]">
+                  <span className="text-[15px] text-midnight-ink">
                     {credits === 1 ? "crédito" : "créditos"}
                   </span>
                 </p>
               </div>
-              <p className="text-[15px] text-midnight-ink font-sans">
+              <p className="max-w-[30ch] font-sans text-[15px] leading-[1.5] text-midnight-ink">
                 Cada prueba virtual consume 1 crédito
               </p>
-              <Button asChild>
+              <Button
+                asChild
+                className="min-h-[48px] w-full whitespace-normal px-[18px] py-[12px] sm:w-fit"
+              >
                 <Link href="/credits">Comprar más créditos</Link>
               </Button>
-            </div>
+            </section>
 
-            <Separator />
+            <Separator className="lg:hidden" />
 
             {/* Section 3: Quick Links */}
-            <div className="space-y-[6px]">
-              <h2 className="text-[13px] uppercase font-mono font-normal text-midnight-ink mb-[18px]">
+            <section
+              aria-labelledby="profile-links-heading"
+              className="min-w-0 space-y-[24px] lg:col-span-7 lg:py-[24px]"
+            >
+              <h2
+                id="profile-links-heading"
+                className="font-sans text-[24px] font-normal leading-[1.2] text-midnight-ink"
+              >
                 Accesos rápidos
               </h2>
-              <nav className="space-y-[6px]">
+              <nav className="divide-y divide-midnight-ink border-y border-midnight-ink">
                 <QuickLink
                   href="/orders"
                   icon={<ShoppingBag className="size-[16px]" />}
@@ -122,17 +157,23 @@ export function ProfilePageContent({ user, credits, tryOnHistory }: ProfilePageC
                   label="Créditos"
                 />
               </nav>
-            </div>
+            </section>
 
-            <Separator />
+            <Separator className="lg:col-span-12" />
 
             {/* Section 4: Try-On History */}
-            <div className="space-y-[18px]">
-              <h2 className="text-[13px] uppercase font-mono font-normal text-midnight-ink">
+            <section
+              aria-labelledby="profile-history-heading"
+              className="min-w-0 space-y-[30px] lg:col-span-12"
+            >
+              <h2
+                id="profile-history-heading"
+                className="font-sans text-[30px] font-normal leading-[1.2] text-midnight-ink"
+              >
                 Mis pruebas virtuales
               </h2>
               <TryOnHistory items={tryOnHistory} />
-            </div>
+            </section>
           </div>
         </div>
       </main>
@@ -146,16 +187,13 @@ function QuickLink({ href, icon, label }: { href: string; icon: React.ReactNode;
   return (
     <Link
       href={href}
-      className="flex min-h-[36px] items-center justify-between gap-[13px] px-[13px] py-[13px] border border-midnight-ink hover:bg-warm-sand focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2"
+      className="flex min-h-[60px] items-center justify-between gap-[18px] px-[18px] py-[18px] hover:bg-warm-sand focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2"
     >
       <span className="flex items-center gap-[13px] text-[13px] font-mono">
         {icon}
         {label}
       </span>
-      <ChevronRight
-        size={16}
-        className="text-midnight-ink shrink-0"
-      />
+      <ChevronRight size={16} className="text-midnight-ink shrink-0" />
     </Link>
   );
 }
