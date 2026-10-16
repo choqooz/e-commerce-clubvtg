@@ -305,17 +305,53 @@ describe("Actual credit handoff SSR and shallow form/effect fixtures", () => {
     probe.effects[0].run();
     expect(requestSubmit).toHaveBeenCalledOnce();
   });
-  it("matches the accepted product handoff presentation without sharing business code", () => {
+  it("retains shared neutral typography and focus while V3 gives only the product handoff a larger panel", () => {
     const credit = classesByTag(source(paths[1]));
     const product = classesByTag(source("src/components/payment-reconciliation-handoff.tsx"));
+    // Credit remains outside V3; its full original classes are still compiled below.
+    // Product's intentional panel/scale changes are independently covered by V3.
     for (const tag of ["main", "form", "h1", "p", "button"])
-      expect(
-        credit
-          .get(tag)!
-          .filter((value) => value !== "rounded-none")
-          .sort(),
-        tag,
-      ).toEqual(product.get(tag)!.slice().sort());
+      expect(product.has(tag), tag).toBe(true);
+    for (const [tag, shared] of [
+      [
+        "main",
+        [
+          "w-full",
+          "min-h-[60vh]",
+          "bg-bone-white",
+          "text-midnight-ink",
+          "font-sans",
+          "font-normal",
+        ],
+      ],
+      ["form", ["w-full", "min-w-0"]],
+      ["h1", ["font-sans", "font-normal"]],
+      ["p", ["text-midnight-ink"]],
+      [
+        "button",
+        [
+          "border",
+          "border-midnight-ink",
+          "bg-midnight-ink",
+          "font-mono",
+          "font-normal",
+          "text-bone-white",
+          "focus-visible:outline-2",
+          "focus-visible:outline-solid",
+          "focus-visible:outline-midnight-ink",
+          "focus-visible:outline-offset-2",
+        ],
+      ],
+    ] as const) {
+      expect(credit.get(tag), tag).toEqual(expect.arrayContaining([...shared]));
+      expect(product.get(tag), tag).toEqual(expect.arrayContaining([...shared]));
+    }
+    expect(credit.get("form")).toContain("text-center");
+    expect(product.get("form")).toEqual(
+      expect.arrayContaining(["text-left", "bg-warm-sand", "sm:p-[48px]"]),
+    );
+    expect(credit.get("button")).toContain("min-h-[36px]");
+    expect(product.get("button")).toContain("min-h-[48px]");
   });
 });
 
@@ -357,7 +393,9 @@ describe("Installed Tailwind CSS compiled only in memory", () => {
       ["min-h-[36px]", "min-height", "36px"],
       ["h-[36px]", "height", "36px"],
       ["px-[18px]", "padding-inline", "18px"],
-      ["py-[42px]", "padding-block", "42px"],
+      ["py-[42px]", "padding-block", "42px"], // Unchanged credit handoff.
+      ["pt-0", "padding-top", "calc(var(--spacing) * 0)"],
+      ["pb-[42px]", "padding-bottom", "42px"],
       ["px-[6px]", "padding-inline", "6px"],
       ["py-[2px]", "padding-block", "2px"],
       ["space-y-[24px]", "--tw-space-y-reverse", "0"],

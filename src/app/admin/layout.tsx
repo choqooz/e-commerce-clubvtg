@@ -1,6 +1,6 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { AdminSidebar } from "@/components/admin/sidebar";
+import { AdminMobileNavigation, AdminSidebar } from "@/components/admin/sidebar";
 import { ADMIN_EMAIL } from "@/lib/config.server";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -15,8 +15,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div className="flex min-h-screen bg-bone-white font-sans font-normal text-midnight-ink">
+    <div className="flex min-h-screen flex-col bg-bone-white font-sans font-normal text-midnight-ink md:flex-row">
       <AdminSidebar />
+      <AdminMobileNavigation />
       <main className="mx-auto w-full min-w-0 max-w-[1440px] flex-1 overflow-y-auto p-[18px] md:p-[30px]">
         {children}
       </main>
