@@ -3,7 +3,11 @@
 import { usePostHog } from "posthog-js/react";
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import { productAddedToCartEvent } from "@/lib/analytics-events";
-import { CUSTOMER_COUPON_SOURCES, type CustomerCouponSource, replaceCouponCode } from "@/lib/coupon-choice";
+import {
+  CUSTOMER_COUPON_SOURCES,
+  type CustomerCouponSource,
+  replaceCouponCode,
+} from "@/lib/coupon-choice";
 import type { Product, CartItem } from "@/lib/types";
 
 interface CartContextValue {
@@ -22,6 +26,7 @@ interface CartContextValue {
   totalPrice: number;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
+  restoreCartFocus?: () => boolean;
   isHydrated: boolean;
 }
 
@@ -33,8 +38,40 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [couponCode, setCouponCodeState] = useState("");
   const [couponSource, setCouponSource] = useState<CustomerCouponSource | null>(null);
   const couponQuoteVersionRef = useRef(0);
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setOpenState] = useState(false);
+  const openRef = useRef(false);
+  const openerRef = useRef<HTMLElement | null>(null);
+  const openedAtRef = useRef("");
   const [isHydrated, setIsHydrated] = useState(false);
+
+  const setIsOpen = useCallback((open: boolean) => {
+    if (open && !openRef.current) {
+      openerRef.current =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      openedAtRef.current = window.location.href;
+    }
+    openRef.current = open;
+    setOpenState(open);
+  }, []);
+
+  const restoreCartFocus = useCallback(() => {
+    // Destination navigation owns focus, not the drawer that is being unmounted.
+    if (openRef.current || openedAtRef.current !== window.location.href) return false;
+    const fallback = document.querySelector<HTMLButtonElement>("header [data-cart-trigger]");
+    for (const target of [openerRef.current, fallback]) {
+      if (
+        !target?.isConnected ||
+        target.tabIndex < 0 ||
+        !target.getClientRects().length ||
+        target.closest('[inert], [aria-disabled="true"]') ||
+        target.matches(":disabled")
+      )
+        continue;
+      target.focus({ preventScroll: true });
+      if (document.activeElement === target) return true;
+    }
+    return false;
+  }, []);
 
   function invalidateCouponQuote() {
     couponQuoteVersionRef.current += 1;
@@ -86,7 +123,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const event = productAddedToCartEvent(product);
       posthog?.capture(event.event, event.properties);
     },
-    [posthog],
+    [posthog, setIsOpen],
   );
 
   const removeItem = useCallback((productId: string) => {
@@ -136,6 +173,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         totalPrice,
         isOpen,
         setIsOpen,
+        restoreCartFocus,
         isHydrated,
       }}
     >

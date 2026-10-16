@@ -153,7 +153,10 @@ export function ImageUploader({ onImageSelect, disabled = false }: ImageUploader
   // ── Resizing state ──
   if (isResizing) {
     return (
-      <div className="flex flex-col items-center justify-center gap-[13px] rounded-none border border-midnight-ink bg-warm-sand p-[24px] min-h-[200px]">
+      <div
+        role="status"
+        className="flex flex-col items-center justify-center gap-[18px] rounded-none border border-midnight-ink bg-warm-sand p-[24px] min-h-[280px]"
+      >
         <div className="animate-spin h-[24px] w-[24px] border border-midnight-ink border-t-transparent rounded-none" />
         <p className="text-[15px] text-midnight-ink font-sans font-normal">
           Optimizando para IA...
@@ -170,10 +173,11 @@ export function ImageUploader({ onImageSelect, disabled = false }: ImageUploader
           <Image src={preview} alt="Vista previa" fill className="object-cover" unoptimized />
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-[13px] p-[13px] border-t border-midnight-ink">
+        <div className="flex items-center justify-between gap-[13px] p-[13px] border-t border-midnight-ink bg-warm-sand">
           <Button
             variant="outline"
             size="sm"
+            className="min-h-[48px] flex-1 sm:flex-none px-[18px]"
             disabled={disabled}
             onClick={() => {
               clearPreview();
@@ -188,7 +192,7 @@ export function ImageUploader({ onImageSelect, disabled = false }: ImageUploader
             type="button"
             disabled={disabled}
             onClick={clearPreview}
-            className="inline-flex items-center justify-center size-[36px] rounded-none border border-midnight-ink bg-bone-white text-midnight-ink hover:bg-warm-sand focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50"
+            className="inline-flex shrink-0 items-center justify-center size-[48px] rounded-none border border-midnight-ink bg-bone-white text-midnight-ink hover:bg-warm-sand focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2 disabled:opacity-50"
             aria-label="Quitar imagen"
           >
             <X size={16} strokeWidth={1.5} />
@@ -211,6 +215,7 @@ export function ImageUploader({ onImageSelect, disabled = false }: ImageUploader
     <div>
       <div
         role="button"
+        aria-disabled={disabled}
         tabIndex={disabled ? -1 : 0}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
@@ -224,7 +229,7 @@ export function ImageUploader({ onImageSelect, disabled = false }: ImageUploader
         }}
         className={cn(
           "flex flex-col items-center justify-center gap-[13px] rounded-none border border-midnight-ink p-[24px] cursor-pointer font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2",
-          "min-h-[200px]",
+          "min-h-[280px]",
           isDragging
             ? "border-midnight-ink bg-warm-sand"
             : "border-midnight-ink bg-bone-white hover:bg-warm-sand",
@@ -246,7 +251,10 @@ export function ImageUploader({ onImageSelect, disabled = false }: ImageUploader
       </div>
 
       {error && (
-        <p className="text-[15px] text-midnight-ink mt-[13px] p-[13px] border border-dotted border-midnight-ink bg-warm-sand font-sans font-normal break-words">
+        <p
+          role="alert"
+          className="text-[15px] text-midnight-ink mt-[13px] p-[13px] border border-dotted border-midnight-ink bg-warm-sand font-sans font-normal break-words"
+        >
           {error}
         </p>
       )}
