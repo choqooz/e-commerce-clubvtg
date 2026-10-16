@@ -176,14 +176,14 @@ export function ImageZoomModal({ src, alt, open, onClose }: ImageZoomModalProps)
           <button
             type="button"
             onClick={onClose}
-            className="absolute top-[18px] right-[18px] z-10 flex size-[36px] items-center justify-center rounded-none border border-midnight-ink bg-bone-white font-mono text-[13px] font-normal text-midnight-ink hover:bg-warm-sand focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2"
+            className="absolute top-[18px] right-[18px] z-10 flex size-[48px] items-center justify-center rounded-none border border-midnight-ink bg-bone-white font-mono text-[13px] font-normal text-midnight-ink hover:bg-warm-sand focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2"
             aria-label="Cerrar"
           >
             <X size={20} strokeWidth={1.5} />
           </button>
 
           {/* Zoom indicator badge */}
-          <div className="absolute right-[18px] bottom-[18px] z-10 flex h-[36px] items-center rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] font-mono text-[13px] leading-[1.2] font-normal text-midnight-ink tabular-nums">
+          <div className="absolute right-[18px] bottom-[18px] z-10 flex h-[48px] items-center rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] font-mono text-[13px] leading-[1.2] font-normal text-midnight-ink tabular-nums">
             {scale.toFixed(1)}x
           </div>
 

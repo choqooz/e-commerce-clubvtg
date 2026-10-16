@@ -338,9 +338,9 @@ describe("In-memory actual Tailwind presentation", () => {
       throw new Error(`Unbalanced utility: ${name}`);
     };
     const checks = [
-      ["size-[36px]", "width", "36px"],
-      ["size-[36px]", "height", "36px"],
-      ["h-[36px]", "height", "36px"],
+      ["size-[48px]", "width", "48px"],
+      ["size-[48px]", "height", "48px"],
+      ["h-[48px]", "height", "48px"],
       ["top-[18px]", "top", "18px"],
       ["right-[18px]", "right", "18px"],
       ["bottom-[18px]", "bottom", "18px"],

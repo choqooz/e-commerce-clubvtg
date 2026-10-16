@@ -21,7 +21,7 @@ export default async function OrdersPage() {
 
   if (!orders || orders.length === 0) {
     return (
-      <div className="w-full bg-bone-white px-[18px] py-[42px] text-center font-sans font-normal text-[15px] leading-[1.3] text-midnight-ink">
+      <div className="w-full bg-bone-white px-[18px] pt-0 pb-[42px] text-center font-sans font-normal text-[15px] leading-[1.3] text-midnight-ink">
         <div className="mx-auto min-w-0 max-w-[448px] space-y-[24px]">
           <div className="text-[60px] leading-[1]">📦</div>
           <h1 className="font-sans font-normal text-[30px] leading-[1.2]">No tenés pedidos aún</h1>
