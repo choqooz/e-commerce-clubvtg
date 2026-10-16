@@ -11,6 +11,12 @@ import type { Product } from "@/lib/types";
 import { CartDrawer } from "./cart-drawer";
 
 // Shallow elements and mocked callbacks only: no mounted dialog, persistence or services.
+// Only useRef is replaced locally so direct component calls can inspect handler closures.
+// Mounted focus/restoration still requires the independent Playwright regressions.
+vi.mock("react", async (original) => ({
+  ...(await original<typeof import("react")>()),
+  useRef: (initial: unknown) => ({ current: initial }),
+}));
 const cart = vi.hoisted(() => ({
   items: [] as { product: Product; quantity: number }[],
   totalItems: 0,
@@ -20,6 +26,7 @@ const cart = vi.hoisted(() => ({
   removeItem: vi.fn(),
   setCouponCode: vi.fn(),
   setIsOpen: vi.fn(),
+  restoreCartFocus: vi.fn(() => false),
 }));
 vi.mock("@/contexts/cart-context", () => ({ useCart: () => cart }));
 
@@ -68,21 +75,17 @@ const filled = () => {
 beforeEach(() => {
   vi.clearAllMocks();
   Object.assign(cart, { items: [], totalItems: 0, totalPrice: 0, couponCode: "", isOpen: true });
+  cart.restoreCartFocus.mockReturnValue(false);
 });
 
 describe("V2 editorial cart composition", () => {
-  it("retains Sheet ownership of dismissal, focus and title while reserving a larger close target", () => {
+  it("retains Sheet ownership of Escape, dismissal and title while reserving a larger close target", () => {
     const tree = CartDrawer();
     expect(tree.type).toBe(Sheet);
     expect(tree.props).toMatchObject({ open: true, onOpenChange: cart.setIsOpen });
     const content = elements(tree, SheetContent)[0];
     expect(content.props["aria-describedby"]).toBeUndefined();
-    for (const attribute of [
-      "showCloseButton",
-      "onCloseAutoFocus",
-      "onEscapeKeyDown",
-      "onInteractOutside",
-    ])
+    for (const attribute of ["showCloseButton", "onEscapeKeyDown", "onInteractOutside"])
       expect(content.props[attribute]).toBeUndefined(); // No overrides of shared Radix behavior.
     expect(content.props.className).toContain("w-full");
     expect(content.props.className).toContain("sm:max-w-[560px]");
@@ -94,6 +97,36 @@ describe("V2 editorial cart composition", () => {
     expect(title.props.children).toEqual(["Carrito (", 0, ")"]);
     (tree.props.onOpenChange as (open: boolean) => void)(false);
     expect(cart.setIsOpen).toHaveBeenCalledExactlyOnceWith(false);
+  });
+
+  it("owns close autofocus only after restoration and defers checkout navigation focus", () => {
+    const tree = filled();
+    const content = elements(tree, SheetContent)[0];
+    const close = content.props.onCloseAutoFocus as (event: { preventDefault: () => void }) => void;
+    const open = content.props.onOpenAutoFocus as () => void;
+    const event = { preventDefault: vi.fn() };
+
+    close(event);
+    expect(cart.restoreCartFocus).toHaveBeenCalledOnce();
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    cart.restoreCartFocus.mockReturnValue(true);
+    close(event);
+    expect(event.preventDefault).toHaveBeenCalledOnce();
+
+    const checkout = elements(tree, Link)[0];
+    expect(checkout.props.href).toBe("/checkout");
+    (checkout.props.onClick as () => void)();
+    expect(cart.setIsOpen).toHaveBeenCalledExactlyOnceWith(false);
+    cart.restoreCartFocus.mockClear();
+    event.preventDefault.mockClear();
+    close(event);
+    expect(cart.restoreCartFocus).not.toHaveBeenCalled();
+    expect(event.preventDefault).not.toHaveBeenCalled();
+
+    open(); // A later opening must not inherit the checkout handoff flag.
+    close(event);
+    expect(cart.restoreCartFocus).toHaveBeenCalledOnce();
+    expect(event.preventDefault).toHaveBeenCalledOnce();
   });
 
   it("gives the unchanged empty message a restrained sand field, without invented actions", () => {
@@ -222,7 +255,7 @@ describe("V2 editorial cart composition", () => {
       ["show", "41679236782abed3b2de9503075195e5e2b90ff3:src/components/cart-drawer.tsx"],
       { encoding: "utf8" },
     );
-    const expressions = (source: string) => {
+    const expressions = (source: string, authorizedFocusDelta = false) => {
       const file = ts.createSourceFile(
         "cart.tsx",
         source,
@@ -237,18 +270,45 @@ describe("V2 editorial cart composition", () => {
         ts.isJsxFragment(node) ||
         (ts.forEachChild(node, containsJSX) ?? false);
       const record = (node: ts.Node) => result.push(node.getText(file).replace(/\s+/g, " "));
+      const focusHandlers: string[] = [];
       const visit = (node: ts.Node) => {
-        if (ts.isJsxExpression(node) && node.expression && !containsJSX(node.expression))
-          record(node.expression);
+        if (ts.isJsxExpression(node) && node.expression && !containsJSX(node.expression)) {
+          const attribute = ts.isJsxAttribute(node.parent) ? node.parent : null;
+          const owner = attribute?.parent.parent;
+          const tag = owner && ts.isJsxOpeningElement(owner) ? owner.tagName.getText(file) : "";
+          const name = attribute?.name.getText(file);
+          const expression = node.expression.getText(file).replace(/\s+/g, " ");
+          if (
+            authorizedFocusDelta &&
+            tag === "SheetContent" &&
+            (name === "onOpenAutoFocus" || name === "onCloseAutoFocus")
+          ) {
+            expect(expression).toBe(
+              name === "onOpenAutoFocus"
+                ? "() => { navigatingToCheckout.current = false; }"
+                : "(event) => { if (!navigatingToCheckout.current && restoreCartFocus?.()) event.preventDefault(); }",
+            );
+            focusHandlers.push(name);
+          } else if (authorizedFocusDelta && tag === "Link" && name === "onClick") {
+            expect(owner!.getText(file)).toContain('href="/checkout"');
+            expect(expression).toBe(
+              "() => { navigatingToCheckout.current = true; setIsOpen(false); }",
+            );
+            focusHandlers.push("checkout");
+            result.push("() => setIsOpen(false)");
+          } else record(node.expression);
+        }
         if (ts.isConditionalExpression(node)) record(node.condition);
         if (ts.isCallExpression(node) && containsJSX(node)) record(node.expression);
         ts.forEachChild(node, visit);
       };
       visit(file);
+      if (authorizedFocusDelta)
+        expect(focusHandlers).toEqual(["onOpenAutoFocus", "onCloseAutoFocus", "checkout"]);
       return result;
     };
     expect(
-      expressions(readFileSync(new URL("./cart-drawer.tsx", import.meta.url), "utf8")),
+      expressions(readFileSync(new URL("./cart-drawer.tsx", import.meta.url), "utf8"), true),
     ).toEqual(expressions(baseline));
   });
 });
