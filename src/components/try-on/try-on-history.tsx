@@ -76,9 +76,14 @@ function HistoryThumbnail({ src, alt }: { src: string | null | undefined; alt: s
 export function TryOnHistory({ items }: TryOnHistoryProps) {
   if (items.length === 0) {
     return (
-      <div className="text-center py-[42px] space-y-[18px] font-sans text-[15px] font-normal">
+      <div className="border-y border-midnight-ink bg-warm-sand px-[18px] py-[42px] space-y-[18px] font-sans text-[15px] font-normal">
         <p className="text-midnight-ink">Aún no probaste ninguna prenda</p>
-        <Button asChild variant="outline" size="sm">
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className="min-h-[48px] w-full sm:w-auto px-[18px]"
+        >
           <Link href="/">Explorar el catálogo</Link>
         </Button>
       </div>
@@ -86,7 +91,10 @@ export function TryOnHistory({ items }: TryOnHistoryProps) {
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-[18px] text-midnight-ink font-normal">
+    <div
+      role="list"
+      className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-[18px] gap-y-[30px] text-midnight-ink font-normal"
+    >
       {items.map((item) => {
         const imageUrl =
           item.status === "completed" && item.result_image_url
@@ -96,7 +104,12 @@ export function TryOnHistory({ items }: TryOnHistoryProps) {
         const config = STATUS_CONFIG[item.status];
 
         return (
-          <div key={item.id} className="group min-w-0 space-y-[6px]">
+          <article
+            key={item.id}
+            role="listitem"
+            aria-label={item.product_title}
+            className="group min-w-0 border-b border-midnight-ink pb-[18px]"
+          >
             {/* Thumbnail */}
             <div className="relative aspect-[3/4] w-full overflow-hidden rounded-none bg-warm-sand">
               <HistoryThumbnail src={imageUrl} alt={`Prueba: ${item.product_title}`} />
@@ -110,15 +123,15 @@ export function TryOnHistory({ items }: TryOnHistoryProps) {
             </div>
 
             {/* Info */}
-            <div className="space-y-[6px]">
-              <p className="text-[15px] font-sans font-normal leading-[1.3] break-words line-clamp-1">
+            <div className="space-y-[13px] pt-[13px]">
+              <p className="text-[15px] font-sans font-normal leading-[1.3] break-words">
                 {item.product_title}
               </p>
               <p className="text-[13px] font-mono font-normal text-midnight-ink leading-[1.2]">
                 {formatDate(item.created_at)}
               </p>
             </div>
-          </div>
+          </article>
         );
       })}
     </div>

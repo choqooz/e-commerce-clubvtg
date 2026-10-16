@@ -16,7 +16,7 @@ export class StorefrontPage extends BasePage {
   }
 
   async gotoCatalog(): Promise<void> {
-    await this.goto("/");
+    await this.goto("/#catalog");
     await expect(this.catalogHeading).toBeVisible();
   }
 

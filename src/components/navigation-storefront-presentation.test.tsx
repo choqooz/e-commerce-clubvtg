@@ -1061,11 +1061,75 @@ function detailSignatures(text: string) {
   };
 }
 
-// Normalize only the accepted cart thumbnail's responsive source-size hint.
-// Preserve every other attribute, business expression, copy and function preamble.
+// Normalize the accepted responsive thumbnail and the authorized C1a focus-only delta.
+// Assert each exact new AST shape before normalization; keep all prior business guards.
 function cartSignatures(text: string) {
-  const original = signatures(text);
   const attribute = (value: string) => signatures(`<div ${value} />`).attributes[0];
+  const file = parse(text);
+  const edits: { start: number; end: number; replacement: string }[] = [];
+  const deltas: string[] = [];
+  const replace = (node: ts.Node, name: string, replacement = "", trailingComma = false) => {
+    deltas.push(name);
+    if (trailingComma) expect(text[node.end]).toBe(",");
+    edits.push({ start: node.getStart(file), end: node.end + Number(trailingComma), replacement });
+  };
+  const visit = (node: ts.Node) => {
+    if (ts.isBindingElement(node) && node.name.getText(file) === "restoreCartFocus") {
+      expect(node.getText(file)).toBe("restoreCartFocus");
+      expect(node.parent.parent.getText(file)).toContain("= useCart()");
+      replace(node, "restoreCartFocus", "", true);
+    }
+    if (
+      ts.isVariableStatement(node) &&
+      node.declarationList.declarations.some(
+        (declaration) => declaration.name.getText(file) === "navigatingToCheckout",
+      )
+    ) {
+      expect(semanticNode(node)).toEqual(
+        semanticNode(parse("const navigatingToCheckout = useRef(false);").statements[0]),
+      );
+      replace(node, "navigationRef");
+    }
+    if (ts.isJsxAttribute(node)) {
+      const name = node.name.getText(file);
+      const owner = node.parent.parent;
+      if (name === "onOpenAutoFocus" || name === "onCloseAutoFocus") {
+        expect(ts.isJsxOpeningElement(owner) && owner.tagName.getText(file)).toBe("SheetContent");
+        const expected =
+          name === "onOpenAutoFocus"
+            ? "onOpenAutoFocus={() => { navigatingToCheckout.current = false; }}"
+            : "onCloseAutoFocus={(event) => { if (!navigatingToCheckout.current && restoreCartFocus?.()) event.preventDefault(); }}";
+        expect(JSON.stringify(semanticNode(node))).toBe(attribute(expected));
+        replace(node, name);
+      } else if (
+        name === "onClick" &&
+        ts.isJsxOpeningElement(owner) &&
+        owner.tagName.getText(file) === "Link"
+      ) {
+        expect(
+          owner.attributes.properties.some(
+            (property) => property.getText(file) === 'href="/checkout"',
+          ),
+        ).toBe(true);
+        expect(JSON.stringify(semanticNode(node))).toBe(
+          attribute("onClick={() => { navigatingToCheckout.current = true; setIsOpen(false); }}"),
+        );
+        replace(node, "checkout", "onClick={() => setIsOpen(false)}");
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  expect(deltas).toEqual([
+    "restoreCartFocus",
+    "navigationRef",
+    "onOpenAutoFocus",
+    "onCloseAutoFocus",
+    "checkout",
+  ]);
+  for (const edit of edits.sort((a, b) => b.start - a.start))
+    text = text.slice(0, edit.start) + edit.replacement + text.slice(edit.end);
+  const original = signatures(text);
   const acceptedSize = attribute('sizes="(min-width: 640px) 104px, 88px"');
   const previousSize = attribute('sizes="80px"');
   return {
@@ -1089,7 +1153,8 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
         // Chrome deliberately replaces old markup and logic. Pin every accepted byte,
         // including all callbacks, literals and imports; do not discard AST nodes.
         const acceptedChrome = {
-          "site-header.tsx": "36d235d223105d5a36f2286c0ba35c07f008b256a2dbc810cc648a777bab7a2f",
+          // Authorized C1a delta: mark the existing cart button as the safe focus fallback.
+          "site-header.tsx": "dc6b9f93afe048ea26cb66b42d7d7d1fbec6646ff54ea39802d7abafd8761921",
           "site-footer.tsx": "e465e234f641f23ab346cf4e9a281c03b77f7dc580f10e3817fe0fc971b76575",
         };
         expect(createHash("sha256").update(source(path)).digest("hex")).toBe(acceptedChrome[path]);
@@ -1110,9 +1175,10 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
         expect(detailSignatures(source(path))).toEqual(signatures(baseline));
       } else if (path === "cart-drawer.tsx") {
         // Pin all accepted bytes alongside the original business/semantic baseline.
-        // The complete cart-shopping suite exercises callbacks, totals and presentation.
+        // Authorized C1a autofocus/checkout handoff shapes are qualified above and in cart-shopping.
+        // Mounted focus remains Playwright's responsibility, not these shallow callbacks.
         expect(createHash("sha256").update(source(path)).digest("hex")).toBe(
-          "cac19caeaff6e3e5746a0bb4b3d8ae7275ed84929cdec33cb4af43b25d15b816",
+          "366549392ec3d1e022a70634f76a1d97a37d80d08b00fa9996afe7ae6017ad0a",
         );
         expect(cartSignatures(source(path))).toEqual(signatures(baseline));
       } else if (path === "admin/sidebar.tsx") {

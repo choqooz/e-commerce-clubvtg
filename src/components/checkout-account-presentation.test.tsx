@@ -47,14 +47,16 @@ const paths = [
   "src/components/credits/credit-pack-card.tsx",
   "src/components/orders/orders-page-content.tsx",
 ];
-// Retain all profile, credits, pack and order baseline guards until their own units.
+// Retain all eleven baseline paths; normalize only accepted presentation groups.
 const checkoutPaths = new Set(paths.slice(0, 7));
+const creditPaths = new Set(paths.slice(8, 10));
+const accountPaths = new Set([paths[7], paths[10]]);
 const source = (path: string) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
 const parse = (text: string) =>
   ts.createSourceFile("surface.tsx", text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 
-// Restore only the accepted checkout groups and exact field/error associations.
-// No later profile, credits, pack or order presentation is normalized here.
+// Restore only accepted checkout/credit/account groups and exact associations.
+// No handler, guard, validation message, hidden input or business prop is ignored.
 function originalCheckoutPresentation(text: string, path: string): string {
   if (path === "src/components/checkout-form.tsx") {
     text = text.replace(/<(\/?)fieldset\b/g, "<$1div").replace(/<(\/?)legend\b/g, "<$1h3");
@@ -93,6 +95,48 @@ function originalCheckoutPresentation(text: string, path: string): string {
       .replace('id="checkout-summary-heading"', "")
       .replace('sizes="(min-width: 1280px) 104px, 88px"', 'sizes="64px"');
   }
+  // V4 changes only these account grouping elements, heading roles and the
+  // item/pricing grid wrapper. Restore that exact structure; retain every
+  // expression, callback, URL, date, image prop and Spanish text for comparison.
+  if (path === "src/components/profile/profile-page-content.tsx") {
+    text = text
+      // R1: exact approved intro only; never ignore arbitrary new copy/props.
+      .replace(
+        /<div className="[^"]*">\s*<h1 className="[^"]*">\s*Mi cuenta\s*<\/h1>\s*<p className="[^"]*">\s*Gestioná tus datos, pedidos y créditos\s*<\/p>\s*<\/div>/,
+        "",
+      )
+      .replace(/<h2 (className="[^"]*")>(\s*\{displayName\}\s*)<\/h2>/, "<h1 $1>$2</h1>")
+      .replace(/<(\/?)header\b/g, "<$1div")
+      .replace(/<(\/?)section\b/g, "<$1div")
+      .replace(/<h2\s+id="profile-balance-heading"([^>]*)>(\s*Tu balance\s*)<\/h2>/, "<p$1>$2</p>")
+      .replace(/\s+(?:id|aria-labelledby)="profile-(?:balance|links|history)-heading"/g, "");
+  }
+  if (path === "src/components/orders/orders-page-content.tsx") {
+    text = text
+      .replace(/<(\/?)(?:header|footer)\b/g, "<$1div")
+      .replace(/<(\/?)h2\b/g, "<$1span")
+      .replace(
+        '<div className="grid min-w-0 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.65fr)]">',
+        "",
+      )
+      .replace(/(<OrderPricingHistory order=\{order\} \/>\s*<\/div>)\s*<\/div>/, "$1");
+  }
+  // V5 adds named credit groups and pack headings only. Keep every amount,
+  // purchase callback, pending guard, configured pack and Spanish instruction.
+  if (path === "src/components/credits/credits-page-content.tsx") {
+    text = text
+      .replace(/<(\/?)header\b/g, "<$1div")
+      .replace(/<(\/?)section\b/g, "<$1div")
+      .replace(/\s+(?:id|aria-labelledby)="credits-(?:balance|packs|help)-heading"/g, "")
+      .replace(/<h2([^>]*)>(\s*¿Cómo funcionan los créditos\?\s*)<\/h2>/, "<h3$1>$2</h3>");
+  }
+  if (path === "src/components/credits/credit-pack-card.tsx") {
+    text = text
+      .replace(/<(\/?)article\b/g, "<$1div")
+      .replace(/<(\/?)h3\b/g, "<$1p")
+      .replace(/\s+aria-labelledby=\{`credit-pack-\$\{packId\}`\}/g, "")
+      .replace(/\s+id=\{`credit-pack-\$\{packId\}`\}/g, "");
+  }
   return text;
 }
 
@@ -105,8 +149,8 @@ function isRenderedText(value: unknown): value is [ts.SyntaxKind.JsxText, string
 // The parser already normalizes trailing commas; handlers, guards and money remain.
 function behavior(node: ts.Node, normalizeCheckoutSpaces = false): unknown {
   if (ts.isParenthesizedExpression(node)) return behavior(node.expression, normalizeCheckoutSpaces);
-  // Checkout's wrapped explicit space is equivalent to inline rendered text.
-  // Leave the unrelated baseline normalizer unchanged, including meaningful spaces.
+  // Accepted wrapped explicit spaces are equivalent to inline rendered text.
+  // Enable only at the authorized comparisons; keep raw normalization strict.
   if (
     normalizeCheckoutSpaces &&
     ts.isJsxExpression(node) &&
@@ -179,6 +223,8 @@ describe("Bounded actual component SSR (not browser interaction coverage)", () =
         onSelect={onSelect}
       />,
     );
+    expect(markup).toContain('<article aria-labelledby="credit-pack-popular"');
+    expect(markup).toMatch(/<h3 id="credit-pack-popular"[^>]*>Pack Popular<\/h3>/);
     expect(markup).toContain("Pack Popular");
     expect(markup).toContain("20<span");
     expect(markup).toContain("créditos");
@@ -226,7 +272,7 @@ describe("G56B checkout/account behavior preservation", () => {
       const baseline = execFileSync("git", ["show", `${ORIGINAL_PRE_REDESIGN_COMMIT}:${path}`], {
         encoding: "utf8",
       });
-      if (checkoutPaths.has(path))
+      if (checkoutPaths.has(path) || creditPaths.has(path) || accountPaths.has(path))
         expect(behavior(parse(originalCheckoutPresentation(source(path), path)), true)).toEqual(
           behavior(parse(baseline), true),
         );
@@ -277,10 +323,60 @@ describe("G56B checkout/account behavior preservation", () => {
       expect(signature(wrapped.replace(before, after))).not.toEqual(signature(inline));
     expect(signature('<p>A{" "}B</p>')).toEqual(signature("<p>A B</p>"));
     expect(signature('<p>A{" "}{" "}B</p>')).not.toEqual(signature("<p>A B</p>"));
-    // The profile/credits/orders comparison still uses the exact original normalizer.
+    // Raw normalization remains strict unless the authorized comparison enables it.
     expect(behavior(parse(wrapped))).not.toEqual(behavior(parse(inline)));
-    for (const path of paths.filter((path) => !checkoutPaths.has(path)))
-      expect(originalCheckoutPresentation(source(path), path)).toBe(source(path));
+  });
+
+  it("restores only V5 credit groups and exact associations without hiding business props", () => {
+    const pagePath = "src/components/credits/credits-page-content.tsx";
+    const packPath = "src/components/credits/credit-pack-card.tsx";
+    const signature = (text: string, path: string) =>
+      behavior(parse(originalCheckoutPresentation(text, path)));
+    const grouped =
+      '<section aria-labelledby="credits-help-heading"><h2 id="credits-help-heading">¿Cómo funcionan los créditos?</h2><p>Se descuenta 1 crédito.</p></section>';
+    const original =
+      "<div><h3>¿Cómo funcionan los créditos?</h3><p>Se descuenta 1 crédito.</p></div>";
+    expect(signature(grouped, pagePath)).toEqual(signature(original, pagePath));
+    for (const [before, after] of [
+      ["credits-help-heading", "different-heading"],
+      ["1 crédito", "2 créditos"],
+      ["¿Cómo funcionan los créditos?", "¿Cómo funcionan las compras?"],
+    ])
+      expect(signature(grouped.replace(before, after), pagePath)).not.toEqual(
+        signature(original, pagePath),
+      );
+    const pack =
+      "<article aria-labelledby={`credit-pack-${packId}`}><h3 id={`credit-pack-${packId}`}>{name}</h3><Button disabled={loading} onClick={() => onSelect(packId)}>{formatPrice(price)}</Button></article>";
+    const oldPack =
+      "<div><p>{name}</p><Button disabled={loading} onClick={() => onSelect(packId)}>{formatPrice(price)}</Button></div>";
+    expect(signature(pack, packPath)).toEqual(signature(oldPack, packPath));
+    for (const [before, after] of [
+      ["credit-pack-${packId}", "credit-pack-${name}"],
+      ["disabled={loading}", "disabled={false}"],
+      ["onSelect(packId)", 'onSelect("pro")'],
+      ["formatPrice(price)", "formatPrice(price * 2)"],
+    ])
+      expect(signature(pack.replace(before, after), packPath)).not.toEqual(
+        signature(oldPack, packPath),
+      );
+  });
+
+  it("restores only the approved R1 intro/name heading, retaining mutated copy and props", () => {
+    const path = "src/components/profile/profile-page-content.tsx";
+    const signature = (text: string) => behavior(parse(originalCheckoutPresentation(text, path)));
+    const intro =
+      '<div className="sr-only md:not-sr-only"><h1 className="title">Mi cuenta</h1><p className="description">Gestioná tus datos, pedidos y créditos</p></div>';
+    const name = '<h2 className="name">{displayName}</h2>';
+    const original = '<h1 className="name">{displayName}</h1>';
+    expect(signature(`${intro}${name}`)).toEqual(signature(original));
+    for (const [before, after] of [
+      ["Mi cuenta", "Tu cuenta"],
+      ["Gestioná tus datos, pedidos y créditos", "Gestioná tus compras"],
+      ["{displayName}", "{user.email}"],
+      ["<h1 className=", "<h1 hidden className="],
+      ["<h2 className=", '<h2 aria-hidden="true" className='],
+    ])
+      expect(signature(`${intro}${name}`.replace(before, after))).not.toEqual(signature(original));
   });
 
   it("does not normalize away handlers, guards, copy, links, money or nonclass props", () => {
@@ -334,7 +430,16 @@ describe("Actual source classes compiled with the installed Tailwind theme", () 
   it("keeps explicit pixel fields/padding, responsive layouts, focus and neutral square surfaces", async () => {
     const classes = new Set<string>();
     for (const path of paths) {
-      const candidates = classCandidates(source(path));
+      // P1's sole radius exception is this exact identity Image, not other surfaces.
+      const original = source(path);
+      const text =
+        path === "src/components/profile/profile-page-content.tsx"
+          ? original.replace(
+              /(<Image\s+src=\{user.imageUrl\}\s+alt=\{displayName\}\s+width=\{96\}\s+height=\{96\}\s+className="size-\[96px\] )rounded-full(?= object-cover row-span-1 md:row-span-2")/,
+              "$1rounded-none",
+            )
+          : original;
+      const candidates = classCandidates(text);
       expect(candidates.length, path).toBeGreaterThan(0);
       candidates.forEach((candidate) => classes.add(candidate));
     }
@@ -361,26 +466,23 @@ describe("Actual source classes compiled with the installed Tailwind theme", () 
       throw new Error(`Unbalanced CSS utility: ${name}`);
     };
     const checks = [
-      // Only checkout-exclusive field/image/action values change in this prefix.
+      // Checkout/credit guards remain; replace only superseded account geometry.
       ["h-[48px]", "height", "48px"],
       ["min-h-[48px]", "min-height", "48px"],
-      ["min-h-[36px]", "min-height", "36px"],
       ["w-[88px]", "width", "88px"],
       ["h-[110px]", "height", "110px"],
       ["px-[6px]", "padding-inline", "6px"],
       ["py-[12px]", "padding-block", "12px"],
       ["px-[18px]", "padding-inline", "18px"],
       ["md:px-[30px]", "padding-inline", "30px"],
-      ["p-[13px]", "padding", "13px"],
-      ["md:p-[24px]", "padding", "24px"],
       ["p-[24px]", "padding", "24px"],
       ["xl:p-[36px]", "padding", "36px"],
       ["pb-[42px]", "padding-bottom", "42px"],
       ["gap-[18px]", "gap", "18px"],
       ["gap-[42px]", "gap", "42px"],
       ["lg:top-[156px]", "top", "156px"],
-      ["max-w-[672px]", "max-width", "672px"],
-      ["max-w-[768px]", "max-width", "768px"],
+      ["max-w-[1200px]", "max-width", "1200px"],
+      ["lg:col-span-12", "grid-column", "span 12 / span 12"],
       ["max-w-[896px]", "max-width", "896px"],
       ["min-w-0", "min-width", "calc(var(--spacing) * 0)"],
       ["w-full", "width", "100%"],
@@ -398,6 +500,7 @@ describe("Actual source classes compiled with the installed Tailwind theme", () 
       ["text-[13px]", "font-size", "13px"],
       ["text-[16px]", "font-size", "16px"],
       ["sm:text-[60px]", "font-size", "60px"],
+      ["leading-[1.5]", "line-height", "1.5"],
       ["sm:flex-row", "flex-direction", "row"],
       ["md:grid-cols-3", "grid-template-columns", "repeat(3, minmax(0, 1fr))"],
       ["md:grid-cols-4", "grid-template-columns", "repeat(4, minmax(0, 1fr))"],
