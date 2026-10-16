@@ -35,13 +35,22 @@ function getStepStatus(
 
 export function GenerationProgress({ currentStep, isGenerating }: GenerationProgressProps) {
   return (
-    <div className="space-y-0 text-midnight-ink" role="list" aria-label="Progreso de generación">
+    <div
+      className="space-y-0 border-y border-midnight-ink bg-warm-sand p-[24px] text-midnight-ink"
+      role="list"
+      aria-label="Progreso de generación"
+    >
       {STEPS.map((step, i) => {
         const status = getStepStatus(step.key, currentStep, isGenerating);
         const isLast = i === STEPS.length - 1;
 
         return (
-          <div key={step.key} className="flex gap-[13px]" role="listitem">
+          <div
+            key={step.key}
+            className="flex gap-[18px]"
+            role="listitem"
+            aria-current={status === "current" ? "step" : undefined}
+          >
             {/* Vertical line + icon column */}
             <div className="flex flex-col items-center">
               {/* Icon */}
@@ -49,7 +58,7 @@ export function GenerationProgress({ currentStep, isGenerating }: GenerationProg
                 className={cn(
                   "flex items-center justify-center w-[24px] h-[24px] shrink-0",
                   status === "completed" && "text-midnight-ink",
-                  status === "current" && "text-midnight-ink bg-warm-sand",
+                  status === "current" && "text-midnight-ink",
                   status === "pending" && "text-midnight-ink",
                 )}
               >
@@ -74,7 +83,7 @@ export function GenerationProgress({ currentStep, isGenerating }: GenerationProg
             {/* Label */}
             <div
               className={cn(
-                "pb-[18px] pt-[6px] text-[13px] font-mono font-normal leading-[1.2]",
+                "min-w-0 pb-[24px] pt-[6px] text-[13px] font-mono font-normal leading-[1.2] break-words",
                 status === "completed" && "text-midnight-ink",
                 status === "current" && "text-midnight-ink underline underline-offset-[3px]",
                 status === "pending" && "text-midnight-ink",

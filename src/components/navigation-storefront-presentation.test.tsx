@@ -21,6 +21,7 @@ const probe = vi.hoisted(() => ({
   states: [] as unknown[],
   stateIndex: 0,
   catalogHooks: false,
+  adminHooks: false,
   serverRender: false,
   refIndex: 0,
   refs: [] as { current: unknown }[],
@@ -48,7 +49,7 @@ vi.mock("react", async (original) => ({
   ...(await original<typeof import("react")>()),
   useState: (initial: unknown) => {
     const index = probe.stateIndex++;
-    if (!probe.catalogHooks)
+    if (!probe.catalogHooks && !probe.adminHooks)
       return [index < probe.states.length ? probe.states[index] : initial, probe.setState];
     if (index >= probe.states.length) probe.states[index] = initial;
     return [
@@ -133,7 +134,7 @@ vi.mock("@/components/ui/sheet", () => {
 });
 import { SiteHeader } from "./site-header";
 import { SiteFooter } from "./site-footer";
-import { AdminSidebar } from "./admin/sidebar";
+import { AdminMobileNavigation, AdminSidebar } from "./admin/sidebar";
 import { CatalogContent } from "./catalog-content";
 import { ProductDetailContent } from "./product-detail-content";
 import { CartDrawer } from "./cart-drawer";
@@ -204,6 +205,7 @@ beforeEach(() => {
     states: [],
     stateIndex: 0,
     catalogHooks: false,
+    adminHooks: false,
     serverRender: false,
     refIndex: 0,
     refs: [],
@@ -296,6 +298,19 @@ const catalogButton = (tree: ReactNode, label: string) =>
 const chooseCollection = (tree: ReactNode, value: string) =>
   (elements(tree, "select")[0].props.onChange as (event: unknown) => void)({ target: { value } });
 
+// Admin-only shallow retries model the persistent layout state, not mounted Radix behavior.
+function renderAdminMobile() {
+  probe.adminHooks = true;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    probe.stateIndex = 0;
+    probe.effects = [];
+    const before = probe.setState.mock.calls.length;
+    const tree = AdminMobileNavigation();
+    if (probe.setState.mock.calls.length === before) return tree;
+  }
+  throw new Error("Admin navigation state did not settle");
+}
+
 describe("Navigation contracts", () => {
   it("keeps announcement, wordmark, catalog, modal sign-in and zero-count cart", () => {
     const tree = SiteHeader();
@@ -381,6 +396,20 @@ describe("Navigation contracts", () => {
     const markup = html(tree);
     expect((tree as Element).props.className).toContain("hidden");
     expect((tree as Element).props.className).toContain("md:flex");
+    expect(elements(tree, "nav")[0].props["aria-label"]).toBe("Navegación de administración");
+    const active = descendants(tree).filter((child) => child.props["aria-current"] === "page");
+    const expected =
+      pathname === "/admin"
+        ? "/admin"
+        : ["/admin/products", "/admin/orders", "/admin/coupons"].find(
+            (href) => pathname === href || pathname.startsWith(`${href}/`),
+          );
+    expect(active.map((anchor) => anchor.props.href)).toEqual(expected ? [expected] : []);
+    const shopExit = descendants(tree).find(
+      (child) => child.props.href === "/" && child.props.children === "Volver a la tienda",
+    )!;
+    expect(shopExit).toBeDefined();
+    expect(shopExit.props["aria-current"]).toBeUndefined();
     for (const [href, title] of [
       ["/admin", "Dashboard"],
       ["/admin/products", "Productos"],
@@ -389,10 +418,55 @@ describe("Navigation contracts", () => {
     ]) {
       const anchor = descendants(tree).find((child) => child.props.href === href)!;
       expect(anchor.props.className!.includes("bg-warm-sand")).toBe(
-        pathname === href || pathname.startsWith(`${href}/`),
+        pathname === href || (href !== "/admin" && pathname.startsWith(`${href}/`)),
       );
+      expect(anchor.props["aria-current"]).toBe(href === expected ? "page" : undefined);
       expect(markup).toContain(title);
     }
+  });
+
+  it("keeps the admin mobile menu named, controlled and closed after navigation or shop exit", () => {
+    vi.stubGlobal("window", { matchMedia: vi.fn(() => ({ matches: false })) });
+    probe.pathname = "/admin/products/new";
+    let tree = renderAdminMobile();
+    expect(tree.type).toBe("header");
+    expect(tree.props.className).toContain("md:hidden");
+    expect(button(tree, "Abrir menú de administración").props.type).toBe("button");
+    expect(button(tree, "Cerrar menú de administración").props.type).toBe("button");
+    const sheet = () => elements(tree, Sheet).find((node) => node.props.onOpenChange)!;
+    const content = () => elements(tree, Sheet).find((node) => node.props.side === "left")!;
+    const changeOpen = (open: boolean) =>
+      (sheet().props.onOpenChange as (value: boolean) => void)(open);
+    expect(sheet().props.open).toBe(false);
+    expect(content().props["aria-describedby"]).toBeUndefined();
+    expect(html(content())).toContain("Administración");
+    expect(elements(tree, "nav")[0].props["aria-label"]).toBe("Navegación móvil de administración");
+    expect(
+      descendants(tree)
+        .filter((node) => node.props["aria-current"] === "page")
+        .map((node) => node.props.href),
+    ).toEqual(["/admin/products"]);
+    for (const href of ["/admin", "/admin/products", "/admin/orders", "/admin/coupons", "/"]) {
+      changeOpen(true);
+      tree = renderAdminMobile();
+      expect(sheet().props.open).toBe(true);
+      const link = descendants(tree).find((node) => node.props.href === href)!;
+      if (href === "/") expect(link.props.children).toBe("Volver a la tienda");
+      click(link);
+      tree = renderAdminMobile();
+      expect(sheet().props.open).toBe(false);
+      const event = { preventDefault: vi.fn() };
+      (content().props.onCloseAutoFocus as (value: unknown) => void)(event);
+      expect(event.preventDefault).toHaveBeenCalledOnce(); // Mock callback, not focus proof.
+    }
+    changeOpen(true);
+    tree = renderAdminMobile();
+    probe.pathname = "/admin/orders";
+    tree = renderAdminMobile();
+    expect(sheet().props.open).toBe(false);
+    probe.pathname = "/admin/products/new";
+    tree = renderAdminMobile();
+    expect(sheet().props.open).toBe(false);
   });
 });
 
@@ -866,7 +940,7 @@ describe("Storefront state, data and callback preservation", () => {
       "Elegirás entre el cupón y las promociones antes de pagar.",
     ])
       expect(markup).toContain(copy);
-    expect(markup).toContain('sizes="80px"');
+    expect(markup).toContain('sizes="(min-width: 640px) 104px, 88px"');
     expect(markup).toContain('src="/shirt-front.jpg"');
     const input = elements(tree, "input")[0];
     expect(input.props).toMatchObject({
@@ -913,13 +987,28 @@ function semanticNode(node: ts.Node): unknown {
     children,
   ];
 }
-function signatures(text: string) {
+function signatures(text: string, adminNavigation = false) {
   const file = parse(text);
   const attributes: string[] = [],
     copy: string[] = [],
     preambles: string[] = [];
   const print = (node: ts.Node) => JSON.stringify(semanticNode(node));
   const visit = (node: ts.Node) => {
+    // Only the accepted admin delta is normalized; its full bytes are also pinned below.
+    // Existing desktop destinations, copy and function preamble retain the fixed baseline.
+    if (
+      adminNavigation &&
+      ((ts.isFunctionDeclaration(node) && node.name?.text === "AdminMobileNavigation") ||
+        (ts.isJsxElement(node) &&
+          node.openingElement.tagName.getText(file) === "Link" &&
+          node.children.some(
+            (child) => ts.isJsxText(child) && child.text.trim() === "Volver a la tienda",
+          )) ||
+        (ts.isJsxAttribute(node) &&
+          (node.name.getText(file) === "aria-current" ||
+            node.getText(file) === 'aria-label="Navegación de administración"')))
+    )
+      return;
     if (
       ts.isJsxAttribute(node) &&
       node.name.getText(file) !== "className" &&
@@ -940,9 +1029,118 @@ function signatures(text: string) {
   return { attributes, copy, preambles };
 }
 
+// Normalize only the accepted detail's explicit accessibility/image presentation delta.
+// Keep its original attribute order, business expressions, copy and function preambles protected.
+function detailSignatures(text: string) {
+  const original = signatures(text);
+  const attribute = (value: string) => signatures(`<div ${value} />`).attributes[0];
+  const additions = new Set(
+    [
+      'aria-label="Ruta del producto"',
+      'role="group"',
+      'aria-label="Galería del producto"',
+      'id="product-active-image"',
+      'type="button"',
+      "aria-label={`Ver vista ${i + 1} de ${product.title}`}",
+      "aria-pressed={activeImage === url}",
+      'aria-controls="product-active-image"',
+    ].map(attribute),
+  );
+  const replacements = new Map(
+    [
+      ["preload", "priority"],
+      ['sizes="(min-width: 1024px) 58.33vw, 100vw"', 'sizes="(max-width: 1024px) 100vw, 50vw"'],
+      ['sizes="(min-width: 768px) 84px, 72px"', 'sizes="10vw"'],
+    ].map(([accepted, previous]) => [attribute(accepted), attribute(previous)]),
+  );
+  return {
+    ...original,
+    attributes: original.attributes
+      .filter((value) => !additions.has(value))
+      .map((value) => replacements.get(value) ?? value),
+  };
+}
+
+// Normalize the accepted responsive thumbnail and the authorized C1a focus-only delta.
+// Assert each exact new AST shape before normalization; keep all prior business guards.
+function cartSignatures(text: string) {
+  const attribute = (value: string) => signatures(`<div ${value} />`).attributes[0];
+  const file = parse(text);
+  const edits: { start: number; end: number; replacement: string }[] = [];
+  const deltas: string[] = [];
+  const replace = (node: ts.Node, name: string, replacement = "", trailingComma = false) => {
+    deltas.push(name);
+    if (trailingComma) expect(text[node.end]).toBe(",");
+    edits.push({ start: node.getStart(file), end: node.end + Number(trailingComma), replacement });
+  };
+  const visit = (node: ts.Node) => {
+    if (ts.isBindingElement(node) && node.name.getText(file) === "restoreCartFocus") {
+      expect(node.getText(file)).toBe("restoreCartFocus");
+      expect(node.parent.parent.getText(file)).toContain("= useCart()");
+      replace(node, "restoreCartFocus", "", true);
+    }
+    if (
+      ts.isVariableStatement(node) &&
+      node.declarationList.declarations.some(
+        (declaration) => declaration.name.getText(file) === "navigatingToCheckout",
+      )
+    ) {
+      expect(semanticNode(node)).toEqual(
+        semanticNode(parse("const navigatingToCheckout = useRef(false);").statements[0]),
+      );
+      replace(node, "navigationRef");
+    }
+    if (ts.isJsxAttribute(node)) {
+      const name = node.name.getText(file);
+      const owner = node.parent.parent;
+      if (name === "onOpenAutoFocus" || name === "onCloseAutoFocus") {
+        expect(ts.isJsxOpeningElement(owner) && owner.tagName.getText(file)).toBe("SheetContent");
+        const expected =
+          name === "onOpenAutoFocus"
+            ? "onOpenAutoFocus={() => { navigatingToCheckout.current = false; }}"
+            : "onCloseAutoFocus={(event) => { if (!navigatingToCheckout.current && restoreCartFocus?.()) event.preventDefault(); }}";
+        expect(JSON.stringify(semanticNode(node))).toBe(attribute(expected));
+        replace(node, name);
+      } else if (
+        name === "onClick" &&
+        ts.isJsxOpeningElement(owner) &&
+        owner.tagName.getText(file) === "Link"
+      ) {
+        expect(
+          owner.attributes.properties.some(
+            (property) => property.getText(file) === 'href="/checkout"',
+          ),
+        ).toBe(true);
+        expect(JSON.stringify(semanticNode(node))).toBe(
+          attribute("onClick={() => { navigatingToCheckout.current = true; setIsOpen(false); }}"),
+        );
+        replace(node, "checkout", "onClick={() => setIsOpen(false)}");
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  expect(deltas).toEqual([
+    "restoreCartFocus",
+    "navigationRef",
+    "onOpenAutoFocus",
+    "onCloseAutoFocus",
+    "checkout",
+  ]);
+  for (const edit of edits.sort((a, b) => b.start - a.start))
+    text = text.slice(0, edit.start) + edit.replacement + text.slice(edit.end);
+  const original = signatures(text);
+  const acceptedSize = attribute('sizes="(min-width: 640px) 104px, 88px"');
+  const previousSize = attribute('sizes="80px"');
+  return {
+    ...original,
+    attributes: original.attributes.map((value) => (value === acceptedSize ? previousSize : value)),
+  };
+}
+
 describe("Source-preservation and actual in-memory Tailwind CSS", () => {
   it.each(paths)(
-    "preserves %s against its accepted chrome/catalog/Card identity or original nonpresentation baseline",
+    "preserves %s against its accepted chrome/catalog/Card/detail/cart/admin identity or original nonpresentation baseline",
     (path) => {
       const baseline = execFileSync(
         "git",
@@ -955,7 +1153,8 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
         // Chrome deliberately replaces old markup and logic. Pin every accepted byte,
         // including all callbacks, literals and imports; do not discard AST nodes.
         const acceptedChrome = {
-          "site-header.tsx": "36d235d223105d5a36f2286c0ba35c07f008b256a2dbc810cc648a777bab7a2f",
+          // Authorized C1a delta: mark the existing cart button as the safe focus fallback.
+          "site-header.tsx": "dc6b9f93afe048ea26cb66b42d7d7d1fbec6646ff54ea39802d7abafd8761921",
           "site-footer.tsx": "e465e234f641f23ab346cf4e9a281c03b77f7dc580f10e3817fe0fc971b76575",
         };
         expect(createHash("sha256").update(source(path)).digest("hex")).toBe(acceptedChrome[path]);
@@ -967,6 +1166,28 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
           "product-card.tsx": "48ecbea82bd741f41f4d24529429bea80103a83afc9d6f6c10369325d79ce5a6",
         };
         expect(createHash("sha256").update(source(path)).digest("hex")).toBe(acceptedCatalog[path]);
+      } else if (path === "product-detail-content.tsx") {
+        // Pin all accepted bytes as well as retaining the old semantic/business baseline.
+        // The copied product-shopping suite independently exercises the presentation additions.
+        expect(createHash("sha256").update(source(path)).digest("hex")).toBe(
+          "2097e1c4f5fc623e3d9d9a8f5697f41cf7998cec96c4340f4546754fb93558f0",
+        );
+        expect(detailSignatures(source(path))).toEqual(signatures(baseline));
+      } else if (path === "cart-drawer.tsx") {
+        // Pin all accepted bytes alongside the original business/semantic baseline.
+        // Authorized C1a autofocus/checkout handoff shapes are qualified above and in cart-shopping.
+        // Mounted focus remains Playwright's responsibility, not these shallow callbacks.
+        expect(createHash("sha256").update(source(path)).digest("hex")).toBe(
+          "366549392ec3d1e022a70634f76a1d97a37d80d08b00fa9996afe7ae6017ad0a",
+        );
+        expect(cartSignatures(source(path))).toEqual(signatures(baseline));
+      } else if (path === "admin/sidebar.tsx") {
+        // Exact-root activity, accessible landmarks and mobile/return-store flows are accepted.
+        // Pin every new byte while retaining the original desktop nonpresentation baseline.
+        expect(createHash("sha256").update(source(path)).digest("hex")).toBe(
+          "9219aabd8e0c627e6bbcda146d11ad0821e75d63c7b2ba37fa5f00119ba06d6e",
+        );
+        expect(signatures(source(path), true)).toEqual(signatures(baseline));
       } else {
         expect(signatures(source(path))).toEqual(signatures(baseline));
       }
@@ -1014,14 +1235,37 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
     };
     for (const [name, property, value] of [
       ["w-[240px]", "width", "240px"],
+      ["min-h-[44px]", "min-height", "44px"],
+      ["min-w-[44px]", "min-width", "44px"],
+      ["w-[min(360px,100vw)]", "width", "min(360px, 100vw)"],
+      ["sm:max-w-[360px]", "max-width", "360px"],
+      ["md:hidden", "display", "none"],
       // Collection is now full-width with a compact select, not the old 250px sidebar.
       ["min-w-0", "min-width", "calc(var(--spacing) * 0)"],
       ["gap-x-[10px]", "column-gap", "10px"],
       ["gap-y-[24px]", "row-gap", "24px"],
-      ["w-[80px]", "width", "80px"],
-      ["h-[96px]", "height", "96px"],
-      ["h-[36px]", "height", "36px"],
-      ["w-[28px]", "width", "28px"],
+      // Accepted cart replaces fixed thumbnails and small removal targets with portrait rows.
+      ["w-[88px]", "width", "88px"],
+      ["sm:w-[104px]", "width", "104px"],
+      ["aspect-4/5", "aspect-ratio", "4/5"],
+      ["h-[36px]", "height", "36px"], // Retained header search field.
+      ["h-[44px]", "height", "44px"],
+      ["w-[44px]", "width", "44px"],
+      ["h-[48px]", "height", "48px"],
+      ["[&>[data-slot=sheet-close]]:size-[44px]", "width", "44px"],
+      ["[&>[data-slot=sheet-close]]:size-[44px]", "height", "44px"],
+      ["overscroll-contain", "overscroll-behavior", "contain"],
+      ["gap-[0px]", "gap", "0px"],
+      [
+        "pb-[max(24px,env(safe-area-inset-bottom))]",
+        "padding-bottom",
+        "max(24px, env(safe-area-inset-bottom))",
+      ],
+      [
+        "sm:pb-[max(30px,env(safe-area-inset-bottom))]",
+        "padding-bottom",
+        "max(30px, env(safe-area-inset-bottom))",
+      ],
       ["min-h-[72px]", "min-height", "72px"],
       ["gap-[13px]", "gap", "13px"],
       ["gap-x-[0px]", "column-gap", "0px"],
@@ -1032,7 +1276,7 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
       ["scroll-mt-[156px]", "scroll-margin-top", "156px"],
       ["max-w-full", "max-width", "100%"],
       ["max-h-[60dvh]", "max-height", "60dvh"],
-      ["sm:max-w-[448px]", "max-width", "448px"],
+      ["sm:max-w-[560px]", "max-width", "560px"],
       ["w-full", "width", "100%"],
       ["min-h-0", "min-height", "calc(var(--spacing) * 0)"],
       ["overflow-y-auto", "overflow-y", "auto"],
@@ -1047,10 +1291,22 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
       ["font-normal", "font-weight", "var(--font-weight-normal)"],
       ["text-[13px]", "font-size", "13px"],
       ["text-[16px]", "font-size", "16px"],
+      ["text-[30px]", "font-size", "30px"],
       ["md:text-[15px]", "font-size", "15px"],
       ["md:text-[111px]", "font-size", "111px"],
       ["md:flex", "display", "flex"],
-      ["lg:grid-cols-2", "grid-template-columns", "repeat(2, minmax(0, 1fr))"],
+      // Accepted detail uses a top-aligned 7:5 spread rather than the old equal columns.
+      [
+        "lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]",
+        "grid-template-columns",
+        "minmax(0,7fr) minmax(0,5fr)",
+      ],
+      ["items-start", "align-items", "flex-start"],
+      ["sm:aspect-square", "aspect-ratio", "1 / 1"],
+      ["lg:aspect-4/5", "aspect-ratio", "4/5"],
+      ["w-[72px]", "width", "72px"],
+      ["md:w-[84px]", "width", "84px"],
+      ["min-h-[48px]", "min-height", "48px"],
       ["md:grid-cols-4", "grid-template-columns", "repeat(4, minmax(0, 1fr))"],
       ["focus-visible:outline-2", "outline-width", "2px"],
       ["focus-visible:outline-solid", "outline-style", "solid"],
@@ -1061,8 +1317,15 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
     }
     for (const [name, media] of [
       ["md:flex", "(width >= 48rem)"],
-      ["lg:grid-cols-2", "(width >= 64rem)"],
-      ["sm:max-w-[448px]", "(width >= 40rem)"],
+      ["md:hidden", "(width >= 48rem)"],
+      ["sm:max-w-[360px]", "(width >= 40rem)"],
+      ["lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]", "(width >= 64rem)"],
+      ["sm:aspect-square", "(width >= 40rem)"],
+      ["lg:aspect-4/5", "(width >= 64rem)"],
+      ["md:w-[84px]", "(width >= 48rem)"],
+      ["sm:max-w-[560px]", "(width >= 40rem)"],
+      ["sm:w-[104px]", "(width >= 40rem)"],
+      ["sm:pb-[max(30px,env(safe-area-inset-bottom))]", "(width >= 40rem)"],
     ]) {
       expect(utility(name)).toContain(`@media ${media}`);
     }

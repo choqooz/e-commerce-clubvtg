@@ -32,6 +32,7 @@ vi.mock("@/lib/actions/orders", () => ({ getAdminOrders: probe.getAdminOrders })
 vi.mock("@/lib/actions/coupon-admin", () => ({ getAdminCoupons: probe.getAdminCoupons }));
 vi.mock("@/components/admin/sidebar", () => ({
   AdminSidebar: () => <aside>Sidebar fixture</aside>,
+  AdminMobileNavigation: () => <header>Mobile navigation fixture</header>,
 }));
 vi.mock("@/components/admin/product-form", () => ({ ProductForm: probe.productForm }));
 vi.mock("@/components/admin/orders-table", () => ({ OrdersTable: probe.ordersTable }));
@@ -145,9 +146,16 @@ function isAppearanceClass(node: ts.Node): boolean {
     expression.parent.parent.parent.getText().startsWith("<SignIn")
   );
 }
-// Only className/EXISTING Clerk element class strings and formatting are normalized.
-// Keep appearance keys, all other props, imports, guards, queries and JSX structure.
+// N1 adds only the named mobile navigation import and sibling. All server guards,
+// queries, other JSX and pre-existing Clerk configuration remain protected.
 function behavior(node: ts.Node): unknown {
+  if (
+    (ts.isImportSpecifier(node) && node.name.text === "AdminMobileNavigation") ||
+    (ts.isJsxSelfClosingElement(node) &&
+      node.tagName.getText() === "AdminMobileNavigation" &&
+      node.attributes.properties.length === 0)
+  )
+    return undefined;
   if (ts.isParenthesizedExpression(node)) return behavior(node.expression);
   if (ts.isJsxAttribute(node) && node.name.getText() === "className") return undefined;
   if (isAppearanceClass(node)) return [node.kind, "<element-class>"];
@@ -224,6 +232,7 @@ describe("Async route fixture contracts (no real auth, network or database)", ()
   it("uses the designated primary email and keeps sidebar/children", async () => {
     const markup = html(await AdminLayout({ children: <p>Contenido</p> }));
     expect(markup).toContain("Sidebar fixture");
+    expect(markup).toContain("Mobile navigation fixture");
     expect(markup).toContain("Contenido");
     expect(probe.currentUser).toHaveBeenCalledOnce();
     expect(probe.redirect).not.toHaveBeenCalled();
