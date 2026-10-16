@@ -178,14 +178,14 @@ export function TryOnPageContent({ product, initialCredits }: TryOnPageContentPr
           <nav className="flex flex-wrap items-center gap-[6px] font-mono text-[13px] font-normal break-words">
             <Link
               href="/"
-              className="min-h-[36px] inline-flex items-center hover:underline focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2"
+              className="min-h-[48px] inline-flex items-center hover:underline focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2"
             >
               Inicio
             </Link>
             <ChevronRight size={12} />
             <Link
               href={`/product/${product.slug}`}
-              className="min-h-[36px] min-w-0 inline-flex items-center break-all hover:underline focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2"
+              className="min-h-[48px] min-w-0 inline-flex items-center break-all hover:underline focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2"
             >
               {product.title}
             </Link>
@@ -195,13 +195,13 @@ export function TryOnPageContent({ product, initialCredits }: TryOnPageContentPr
         </div>
 
         {/* Main Content */}
-        <div className="px-[18px] md:px-[30px] py-[42px]">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-[42px]">
-            {/* ── Left Column: Product Info ── */}
-            <div className="min-w-0 space-y-[24px]">
+        <div className="border-b border-midnight-ink">
+          <div className="grid grid-cols-1 lg:grid-cols-[5fr_7fr]">
+            {/* Garment photograph and caption form one editorial column. */}
+            <section aria-labelledby="try-on-product-heading" className="min-w-0 lg:self-start">
               {/* Product Image */}
               {productImage ? (
-                <div className="relative aspect-[3/4] w-full max-h-[500px] overflow-hidden rounded-none bg-warm-sand">
+                <div className="relative aspect-[3/4] w-full max-h-[500px] lg:max-h-none overflow-hidden rounded-none bg-warm-sand">
                   <Image
                     src={productImage}
                     alt={product.title}
@@ -212,27 +212,35 @@ export function TryOnPageContent({ product, initialCredits }: TryOnPageContentPr
                   />
                 </div>
               ) : (
-                <div className="aspect-[3/4] w-full max-h-[500px] rounded-none bg-warm-sand flex items-center justify-center text-midnight-ink">
+                <div className="aspect-[3/4] w-full max-h-[500px] lg:max-h-none rounded-none bg-warm-sand flex items-center justify-center text-midnight-ink">
                   Sin imagen
                 </div>
               )}
 
               {/* Product Details */}
-              <div className="space-y-[6px]">
+              <div className="space-y-[13px] border-t border-midnight-ink px-[18px] py-[24px] md:px-[30px]">
                 <p className="font-mono text-[13px] font-normal">{product.category}</p>
-                <h1 className="text-[30px] font-sans font-normal leading-none break-words">
+                <h1
+                  id="try-on-product-heading"
+                  className="text-[30px] md:text-[42px] font-sans font-normal leading-none break-words"
+                >
                   {product.title}
                 </h1>
                 <p className="text-[20px] font-normal leading-[1.3]">
                   {formatPrice(product.price)}
                 </p>
               </div>
-            </div>
+            </section>
 
-            {/* ── Right Column: Try-On Flow ── */}
-            <div className="min-w-0 space-y-[24px]">
-              {/* Credit Balance */}
-              <CreditBalance credits={credits} />
+            {/* Existing phases share one workspace; no additional product steps. */}
+            <section
+              aria-label="Prueba virtual"
+              className="min-w-0 space-y-[24px] border-t border-midnight-ink px-[18px] py-[24px] md:px-[30px] lg:border-t-0 lg:border-l lg:p-[42px]"
+            >
+              {/* Credit balance remains outside the mutually exclusive phases. */}
+              <header className="flex items-center justify-end border-b border-midnight-ink pb-[18px]">
+                <CreditBalance credits={credits} />
+              </header>
 
               {/* No Credits Warning */}
               {credits === 0 && state.phase === "idle" && (
@@ -245,7 +253,7 @@ export function TryOnPageContent({ product, initialCredits }: TryOnPageContentPr
                     <p className="text-[15px] text-midnight-ink">
                       Necesitás al menos 1 crédito para generar una prueba virtual.
                     </p>
-                    <Button asChild size="sm">
+                    <Button asChild size="sm" className="min-h-[48px] w-full sm:w-auto px-[18px]">
                       <Link href="/credits">Comprá créditos</Link>
                     </Button>
                   </div>
@@ -254,9 +262,12 @@ export function TryOnPageContent({ product, initialCredits }: TryOnPageContentPr
 
               {/* ── Phase: Idle → Image Uploader ── */}
               {state.phase === "idle" && credits > 0 && (
-                <div className="space-y-[18px]">
-                  <div>
-                    <h2 className="text-[20px] font-sans font-normal leading-[1.3]">
+                <section aria-labelledby="try-on-upload-heading" className="space-y-[24px]">
+                  <div className="max-w-[32rem] space-y-[13px]">
+                    <h2
+                      id="try-on-upload-heading"
+                      className="text-[30px] font-sans font-normal leading-none"
+                    >
                       Subí tu foto
                     </h2>
                     <p className="text-[15px] text-midnight-ink mt-[6px]">
@@ -264,45 +275,58 @@ export function TryOnPageContent({ product, initialCredits }: TryOnPageContentPr
                     </p>
                   </div>
                   <ImageUploader onImageSelect={startGeneration} />
-                  <p className="font-mono text-[13px] text-midnight-ink text-center">
+                  <p className="border-t border-midnight-ink pt-[18px] font-mono text-[13px] text-midnight-ink leading-[1.5]">
                     Se descontará 1 crédito al generar. Te quedan{" "}
                     <span className="font-normal text-midnight-ink">{credits}</span> créditos.
                   </p>
-                </div>
+                </section>
               )}
 
               {/* ── Phase: Generating → Progress ── */}
               {state.phase === "generating" && (
-                <div className="space-y-[18px]">
-                  <h2 className="text-[20px] font-sans font-normal leading-[1.3]">
+                <section aria-labelledby="try-on-progress-heading" className="space-y-[24px]">
+                  <h2
+                    id="try-on-progress-heading"
+                    className="text-[30px] font-sans font-normal leading-none"
+                  >
                     Generando prueba virtual...
                   </h2>
                   <GenerationProgress currentStep={state.step} isGenerating={isGenerating} />
-                </div>
+                </section>
               )}
 
               {/* ── Phase: Complete → Result Viewer ── */}
               {state.phase === "complete" && selectedImage && (
-                <div className="space-y-[18px]">
-                  <h2 className="text-[20px] font-sans font-normal leading-[1.3]">Resultado</h2>
+                <section aria-labelledby="try-on-result-heading" className="space-y-[24px]">
+                  <h2
+                    id="try-on-result-heading"
+                    className="text-[30px] font-sans font-normal leading-none"
+                  >
+                    Resultado
+                  </h2>
                   <ResultViewer
                     originalImageUrl={selectedImage}
                     resultImageUrl={state.resultUrl}
                     productTitle={product.title}
                   />
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-[13px]">
+                  <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-[18px] border-t border-midnight-ink pt-[18px]">
                     <p className="font-mono text-[13px] text-midnight-ink">
                       Créditos restantes:{" "}
                       <span className="font-normal text-midnight-ink">
                         {state.creditsRemaining}
                       </span>
                     </p>
-                    <Button variant="outline" size="sm" onClick={handleRetry}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRetry}
+                      className="min-h-[48px] w-full sm:w-auto px-[18px]"
+                    >
                       <RotateCcw className="size-[14px]" />
                       Probar otra foto
                     </Button>
                   </div>
-                </div>
+                </section>
               )}
 
               {/* ── Phase: Error ── */}
@@ -317,7 +341,12 @@ export function TryOnPageContent({ product, initialCredits }: TryOnPageContentPr
                       <p className="text-[15px] text-midnight-ink break-words">{state.message}</p>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" onClick={handleRetry}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRetry}
+                    className="min-h-[48px] w-full sm:w-auto px-[18px]"
+                  >
                     <RotateCcw className="size-[14px]" />
                     Intentar de nuevo
                   </Button>
@@ -326,11 +355,16 @@ export function TryOnPageContent({ product, initialCredits }: TryOnPageContentPr
 
               {/* Back to product */}
               <div className="pt-[18px] border-t border-midnight-ink">
-                <Button variant="ghost" size="sm" asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  asChild
+                  className="min-h-[48px] w-full justify-start px-[13px]"
+                >
                   <Link href={`/product/${product.slug}`}>&larr; Volver al producto</Link>
                 </Button>
               </div>
-            </div>
+            </section>
           </div>
         </div>
       </main>
