@@ -10,6 +10,7 @@ import {
   Text,
 } from "@react-email/components";
 import * as React from "react";
+import { EmailBrand } from "./email-brand";
 
 interface DispatchEmailProps {
   customerName: string;
@@ -30,6 +31,7 @@ export const DispatchEmail = ({
       <Preview>Tu pedido #{orderId.slice(0, 8)} está en camino</Preview>
       <Body style={main}>
         <Container style={container}>
+          <EmailBrand />
           <Heading style={h1}>¡Tu pedido está en camino!</Heading>
 
           <Section style={bodySection}>
