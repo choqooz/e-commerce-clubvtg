@@ -5,6 +5,7 @@ import { Search, ShoppingBag, Sparkles, User, Package, CreditCard, Menu, X } fro
 import Link from "next/link";
 import { useState, useEffect, useId, useRef, useSyncExternalStore } from "react";
 import { toast } from "sonner";
+import { BrandMark } from "@/components/brand-mark";
 import { subscribeToCollection } from "@/components/catalog-url-state";
 import { Sheet, SheetTrigger, SheetContent, SheetTitle, SheetClose } from "@/components/ui/sheet";
 import { useCart } from "@/contexts/cart-context";
@@ -304,9 +305,7 @@ export function SiteHeader() {
             ref={homeLink}
             className="flex h-[44px] shrink-0 items-center justify-center focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
           >
-            <span className="font-sans text-[20px] leading-none font-normal tracking-[-0.04em] md:text-[30px]">
-              clubvtg
-            </span>
+            <BrandMark alt="" className="w-[120px] md:w-[180px]" />
           </a>
 
           <div className="flex min-w-0 items-center justify-end md:justify-between md:pl-[24px]">
