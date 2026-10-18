@@ -340,19 +340,50 @@ describe("Navigation contracts", () => {
     expect(getUserCredits).not.toHaveBeenCalled();
   });
 
-  it("keeps expandable autofocus field without inventing search handlers", () => {
+  it("submits the expandable search, restores its URL value and clears without dropping category", () => {
+    const browser = catalogBrowser("/?category=tops&q=Lino&keep=1#catalog");
     probe.states = [true];
-    const tree = SiteHeader();
+    let tree = SiteHeader();
     const input = elements(tree, "input")[0];
     expect(input.props).toMatchObject({
-      type: "text",
+      type: "search",
+      name: "q",
+      defaultValue: "Lino",
       placeholder: "Buscar prendas...",
       autoFocus: true,
     });
-    expect(input.props.onChange).toBeUndefined();
-    expect(input.props.onKeyDown).toBeUndefined();
+    const form = elements(tree, "form")[0];
+    expect(form.props).toMatchObject({ role: "search", "aria-label": "Buscar prendas" });
+    const event = {
+      preventDefault: vi.fn(),
+      currentTarget: { elements: { namedItem: vi.fn(() => ({ value: "  ORIGINAL  " })) } },
+    };
+    (form.props.onSubmit as (event: unknown) => void)(event);
+    expect(event.preventDefault).toHaveBeenCalledOnce();
+    expect(browser.location.search).toBe("?category=tops&q=ORIGINAL&keep=1");
+    probe.stateIndex = 0;
+    tree = SiteHeader();
+    expect(elements(tree, "input")[0].props.defaultValue).toBe("ORIGINAL");
+    expect(
+      elements(tree, "a").filter((link) => link.props.href === "/?q=ORIGINAL#catalog"),
+    ).toHaveLength(2);
+    click(button(tree, "Limpiar búsqueda"));
+    expect(browser.location.search).toBe("?category=tops&keep=1");
     click(button(tree, "Buscar"));
     expect(probe.setState).toHaveBeenCalledWith(false);
+  });
+
+  it("submits search from another page to the catalog without copying page-specific parameters", () => {
+    catalogBrowser("/orders?page=2");
+    const assign = vi.fn();
+    Object.assign(window.location, { assign });
+    probe.states = [true];
+    const tree = SiteHeader();
+    (elements(tree, "form")[0].props.onSubmit as (event: unknown) => void)({
+      preventDefault: vi.fn(),
+      currentTarget: { elements: { namedItem: () => ({ value: "  camisa  " }) } },
+    });
+    expect(assign).toHaveBeenCalledWith("/?q=camisa#catalog");
   });
 
   it("preserves signed-in Clerk menu and loaded credits with mocked effect only", async () => {
@@ -539,6 +570,59 @@ describe("Storefront state, data and callback preservation", () => {
     expect(probe.setState).toHaveBeenCalledWith(EMPTY_FILTERS);
     expect(html(tree)).toContain("2 prendas encontradas");
     expect(JSON.stringify(products)).toBe(before);
+  });
+
+  it("combines search with category/filters and restores query through clear, category and history", () => {
+    const browser = catalogBrowser("/?category=tops&q=LiNo&keep=1#catalog");
+    const top = { ...garment, category: "tops" };
+    const otherSize = { ...top, id: "small", size: "S" };
+    const bottom = { ...top, id: "bottom", category: "bottoms" };
+    const products = [top, otherSize, bottom];
+    const filters = { ...EMPTY_FILTERS, sizes: ["M"], subcategory: "camisas" };
+    probe.states = ["type:tops", filters];
+    let tree = renderCatalog(products, ["tops", "bottoms"]);
+    const cleanup = probe.store!.subscribe(() => {
+      tree = renderCatalog(products, ["tops", "bottoms"]);
+    });
+    expect(elements(tree, ProductCard).map((card) => card.props.product)).toEqual([top]);
+    expect(html(tree)).toContain("1 prenda encontrada para “LiNo”");
+    expect(elements(tree, CatalogFilters)[0].props.categoryProducts).toEqual([top, otherSize]);
+    // Changing only query must not trigger the category's subcategory reset.
+    click(catalogButton(tree, "Limpiar búsqueda"));
+    expect(browser.location.search).toBe("?category=tops&keep=1");
+    expect(probe.states[1]).toBe(filters);
+    browser.back();
+    expect(html(tree)).toContain("para “LiNo”");
+    chooseCollection(tree, "type:bottoms");
+    expect(browser.location.search).toContain("q=LiNo");
+    expect(elements(tree, ProductCard).map((card) => card.props.product)).toEqual([bottom]);
+    expect(probe.states[1]).toEqual({ ...filters, subcategory: null });
+    click(catalogButton(tree, "Limpiar filtros (1)"));
+    tree = renderCatalog(products, ["tops", "bottoms"]);
+    expect(browser.location.search).toContain("q=LiNo");
+    click(catalogButton(tree, "Volver al inicio"));
+    expect(elements(tree, CategoryBanner)).toHaveLength(1);
+    expect(browser.location.search).toBe("?q=LiNo&keep=1");
+    browser.back();
+    expect(elements(tree, "select")[0].props.value).toBe("type:bottoms");
+    cleanup();
+  });
+
+  it("shows a search-specific empty state and clears only the query to recover scoped results", () => {
+    const browser = catalogBrowser("/?category=tops&q=inexistente#catalog");
+    const product = { ...garment, category: "tops" };
+    probe.states = ["type:tops", { ...EMPTY_FILTERS, sizes: ["M"] }];
+    let tree = renderCatalog([product], ["tops"]);
+    expect(elements(tree, ProductCard)).toHaveLength(0);
+    expect(html(tree)).toContain("0 prendas encontradas para “inexistente”");
+    expect(html(tree)).toContain(
+      "No encontramos prendas para esta búsqueda con la categoría y los filtros actuales.",
+    );
+    click(catalogButton(tree, "Limpiar búsqueda"));
+    tree = renderCatalog([product], ["tops"]);
+    expect(browser.location.search).toBe("?category=tops");
+    expect(elements(tree, ProductCard)[0].props.product).toBe(product);
+    expect(html(tree)).toContain("Filtros (1)");
   });
 
   it("retains category narrowing, subcategory-only reset, active count, clear and empty state", () => {
@@ -1153,8 +1237,8 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
         // Chrome deliberately replaces old markup and logic. Pin every accepted byte,
         // including all callbacks, literals and imports; do not discard AST nodes.
         const acceptedChrome = {
-          // Authorized C1a delta: mark the existing cart button as the safe focus fallback.
-          "site-header.tsx": "dc6b9f93afe048ea26cb66b42d7d7d1fbec6646ff54ea39802d7abafd8761921",
+          // Accepted S1 search form/URL wiring; navigation and matching are exercised above.
+          "site-header.tsx": "00744a99c137417d27ca56cab3fa9534aa0b5dc83d81a1bef4845641c1bce4ca",
           "site-footer.tsx": "e465e234f641f23ab346cf4e9a281c03b77f7dc580f10e3817fe0fc971b76575",
         };
         expect(createHash("sha256").update(source(path)).digest("hex")).toBe(acceptedChrome[path]);
@@ -1162,7 +1246,8 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
         // Accepted collection gating/URL state and Card stock/sizes supersede the old premise.
         // Pin every byte, including all AST nodes; behavior contracts above qualify the change.
         const acceptedCatalog = {
-          "catalog-content.tsx": "c1669224b4e6d8bbcfee0053d8f3c884b3ede34ab8cc684e3a091ef5442b3679",
+          // Accepted S1 search narrows existing category/filter results without resetting them.
+          "catalog-content.tsx": "4bc114063088f37fcc88c3f050bc0d9789b18a2fb6f5d6c8a7b5ff0872bdff13",
           "product-card.tsx": "48ecbea82bd741f41f4d24529429bea80103a83afc9d6f6c10369325d79ce5a6",
         };
         expect(createHash("sha256").update(source(path)).digest("hex")).toBe(acceptedCatalog[path]);

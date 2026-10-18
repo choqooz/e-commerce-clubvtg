@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { COLOR_MAP, FILTER_COLORS, PRICE_BRACKETS } from "@/lib/constants";
+import { searchProducts } from "@/lib/catalog-search";
 import { CATEGORIES, formatPrice } from "@/lib/config";
 import type { Product } from "@/lib/types";
 import { ProductCard } from "./product-card";
@@ -176,6 +177,25 @@ describe("Redesigned UI catalog surfaces", () => {
 });
 
 describe("Catalog filter contract", () => {
+  it("combines text search with every active filter dimension without changing filter counts", () => {
+    const matching = product();
+    const state = filters({
+      sizes: ["M"],
+      brands: ["Vintage"],
+      colors: ["azul"],
+      conditions: ["Excelente"],
+      subcategory: "camperas",
+      priceBracket: 2,
+    });
+    const products = [matching, product({ id: "wrong-size", size: "S" })];
+    expect(searchProducts(applyFilters(products, state), "  CAMPERA  ")).toEqual([matching]);
+    expect(searchProducts(applyFilters(products, state), "inexistente")).toEqual([]);
+    expect(getActiveFilterCount(state)).toBe(6);
+    expect(
+      searchProducts(applyFilters(products, filters({ colors: ["rojo"] })), "vintage"),
+    ).toEqual([]);
+  });
+
   it.each([
     [0, 0],
     [14999, 0],
