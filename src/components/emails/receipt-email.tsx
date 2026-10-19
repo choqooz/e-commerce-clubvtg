@@ -9,6 +9,7 @@ import {
   Text,
 } from "@react-email/components";
 import * as React from "react";
+import { EmailBrand } from "./email-brand";
 
 interface ReceiptEmailProps {
   customerName: string;
@@ -23,6 +24,7 @@ export const ReceiptEmail = ({ customerName, orderId, totalAmount }: ReceiptEmai
       <Preview>¡Tu pago en ClubVTG ha sido confirmado!</Preview>
       <Body style={main}>
         <Container style={container}>
+          <EmailBrand />
           <Heading style={h1}>¡Gracias por tu compra, {customerName}!</Heading>
 
           <Section style={bodySection}>
