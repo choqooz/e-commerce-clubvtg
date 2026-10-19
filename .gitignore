@@ -49,3 +49,28 @@ next-env.d.ts
 
 # local clones
 clean-clones-main/
+# Local Pi runtime state
+.atl/
+
+# Local browser automation artifacts
+/.playwright-mcp/
+/playwright-clerk-sign-in.png
+/playwright-product-before-cart.png
+
+# Local Supabase state and telemetry
+/supabase/.temp/
+/supabase/.branches/
+/supabase/migrations/telemetry.json
+
+# Local agent configuration and planning artifacts
+/.agents/
+/skills-lock.json
+/odd/evidence/
+/odd/tasks/
+/openspec/
+/DESIGN.md
+/prd.md
+
+# Local branding sources and workspace configuration
+/branding/
+/pnpm-workspace.yaml
