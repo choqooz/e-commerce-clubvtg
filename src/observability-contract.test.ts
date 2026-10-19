@@ -56,11 +56,53 @@ describe("local configuration documentation", () => {
     expect(ignored).toContain("!.env.local.example");
     expect(names).not.toHaveLength(0);
     for (const name of names) expect(readme).toContain(`\`${name}\``);
-    const safeDefaults = new Set(["NEXT_PUBLIC_APP_URL", "NEXT_PUBLIC_SUPABASE_URL", "SHIPPING_FLAT_FEE", "CREDIT_PACK_BASIC_AMOUNT", "CREDIT_PACK_BASIC_PRICE", "CREDIT_PACK_POPULAR_AMOUNT", "CREDIT_PACK_POPULAR_PRICE", "CREDIT_PACK_PRO_AMOUNT", "CREDIT_PACK_PRO_PRICE"]);
-    for (const [, name, value] of example.matchAll(/^([A-Z0-9_]+)=(.*)$/gm)) if (!safeDefaults.has(name)) expect(value, `${name} must be blank`).toBe("");
-    expect(readme).toMatch(/MP_WEBHOOK_SECRET.*fuera del repositorio/);
-    expect(readme).toMatch(/NEXT_PUBLIC_NGROK_URL.*nunca dirijas un webhook de produccion/i);
+    const safeDefaults = new Set([
+      "NEXT_PUBLIC_APP_URL",
+      "NEXT_PUBLIC_SUPABASE_URL",
+      "SHIPPING_FLAT_FEE",
+      "CREDIT_PACK_BASIC_AMOUNT",
+      "CREDIT_PACK_BASIC_PRICE",
+      "CREDIT_PACK_POPULAR_AMOUNT",
+      "CREDIT_PACK_POPULAR_PRICE",
+      "CREDIT_PACK_PRO_AMOUNT",
+      "CREDIT_PACK_PRO_PRICE",
+    ]);
+    for (const [, name, value] of example.matchAll(/^([A-Z0-9_]+)=(.*)$/gm))
+      if (!safeDefaults.has(name)) expect(value, `${name} must be blank`).toBe("");
     expect(readme).not.toContain("Vercel");
-    for (const claim of [/\bDNS\b/i, /\b(?:provider[- ]?)?provision(?:ing|amiento)?\b/i, /\b(?:deploy(?:ment)?|despliegue)\b/i, /\b(?:env(?:ironment)?|entorno)\b.*\b(?:upload(?:s|ed)?|subir|subida|carga)\b/i, /\b(?:upload(?:s|ed)?|subir|subida|carga)\b.*\b(?:env(?:ironment)?|entorno)\b/i]) expect(readme).not.toMatch(claim);
+    for (const claim of [
+      /\bDNS\b/i,
+      /\b(?:env(?:ironment)?|entorno)\b.*\b(?:upload(?:s|ed)?|subir|subida|carga)\b/i,
+      /\b(?:upload(?:s|ed)?|subir|subida|carga)\b.*\b(?:env(?:ironment)?|entorno)\b/i,
+    ])
+      expect(readme).not.toMatch(claim);
+  });
+
+  it("documents webhook safety and the limits of local setup", () => {
+    const readme = readFileSync(join(root, "README.md"), "utf8")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    const paragraphs = readme.split(/\n\s*\n/);
+    const webhookWarning =
+      paragraphs.find(
+        (paragraph) =>
+          paragraph.includes("`NEXT_PUBLIC_NGROK_URL`") && !paragraph.trimStart().startsWith("|"),
+      ) ?? "";
+
+    expect(readme).toMatch(/`MP_WEBHOOK_SECRET`[^.!?\n]*fuera del repositorio/i);
+    expect(webhookWarning).toMatch(
+      /`NEXT_PUBLIC_NGROK_URL`[^.!?]*solo[^.!?]*desarrollo[^.!?]*se ignora en produccion/i,
+    );
+    expect(webhookWarning).toMatch(
+      /nunca (?:dirigir|dirijas)[^.!?]*webhook de produccion[^.!?]*tunel temporal[^.!?]*URL local/i,
+    );
+    expect(readme).toMatch(/instalar dependencias no aprovisiona la tienda/i);
+    expect(readme).toMatch(
+      /ni `npm ci` ni `npm install`[^.!?]*crean un proyecto Supabase[^.!?]*aplican su esquema[^.!?]*preparan Storage[^.!?]*configuran Clerk/i,
+    );
+    expect(readme).toMatch(/no son un procedimiento de aprovisionamiento de produccion/i);
+    expect(readme).toMatch(
+      /no proporciona una receta completa[^.!?]*Supabase[^.!?]*Storage[^.!?]*despliegue/i,
+    );
   });
 });

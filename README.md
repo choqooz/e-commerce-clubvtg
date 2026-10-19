@@ -84,7 +84,7 @@ La aplicación queda disponible por defecto en `http://localhost:3000`.
 
 En producción, retornos de pago y webhooks usan `NEXT_PUBLIC_APP_URL`: un origen HTTPS absoluto, sin credenciales, ruta adicional, parámetros ni fragmento; el código rechaza destinos locales y los dominios de túnel previstos en su validación.
 
-`NEXT_PUBLIC_NGROK_URL` solo modifica la base de webhooks en desarrollo; no reemplaza el origen de retorno y se ignora en producción. **Nunca dirigir un webhook de producción a un túnel temporal o una URL local.** Mantener los secretos de firma fuera del repositorio.
+`NEXT_PUBLIC_NGROK_URL` solo modifica la base de webhooks en desarrollo; no reemplaza el origen de retorno y se ignora en producción. **Nunca dirigir un webhook de producción a un túnel temporal o una URL local.** Mantener `MP_WEBHOOK_SECRET` y los demás secretos de firma fuera del repositorio.
 
 ## Variables de entorno
 
