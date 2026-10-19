@@ -40,7 +40,29 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider localization={esES} afterSignOutUrl="/">
+    <ClerkProvider
+      localization={esES}
+      afterSignOutUrl="/"
+      appearance={{
+        options: { logoImageUrl: "/branding/clubvtg/clubvtg-horizontal-black.svg" },
+        elements: {
+          logoBox: {
+            alignSelf: "center",
+            marginInline: "auto",
+            width: "180px",
+            maxWidth: "100%",
+            height: "auto",
+            aspectRatio: "554 / 194",
+          },
+          logoImage: {
+            width: "100%",
+            height: "auto",
+            maxHeight: "none",
+            aspectRatio: "554 / 194",
+          },
+        },
+      }}
+    >
       <html lang="es" className={`${inter.variable} ${ibmPlexMono.variable} h-full antialiased`}>
         <body className="min-h-full flex flex-col font-sans">
           <Providers>

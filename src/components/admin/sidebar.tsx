@@ -4,6 +4,7 @@ import { LayoutDashboard, Menu, Package, ShoppingCart, Ticket, X } from "lucide-
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { BrandMark } from "@/components/brand-mark";
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
@@ -35,15 +36,15 @@ export function AdminSidebar() {
 
   return (
     <aside className="hidden w-[240px] shrink-0 flex-col border-r border-midnight-ink bg-bone-white font-sans font-normal text-midnight-ink md:flex">
-      <div className="flex min-h-[72px] items-center border-b border-midnight-ink px-[24px] py-[18px]">
+      <div className="flex min-h-[72px] items-center gap-[8px] border-b border-midnight-ink px-[24px] py-[18px]">
         <Link
           href="/"
+          aria-label="clubvtg — Inicio"
           className="focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
         >
-          <h1 className="font-sans text-[20px] leading-[1.3] font-normal">
-            clubvtg <span className="ml-[6px] font-mono text-[13px] font-normal">Admin</span>
-          </h1>
+          <BrandMark alt="" className="w-[120px]" />
         </Link>
+        <span className="font-mono text-[13px] font-normal">Admin</span>
       </div>
 
       <nav
@@ -104,7 +105,10 @@ export function AdminMobileNavigation() {
 
   return (
     <header className="flex min-h-[72px] items-center justify-between gap-[18px] border-b border-midnight-ink bg-bone-white px-[18px] md:hidden">
-      <span className="font-sans text-[20px] font-normal">clubvtg Admin</span>
+      <div className="flex items-center gap-[8px]">
+        <BrandMark className="w-[120px]" />
+        <span className="font-mono text-[13px] font-normal">Admin</span>
+      </div>
       <Sheet
         open={menu.open && menu.pathname === pathname}
         onOpenChange={(open) => {

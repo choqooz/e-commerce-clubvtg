@@ -77,7 +77,7 @@ describe("Shared storefront chrome", () => {
 
   it("compiles retained header areas, M6 upper tracks and M9 centered lower columns", async () => {
     const classes: string[] = [];
-    for (const path of ["site-header.tsx", "site-footer.tsx"]) {
+    for (const path of ["brand-mark.tsx", "site-header.tsx", "site-footer.tsx"]) {
       const source = read(path);
       expect(source).not.toMatch(/min-h-\[(?:7\d\d|10\d\d|11\d\d)px\]/);
       walk(parse(source), (node) => {
@@ -121,7 +121,7 @@ describe("Shared storefront chrome", () => {
       ["md:grid-cols-[3fr_2fr_3fr]", "grid-template-columns: 3fr 2fr 3fr;"],
       ["grid-cols-2", "grid-template-columns: repeat(2, minmax(0, 1fr));"],
       ["md:grid-cols-4", "grid-template-columns: repeat(4, minmax(0, 1fr));"],
-      ["grid-cols-[1fr_3fr]", "grid-template-columns: 1fr 3fr;"],
+      ["grid-cols-[120px_minmax(0,1fr)]", "grid-template-columns: 120px minmax(0,1fr);"],
       ["md:grid-cols-16", "grid-template-columns: repeat(16, minmax(0, 1fr));"],
       ["col-start-2", "grid-column-start: 2;"],
       ["md:col-span-8", "grid-column: span 8 / span 8;"],
@@ -140,7 +140,11 @@ describe("Shared storefront chrome", () => {
       ["md:pr-[26px]", "padding-right: 26px;"],
       ["md:pt-[64px]", "padding-top: 64px;"],
       ["md:mb-[12.8px]", "margin-bottom: 12.8px;"],
-      ["leading-[33px]", "line-height: 33px;"],
+      ["w-[120px]", "width: 120px;"],
+      ["md:w-[180px]", "width: 180px;"],
+      ["h-auto", "height: auto;"],
+      ["md:max-w-[420px]", "max-width: 420px;"],
+      ["md:w-full", "width: 100%;"],
       ["max-w-[1280px]", "max-width: 1280px;"],
       ["max-w-[240px]", "max-width: 240px;"],
       ["mx-auto", "margin-inline: auto;"],
@@ -162,7 +166,6 @@ describe("Shared storefront chrome", () => {
       ["md:mt-[91px]", "margin-top: 91px;"],
       ["text-[20px]", "font-size: 20px;"],
 
-      ["md:text-[111px]", "font-size: 111px;"],
       ["text-[11px]", "font-size: 11px;"],
       ["leading-[15px]", "line-height: 15px;"],
       ["md:leading-[15.5px]", "line-height: 15.5px;"],

@@ -132,6 +132,7 @@ vi.mock("@/components/ui/sheet", () => {
     ].map((name) => [name, surface]),
   );
 });
+import { BrandMark } from "./brand-mark";
 import { SiteHeader } from "./site-header";
 import { SiteFooter } from "./site-footer";
 import { AdminMobileNavigation, AdminSidebar } from "./admin/sidebar";
@@ -321,6 +322,10 @@ describe("Navigation contracts", () => {
     expect(markup.match(/href="\/"/g)).toHaveLength(1);
     const home = elements(tree, "a").find((anchor) => anchor.props.href === "/")!;
     expect(home.props["aria-label"]).toBe("clubvtg — Inicio");
+    expect(elements(home, BrandMark)[0].props).toMatchObject({
+      alt: "",
+      className: "w-[120px] md:w-[180px]",
+    });
     // This shallow Sheet mock includes both desktop and unmounted mobile JSX.
     const catalogLinks = elements(tree, "a").filter((anchor) => anchor.props.href === "/#catalog");
     expect(catalogLinks).toHaveLength(2);
@@ -412,6 +417,28 @@ describe("Navigation contracts", () => {
     expect(markup).toContain(`${new Date().getFullYear()} clubvtg. Todos los derechos reservados.`);
     expect(markup).toContain("Envíos a todo el país · Correo Argentino");
     expect(markup).toContain("Cada pieza tiene una historia.");
+    const home = elements(SiteFooter(), "a").find((anchor) => anchor.props.href === "/")!;
+    expect(home.props["aria-label"]).toBe("clubvtg — Inicio");
+    expect(elements(home, BrandMark)[0].props).toMatchObject({
+      alt: "",
+      className: "w-[120px] md:w-full md:max-w-[420px]",
+    });
+  });
+
+  it("keeps the complete admin mark separate from its Admin label on both presentations", () => {
+    const desktop = AdminSidebar();
+    const mobile = AdminMobileNavigation();
+    const home = descendants(desktop).find(
+      (node) => node.props["aria-label"] === "clubvtg — Inicio",
+    )!;
+    expect(home.props.href).toBe("/");
+    expect(elements(home, BrandMark)[0].props).toMatchObject({ alt: "", className: "w-[120px]" });
+    expect(elements(mobile, BrandMark)[0].props).toEqual({ className: "w-[120px]" });
+    for (const tree of [desktop, mobile]) {
+      expect(elements(tree, "span").some((node) => node.props.children === "Admin")).toBe(true);
+      expect(html(tree)).toContain("/branding/clubvtg/clubvtg-horizontal-black.svg");
+      expect(html(tree)).not.toContain("<h1");
+    }
   });
 
   it.each([
@@ -1237,9 +1264,9 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
         // Chrome deliberately replaces old markup and logic. Pin every accepted byte,
         // including all callbacks, literals and imports; do not discard AST nodes.
         const acceptedChrome = {
-          // Accepted S1 search form/URL wiring; navigation and matching are exercised above.
-          "site-header.tsx": "00744a99c137417d27ca56cab3fa9534aa0b5dc83d81a1bef4845641c1bce4ca",
-          "site-footer.tsx": "e465e234f641f23ab346cf4e9a281c03b77f7dc580f10e3817fe0fc971b76575",
+          // B1 changes only the brand image; accepted S1 search/navigation remain exercised above.
+          "site-header.tsx": "afdc24465972478bb3383c0812360e422e4973b8ef1eafdf59c9ac5d80738a0f",
+          "site-footer.tsx": "1e9a96519016d16e1c243e93281e9f3f464ab28336f8ac41990e4c510869f6bb",
         };
         expect(createHash("sha256").update(source(path)).digest("hex")).toBe(acceptedChrome[path]);
       } else if (path === "catalog-content.tsx" || path === "product-card.tsx") {
@@ -1270,9 +1297,21 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
         // Exact-root activity, accessible landmarks and mobile/return-store flows are accepted.
         // Pin every new byte while retaining the original desktop nonpresentation baseline.
         expect(createHash("sha256").update(source(path)).digest("hex")).toBe(
-          "9219aabd8e0c627e6bbcda146d11ad0821e75d63c7b2ba37fa5f00119ba06d6e",
+          "865be40066a33f976f25fa7fde9d9628b65958d0f0cd2919ae2d75abda5faa42",
         );
-        expect(signatures(source(path), true)).toEqual(signatures(baseline));
+        // Reverse only the approved desktop brand substitution for the old semantic comparison.
+        // The complete new source remains pinned above; mobile navigation is still covered in full.
+        const previousBrand = source(path)
+          .replace('          aria-label="clubvtg — Inicio"\n', "")
+          .replace(
+            '          <BrandMark alt="" className="w-[120px]" />',
+            '<h1 className="font-sans text-[20px] leading-[1.3] font-normal">clubvtg <span className="ml-[6px] font-mono text-[13px] font-normal">Admin</span></h1>',
+          )
+          .replace(
+            '\n        </Link>\n        <span className="font-mono text-[13px] font-normal">Admin</span>',
+            "\n        </Link>",
+          );
+        expect(signatures(previousBrand, true)).toEqual(signatures(baseline));
       } else {
         expect(signatures(source(path))).toEqual(signatures(baseline));
       }
@@ -1378,7 +1417,8 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
       ["text-[16px]", "font-size", "16px"],
       ["text-[30px]", "font-size", "30px"],
       ["md:text-[15px]", "font-size", "15px"],
-      ["md:text-[111px]", "font-size", "111px"],
+      ["md:w-[180px]", "width", "180px"],
+      ["md:max-w-[420px]", "max-width", "420px"],
       ["md:flex", "display", "flex"],
       // Accepted detail uses a top-aligned 7:5 spread rather than the old equal columns.
       [

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BrandMark } from "@/components/brand-mark";
 
 const stories = [
   {
@@ -26,14 +27,14 @@ export function SiteFooter() {
   return (
     <footer className="bg-white pb-[28px] font-sans font-normal text-midnight-ink">
       {/* Reconstruct the M6 editorial tracks; only the separate lower row is centered. */}
-      <div className="grid grid-cols-[1fr_3fr] gap-x-[8px] gap-y-[30.8px] px-[14px] pt-[77px] text-left md:grid-cols-16 md:gap-y-[36.4px] md:px-0 md:pt-[91px]">
+      <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-x-[8px] gap-y-[30.8px] px-[14px] pt-[77px] text-left md:grid-cols-16 md:gap-y-[36.4px] md:px-0 md:pt-[91px]">
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- Native home navigation resets the hash-only collection without requiring client hooks in the footer. */}
         <a
           href="/"
           aria-label="clubvtg — Inicio"
-          className="row-span-4 flex min-w-0 items-center justify-center text-[20px] leading-[33px] tracking-[-0.04em] md:col-span-8 md:row-span-2 md:items-start md:pt-[64px] md:text-[111px] md:leading-[133px] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
+          className="row-span-4 flex min-w-0 items-center justify-center md:col-span-8 md:row-span-2 md:items-start md:px-[24px] md:pt-[64px] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
         >
-          clubvtg
+          <BrandMark alt="" className="w-[120px] md:w-full md:max-w-[420px]" />
         </a>
         {stories.map(({ title, body }, index) => (
           <section
