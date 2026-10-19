@@ -33,6 +33,12 @@ import {
   SheetFooter,
   SheetClose,
 } from "@/components/ui/sheet";
+import {
+  catalogSearchSnapshot,
+  emptySearchSnapshot,
+  navigateCatalogSearch,
+  searchProducts,
+} from "@/lib/catalog-search";
 import { CATEGORIES, type Category } from "@/lib/config";
 import type { Product } from "@/lib/types";
 
@@ -46,6 +52,11 @@ export function CatalogContent({
   typesLoadError?: boolean;
 }) {
   const names = normalizePublicTypeNames(publicTypeNames);
+  const query = useSyncExternalStore(
+    subscribeToCollection,
+    catalogSearchSnapshot,
+    emptySearchSnapshot,
+  );
   const [previousCategory, setPreviousCategory] = useState<CatalogSnapshot>("all");
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
   const snapshot = useSyncExternalStore(
@@ -91,7 +102,7 @@ export function CatalogContent({
     selection === "all"
       ? initialProducts
       : initialProducts.filter((p) => p.category === activeCategory);
-  const finalProducts = applyFilters(categoryProducts, filters);
+  const finalProducts = searchProducts(applyFilters(categoryProducts, filters), query);
   const activeFilterCount = getActiveFilterCount(filters);
 
   const handleCategoryChange = (cat: CatalogSnapshot) => {
@@ -229,7 +240,18 @@ export function CatalogContent({
                   <span role="status">
                     {finalProducts.length}{" "}
                     {finalProducts.length === 1 ? "prenda encontrada" : "prendas encontradas"}
+                    {query && <> para “{query}”</>}
                   </span>
+                  {query && (
+                    <button
+                      type="button"
+                      onClick={() => navigateCatalogSearch("")}
+                      className="flex min-h-[36px] items-center gap-[6px] underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2"
+                    >
+                      <X size={12} aria-hidden="true" />
+                      Limpiar búsqueda
+                    </button>
+                  )}
                   {activeFilterCount > 0 && (
                     <button
                       type="button"
@@ -255,7 +277,11 @@ export function CatalogContent({
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center gap-[13px] px-[18px] py-[42px] font-mono text-[13px]">
-                  <p>No encontramos prendas con estos filtros.</p>
+                  <p>
+                    {query
+                      ? "No encontramos prendas para esta búsqueda con la categoría y los filtros actuales."
+                      : "No encontramos prendas con estos filtros."}
+                  </p>
                   {activeFilterCount > 0 && (
                     <Button variant="outline" size="sm" onClick={clearFilters}>
                       Limpiar filtros

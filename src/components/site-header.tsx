@@ -3,11 +3,18 @@
 import { useAuth, useClerk, SignInButton, UserButton } from "@clerk/nextjs";
 import { Search, ShoppingBag, Sparkles, User, Package, CreditCard, Menu, X } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect, useId, useRef } from "react";
+import { useState, useEffect, useId, useRef, useSyncExternalStore } from "react";
 import { toast } from "sonner";
+import { subscribeToCollection } from "@/components/catalog-url-state";
 import { Sheet, SheetTrigger, SheetContent, SheetTitle, SheetClose } from "@/components/ui/sheet";
 import { useCart } from "@/contexts/cart-context";
 import { getUserCredits } from "@/lib/actions/credits";
+import {
+  catalogSearchHref,
+  catalogSearchSnapshot,
+  emptySearchSnapshot,
+  navigateCatalogSearch,
+} from "@/lib/catalog-search";
 import announcement from "./storefront-announcement.module.css";
 
 const SHIPPING_NOTICE = "Envío a todo el país · Correo Argentino";
@@ -77,6 +84,12 @@ export function SiteHeader() {
   const { isSignedIn, userId } = useAuth();
   const { openSignIn, openUserProfile, signOut } = useClerk();
   const credits = isSignedIn && balance?.userId === userId ? balance.credits : null;
+  const query = useSyncExternalStore(
+    subscribeToCollection,
+    catalogSearchSnapshot,
+    emptySearchSnapshot,
+  );
+  const catalogHref = catalogSearchHref(query);
 
   // One session-scoped request supplies both presentations; stale results stay invisible.
   useEffect(() => {
@@ -202,8 +215,7 @@ export function SiteHeader() {
                 </SheetClose>
               </div>
               <nav aria-label="Navegación móvil" className="flex min-w-0 flex-col">
-                {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- Preserve native collection hash navigation. */}
-                <a href="/#catalog" className={MENU_ITEM} onClick={navigateCatalog}>
+                <a href={catalogHref} className={MENU_ITEM} onClick={navigateCatalog}>
                   Catálogo
                 </a>
                 <button type="button" className={MENU_ITEM} onClick={() => queueAction("search")}>
@@ -268,9 +280,8 @@ export function SiteHeader() {
             className="hidden shrink-0 items-center md:flex md:justify-between md:pr-[24px]"
           >
             {/* Native fragment navigation notifies the collection's hash subscription. */}
-            {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- Same-document hash changes must emit hashchange, including on the current home route. */}
             <a
-              href="/#catalog"
+              href={catalogHref}
               aria-label="Catálogo"
               onClick={navigateCatalog}
               className="flex h-[44px] min-w-[40px] items-center text-[11px] leading-[18px] uppercase md:text-[15px] hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
@@ -372,18 +383,47 @@ export function SiteHeader() {
           </div>
         </div>
 
-        {/* Search bar (expandable, no search behavior is introduced). */}
         {searchOpen && (
-          <div id="storefront-search" className="px-[14px] pb-[18px] md:px-[6.25%]">
+          <form
+            id="storefront-search"
+            role="search"
+            aria-label="Buscar prendas"
+            action="/#catalog"
+            method="get"
+            className="flex flex-wrap items-center gap-[6px] px-[14px] pb-[18px] md:px-[6.25%]"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const input = event.currentTarget.elements.namedItem("q") as HTMLInputElement;
+              navigateCatalogSearch(input.value);
+            }}
+          >
             <input
+              key={query}
               ref={searchInput}
+              name="q"
+              defaultValue={query}
               aria-label="Buscar prendas"
-              type="text"
+              type="search"
               placeholder="Buscar prendas..."
-              className="h-[36px] w-full rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] font-sans text-[16px] font-normal text-midnight-ink placeholder:text-concrete-gray md:text-[15px] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
+              className="h-[36px] min-w-0 flex-1 rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] font-sans text-[16px] font-normal text-midnight-ink placeholder:text-concrete-gray md:text-[15px] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
               autoFocus
             />
-          </div>
+            <button
+              type="submit"
+              className="min-h-[36px] px-[6px] font-mono text-[13px] underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
+            >
+              Buscar prendas
+            </button>
+            {query && (
+              <button
+                type="button"
+                onClick={() => navigateCatalogSearch("")}
+                className="min-h-[36px] px-[6px] font-mono text-[13px] underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
+              >
+                Limpiar búsqueda
+              </button>
+            )}
+          </form>
         )}
       </div>
     </header>
