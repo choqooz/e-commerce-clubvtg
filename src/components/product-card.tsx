@@ -32,8 +32,8 @@ export function ProductCard({
               src={product.image_urls[0]}
               alt={product.title}
               fill
-              priority={priority}
-              sizes="(min-width: 768px) 25vw, 50vw"
+              preload={priority}
+              sizes="(min-width: 1024px) 25vw, 50vw"
               className="object-cover"
             />
           ) : (
@@ -45,24 +45,28 @@ export function ProductCard({
       </div>
 
       {/* Info */}
-      <h3 className="mt-[13px] px-[13px] font-mono text-[13px] font-normal leading-[1.2]">
-        {product.title}
-      </h3>
-      <div className="mt-[6px] flex flex-wrap items-center gap-[6px] px-[13px] font-mono text-[13px] font-normal">
-        {product.promotion_percent ? (
-          <span className="line-through">{formatPrice(product.price)}</span>
-        ) : null}
-        <span>{formatPrice(currentPrice)}</span>
-        {product.promotion_percent ? <span>-{product.promotion_percent}%</span> : null}
+      <div className="mt-[13px] flex items-baseline justify-between gap-[13px] px-[13px] font-sans text-[15px] leading-[1.2]">
+        <h3 className="min-w-0 break-words font-normal underline underline-offset-2">
+          {product.title}
+        </h3>
+        <div className="flex shrink-0 flex-col items-end gap-[6px]">
+          {product.promotion_percent ? (
+            <span className="text-[13px] line-through">{formatPrice(product.price)}</span>
+          ) : null}
+          <span className="whitespace-nowrap">{formatPrice(currentPrice)}</span>
+          {product.promotion_percent ? (
+            <span className="font-mono text-[13px]">-{product.promotion_percent}%</span>
+          ) : null}
+        </div>
       </div>
       {promotionEnd ? (
-        <span className="mt-[6px] block px-[13px] font-mono text-[13px] font-normal">
+        <span className="mt-[6px] block px-[13px] font-mono text-[13px] font-normal text-foreground/65">
           Hasta {promotionEnd}
         </span>
       ) : null}
 
       {/* Color + size */}
-      <div className="mt-[6px] flex flex-wrap items-center gap-[6px] px-[13px]">
+      <div className="mt-[6px] flex flex-wrap items-center justify-center gap-[6px] px-[13px] text-center text-foreground/65">
         <span className="font-mono text-[13px] font-normal">
           {product.size ? `Talle ${product.size}` : "Talle Único"}
           {product.color ? ` • ${product.color}` : ""}

@@ -9,8 +9,8 @@ export class StorefrontPage extends BasePage {
 
   constructor(page: Page) {
     super(page);
-    this.catalogHeading = page.getByRole("heading", { name: "Catálogo" });
-    this.productLinks = page.getByRole("main").locator('a[href^="/product/"]');
+    this.catalogHeading = page.locator("#catalog").getByRole("heading", { level: 1 });
+    this.productLinks = page.locator('#catalog a.product-card[href^="/product/"]');
     this.addToCartButton = page.getByRole("button", { name: "Agregar al carrito" });
     this.cartDialog = page.getByRole("dialog");
   }
