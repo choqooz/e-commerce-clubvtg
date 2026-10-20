@@ -162,7 +162,11 @@ describe("Redesigned UI catalog surfaces", () => {
     expect(html).not.toContain("Ver Todo en el catálogo");
     expect(classTokens(html)).toEqual(
       expect.arrayContaining([
+        "text-[24px]",
         "md:text-[30px]",
+        "text-[14px]",
+        "tracking-normal",
+        "gap-[13px]",
         "font-sans",
         "font-normal",
         "font-mono",

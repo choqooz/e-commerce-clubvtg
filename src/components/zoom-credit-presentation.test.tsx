@@ -353,7 +353,7 @@ describe("In-memory actual Tailwind presentation", () => {
       ["bg-bone-white", "background-color", "var(--color-bone-white)"],
       ["bg-warm-sand", "background-color", "var(--color-warm-sand)"],
       ["text-midnight-ink", "color", "var(--color-midnight-ink)"],
-      ["font-mono", "font-family", "var(--font-ibm-plex-mono)"],
+      ["font-mono", "font-family", "var(--font-maison-neue-mono-local)"],
       ["font-normal", "font-weight", "var(--font-weight-normal)"],
       ["text-[13px]", "font-size", "13px"],
       ["leading-[1.2]", "line-height", "1.2"],

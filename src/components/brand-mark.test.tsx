@@ -9,9 +9,8 @@ import SignInPage from "@/app/sign-in/[[...sign-in]]/page";
 import { BrandMark } from "./brand-mark";
 
 // Inspect the root JSX without mounting Clerk, analytics, fonts or any live service.
-vi.mock("next/font/google", () => ({
-  Inter: () => ({ variable: "inter-fixture" }),
-  IBM_Plex_Mono: () => ({ variable: "mono-fixture" }),
+vi.mock("next/font/local", () => ({
+  default: ({ variable }: { variable: string }) => ({ variable: `${variable}-fixture` }),
 }));
 vi.mock("@clerk/nextjs", () => ({ ClerkProvider: vi.fn(), SignIn: vi.fn() }));
 vi.mock("@/app/providers", () => ({ Providers: vi.fn() }));
