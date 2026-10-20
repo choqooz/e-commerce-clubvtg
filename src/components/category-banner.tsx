@@ -126,17 +126,17 @@ function CategoryTile({
         />
       )}
       <span
-        className={`relative flex w-max max-w-full min-w-0 flex-col items-center gap-[6px] py-[6px] group-focus-visible:outline-2 group-focus-visible:outline-solid group-focus-visible:-outline-offset-2 ${
+        className={`relative flex w-max max-w-full min-w-0 flex-col items-center gap-[13px] group-focus-visible:outline-2 group-focus-visible:outline-solid group-focus-visible:-outline-offset-2 ${
           source
             ? "text-bone-white group-focus-visible:outline-bone-white"
             : "text-midnight-ink group-focus-visible:outline-midnight-ink"
         }`}
       >
-        <span className="relative block max-w-full break-words font-sans text-[24px] font-normal leading-none md:text-[30px]">
+        <span className="relative block max-w-full break-words font-sans text-[24px] font-normal leading-none tracking-normal md:text-[30px]">
           {label}
         </span>
         {source && (
-          <span className="relative block font-mono text-[13px] font-normal leading-[1.2] underline underline-offset-4">
+          <span className="relative block font-sans text-[14px] font-normal leading-[1.2] tracking-normal underline underline-offset-4">
             Ver colección
           </span>
         )}

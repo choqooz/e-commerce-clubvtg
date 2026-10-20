@@ -1,22 +1,25 @@
 import { esES } from "@clerk/localizations";
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
-import { Inter, IBM_Plex_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { Toaster } from "sonner";
 import { Providers } from "@/app/providers";
 import "./globals.css";
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  weight: "400",
+// User-approved substitute for the reference F-Grotesk, not the original typeface.
+const familjenGrotesk = localFont({
+  src: "./fonts/FamiljenGrotesk-VariableFont_wght.ttf",
+  variable: "--font-familjen-grotesk",
+  weight: "400 700",
+  style: "normal",
   display: "swap",
 });
 
-const ibmPlexMono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  variable: "--font-ibm-plex-mono",
+const maisonNeueMono = localFont({
+  src: "./fonts/MaisonNeueMono-Regular.woff2",
+  variable: "--font-maison-neue-mono-local",
   weight: "400",
+  style: "normal",
   display: "swap",
 });
 
@@ -63,7 +66,10 @@ export default function RootLayout({
         },
       }}
     >
-      <html lang="es" className={`${inter.variable} ${ibmPlexMono.variable} h-full antialiased`}>
+      <html
+        lang="es"
+        className={`${familjenGrotesk.variable} ${maisonNeueMono.variable} h-full antialiased`}
+      >
         <body className="min-h-full flex flex-col font-sans">
           <Providers>
             {children}

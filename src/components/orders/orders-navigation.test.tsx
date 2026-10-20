@@ -500,7 +500,7 @@ describe("R1 shared compact orders breadcrumb (isolated SSR)", () => {
       ["focus-visible:outline-solid", "outline-style: solid;"],
       ["focus-visible:outline-offset-2", "outline-offset: 2px;"],
       ["focus-visible:outline-midnight-ink", "outline-color: var(--color-midnight-ink);"],
-      ["font-mono", "font-family: var(--font-ibm-plex-mono);"],
+      ["font-mono", "font-family: var(--font-maison-neue-mono-local);"],
     ])
       expect(utility(name)).toContain(declaration);
     expect(utility("flex-wrap")).not.toContain("@media");

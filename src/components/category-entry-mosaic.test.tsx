@@ -234,17 +234,27 @@ describe("Category-photo entry", () => {
         expect(textBox.props.className).toContain("group-focus-visible:outline-bone-white");
         expect(textBox.props.className).not.toMatch(/bg-|shadow|rounded-/);
         expect(textBox.props.className).toContain("w-max max-w-full");
+        expect(textBox.props.className).toContain("gap-[13px]");
+        expect(textBox.props.className).not.toMatch(/(?:^|\s)p[xy]?-/);
         expect(textBox.props.className!.split(" ")).not.toContain("w-full");
         const title = descendants(textBox).find(
           (element) => element.props.children === tile.props.label,
         )!;
-        expect(title.props.className).toContain("font-sans");
-        expect(title.props.className).not.toMatch(/bg-|text-midnight-ink|shadow|rounded-/);
+        expect(title.props.className).toContain(
+          "font-sans text-[24px] font-normal leading-none tracking-normal md:text-[30px]",
+        );
+        // Restore the approved mobile/desktop title sizes while retaining proportional sans.
+        expect(title.props.className).not.toMatch(
+          /font-mono|text-\[20px\]|bg-|text-midnight-ink|shadow|rounded-/,
+        );
         const collection = descendants(textBox).find(
           (element) => element.props.children === "Ver colección",
         )!;
         expect(collection.type).toBe("span"); // The native enclosing button owns the existing category action.
-        expect(collection.props.className).toContain("font-mono text-[13px] font-normal");
+        expect(collection.props.className).toContain(
+          "font-sans text-[14px] font-normal leading-[1.2] tracking-normal underline underline-offset-4",
+        );
+        expect(collection.props.className).not.toMatch(/font-mono|\S+:text-/);
         expect(button.props.className).toContain("items-center justify-center");
         const overlays = descendants(button.props.children);
         expect(overlays.map((element) => element.props.className ?? "").join(" ")).not.toMatch(
@@ -395,6 +405,14 @@ describe("Category-photo entry", () => {
       ["grid-cols-2", "grid-template-columns", "repeat(2, minmax(0, 1fr))"],
       ["md:grid-cols-4", "grid-template-columns", "repeat(4, minmax(0, 1fr))"],
       ["gap-[10px]", "gap", "10px"],
+      ["gap-[13px]", "gap", "13px"],
+      ["text-[24px]", "font-size", "24px"],
+      ["md:text-[30px]", "font-size", "30px"],
+      ["text-[14px]", "font-size", "14px"],
+      ["tracking-normal", "letter-spacing", "var(--tracking-normal)"],
+      ["leading-none", "line-height", "1"],
+      ["leading-[1.2]", "line-height", "1.2"],
+      ["underline", "text-decoration-line", "underline"],
       ["col-span-2", "grid-column", "span 2 / span 2"],
       ["row-span-2", "grid-row", "span 2 / span 2"],
       ["md:col-start-3", "grid-column-start", "3"],
@@ -407,8 +425,8 @@ describe("Category-photo entry", () => {
       ["min-w-0", "min-width", "calc(var(--spacing) * 0)"],
       ["text-midnight-ink", "color", "var(--color-midnight-ink)"],
       ["object-cover", "object-fit", "cover"],
-      ["font-sans", "font-family", "var(--font-inter)"],
-      ["font-mono", "font-family", "var(--font-ibm-plex-mono)"],
+      ["font-sans", "font-family", "var(--font-familjen-grotesk)"],
+      ["font-mono", "font-family", "var(--font-maison-neue-mono-local)"],
       ["font-normal", "font-weight", "var(--font-weight-normal)"],
       ["focus-visible:outline-2", "outline-width", "2px"],
       ["focus-visible:-outline-offset-[6px]", "outline-offset", "calc(6px * -1)"],
@@ -418,6 +436,10 @@ describe("Category-photo entry", () => {
       ["text-bone-white", "color", "var(--color-bone-white)"],
     ])
       utility(name, property, value);
+    const desktopTitle = css.nodes.find(
+      (node) => node.type === "rule" && node.selector === ".md\\:text-\\[30px\\]",
+    );
+    expect(desktopTitle?.toString()).toContain("@media (width >= 48rem)");
     expect(compiler.build(classes)).toContain("@media (width >= 48rem)");
     expect(compiler.build(classes)).toContain("&:focus-visible");
 
