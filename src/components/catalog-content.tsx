@@ -20,7 +20,7 @@ import {
   type CatalogSnapshot,
 } from "@/components/catalog-url-state";
 import { CategoryBanner } from "@/components/category-banner";
-import { ProductCard } from "@/components/product-card";
+import { CollectionEditorial } from "@/components/collection-editorial";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
@@ -159,8 +159,7 @@ export function CatalogContent({
         >
           {isCollection && (
             <>
-              <h1 className="sr-only">Catálogo de prendas</h1>
-              <div className="flex flex-wrap items-center justify-between gap-[13px] px-[18px] py-[18px] font-mono text-[13px] md:px-[24px]">
+              <div className="flex flex-wrap items-center justify-between gap-x-[13px] gap-y-[6px] px-[18px] py-[6px] font-mono text-[13px] md:px-[24px]">
                 <button
                   type="button"
                   onClick={() => navigateCollection("home")}
@@ -252,16 +251,6 @@ export function CatalogContent({
                       Limpiar búsqueda
                     </button>
                   )}
-                  {activeFilterCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={clearFilters}
-                      className="flex min-h-[36px] items-center gap-[6px] underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2"
-                    >
-                      <X size={12} aria-hidden="true" />
-                      Limpiar filtros ({activeFilterCount})
-                    </button>
-                  )}
                 </div>
               </div>
               {typesLoadError ? (
@@ -270,23 +259,28 @@ export function CatalogContent({
                 names.length === 0 && <p role="status">No hay categorías creadas disponibles.</p>
               )}
               {finalProducts.length > 0 ? (
-                <div className="grid grid-cols-2 gap-x-[10px] gap-y-[24px] pb-[42px] md:grid-cols-4">
-                  {finalProducts.map((product, i) => (
-                    <ProductCard key={product.id} product={product} priority={i === 0} />
-                  ))}
-                </div>
+                <CollectionEditorial
+                  products={finalProducts}
+                  categoryName={
+                    selection === "all"
+                      ? "Todas las prendas"
+                      : selection.startsWith("legacy:")
+                        ? (CATEGORIES.find((category) => category.id === activeCategory)?.label ??
+                          activeCategory)
+                        : activeCategory
+                  }
+                  query={query}
+                />
               ) : (
                 <div className="flex flex-col items-center justify-center gap-[13px] px-[18px] py-[42px] font-mono text-[13px]">
+                  <h1 className="font-sans text-[30px] leading-[1.1] font-normal">
+                    {query ? `Búsqueda: “${query}”` : "Catálogo de prendas"}
+                  </h1>
                   <p>
                     {query
                       ? "No encontramos prendas para esta búsqueda con la categoría y los filtros actuales."
                       : "No encontramos prendas con estos filtros."}
                   </p>
-                  {activeFilterCount > 0 && (
-                    <Button variant="outline" size="sm" onClick={clearFilters}>
-                      Limpiar filtros
-                    </Button>
-                  )}
                 </div>
               )}
             </>

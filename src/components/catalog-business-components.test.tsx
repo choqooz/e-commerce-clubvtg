@@ -71,7 +71,7 @@ describe("Redesigned UI catalog surfaces", () => {
   ])("preserves $label price, slug link and metadata", ({ values, price, promotion }) => {
     const html = renderToStaticMarkup(<ProductCard product={product(values)} />);
     expect(html).toContain('href="/product/campera-vintage"');
-    expect(html).toContain("Campera vintage</h3>");
+    expect(html).toMatch(/Campera vintage\s*<\/h3>/);
     expect(html).toContain(formatPrice(price));
     expect(html).toContain("Talle M • Azul, BLANCO");
     expect(html.includes("line-through")).toBe(promotion);
@@ -111,7 +111,7 @@ describe("Redesigned UI catalog surfaces", () => {
       expect(html).toContain('alt="Campera vintage"');
       expect(html).toContain("%2Ffirst.jpg");
       expect(html).not.toContain("second.jpg");
-      expect(html).toContain('sizes="(min-width: 768px) 25vw, 50vw"');
+      expect(html).toContain('sizes="(min-width: 1024px) 25vw, 50vw"');
       expect(html.includes('rel="preload"')).toBe(priority);
       expect(html).not.toContain("product-card-image");
       expect(classTokens(html)).toEqual(

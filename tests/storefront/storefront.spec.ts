@@ -1,6 +1,101 @@
 import { expect, test } from "@playwright/test";
 import { StorefrontPage } from "./storefront-page";
 
+test.describe("editorial collection", { tag: ["@e2e", "@storefront"] }, () => {
+  for (const viewport of [
+    { width: 1440, height: 900 },
+    { width: 390, height: 844 },
+  ]) {
+    test(`keeps composition, unique cards and search history at ${viewport.width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize(viewport);
+      const storefront = new StorefrontPage(page);
+      await storefront.gotoCatalog();
+      await expect(storefront.catalogHeading).toHaveText("Todas las prendas");
+      await expect(storefront.productLinks.first()).toBeVisible();
+      const catalog = page.locator("#catalog");
+      const originalLinks = await storefront.productLinks.evaluateAll((links) =>
+        links.map((link) => link.getAttribute("href")),
+      );
+      expect(new Set(originalLinks).size).toBe(originalLinks.length);
+      const cover = catalog.locator("[data-collection-hero]");
+      await expect(cover).toBeVisible();
+      const grid = catalog.locator("[data-collection-products]");
+      const coverBox = (await cover.boundingBox())!;
+      const gridBox = (await grid.boundingBox())!;
+      if (viewport.width >= 1024) {
+        expect(Math.abs(coverBox.width - gridBox.width)).toBeLessThan(2);
+        expect(gridBox.x).toBeGreaterThan(coverBox.x + coverBox.width);
+      } else {
+        expect(gridBox.y).toBeGreaterThanOrEqual(coverBox.y + coverBox.height);
+      }
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+      ).toBe(true);
+      const title = (await storefront.productLinks.first().getByRole("heading").innerText()).trim();
+      const banner = page.getByRole("banner");
+      if (viewport.width < 768) {
+        await banner.getByRole("button", { name: "Abrir menú", exact: true }).click();
+        await page
+          .getByRole("navigation", { name: "Navegación móvil", exact: true })
+          .getByRole("button", { name: "Buscar", exact: true })
+          .click();
+      } else {
+        await banner.getByRole("button", { name: "Buscar", exact: true }).click();
+      }
+      const search = banner.getByRole("searchbox", { name: "Buscar prendas" });
+      await search.fill(title);
+      await banner.getByRole("button", { name: "Buscar prendas", exact: true }).click();
+      await expect(storefront.catalogHeading).toHaveText(`Búsqueda: “${title}”`);
+      await expect(storefront.productLinks.first()).toBeVisible();
+      const matches = await storefront.productLinks.evaluateAll((links) =>
+        links.map((link) => link.getAttribute("href")),
+      );
+      expect(matches).toContain(originalLinks[0]);
+      expect(new Set(matches).size).toBe(matches.length);
+      await banner.getByRole("button", { name: "Limpiar búsqueda", exact: true }).click();
+      await expect(search).toHaveValue("");
+      await expect(storefront.catalogHeading).toHaveText("Todas las prendas");
+      await expect(storefront.productLinks).toHaveCount(originalLinks.length);
+      await page.goBack();
+      await expect(search).toHaveValue(title);
+      await expect(storefront.catalogHeading).toHaveText(`Búsqueda: “${title}”`);
+      await page.goForward();
+      await expect(search).toHaveValue("");
+      await expect(storefront.productLinks).toHaveCount(originalLinks.length);
+    });
+  }
+
+  test("keeps the compact category selector, one filter reset and back-to-entry action", async ({
+    page,
+  }) => {
+    const storefront = new StorefrontPage(page);
+    await storefront.gotoCatalog();
+    const category = page.getByRole("combobox", { name: "Categoría", exact: true });
+    await expect(category).toHaveValue("all");
+    await page.getByRole("button", { name: "Filtros", exact: true }).click();
+    const filters = page.getByRole("dialog", { name: "Filtros" });
+    await filters.getByRole("button", { pressed: false }).first().click();
+    await expect(filters.getByRole("button", { name: "Limpiar filtros", exact: true })).toHaveCount(
+      1,
+    );
+    await filters.getByRole("button", { name: /^Ver \d+ prendas?$/ }).click();
+    await expect(page.getByRole("button", { name: "Filtros (1)", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Filtros (1)", exact: true }).click();
+    await filters.getByRole("button", { name: "Limpiar filtros", exact: true }).click();
+    await expect(filters.getByRole("button", { name: "Limpiar filtros", exact: true })).toHaveCount(
+      0,
+    );
+    await filters.getByRole("button", { name: /^Ver \d+ prendas?$/ }).click();
+    await page.getByRole("button", { name: "Volver al inicio", exact: true }).click();
+    await expect(page.getByRole("region", { name: "Explorar por categoría" })).toBeVisible();
+    await expect(page.locator("#catalog")).toBeHidden();
+    await page.goBack();
+    await expect(storefront.catalogHeading).toHaveText("Todas las prendas");
+  });
+});
+
 test.describe("cart focus restoration", { tag: ["@e2e", "@storefront"] }, () => {
   test("header opener regains focus after Escape and close-button dismissal and can reopen", async ({
     page,
