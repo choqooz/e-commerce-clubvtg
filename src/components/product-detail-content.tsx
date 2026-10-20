@@ -30,6 +30,16 @@ export function ProductDetailContent({
     product.image_urls && product.image_urls.length > 0 ? product.image_urls[0] : null,
   );
 
+  const [imageStates, setImageStates] = useState<
+    Record<string, { width: number; height: number; status: "loaded" | "error" }>
+  >({});
+  const imageState = activeImage ? imageStates[activeImage] : undefined;
+  const recordImageSize = (url: string, image: HTMLImageElement) => {
+    if (!image.naturalWidth || !image.naturalHeight) return;
+    const { naturalWidth: width, naturalHeight: height } = image;
+    setImageStates((previous) => ({ ...previous, [url]: { width, height, status: "loaded" } }));
+  };
+
   useEffect(() => {
     const event = productViewedEvent(product);
     posthog?.capture(event.event, event.properties);
@@ -82,24 +92,55 @@ export function ProductDetailContent({
 
         <div className="pb-[42px] md:pb-[72px]">
           <div className="grid grid-cols-1 items-start gap-[0px] lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
-            {/* The portrait field leads the spread; the index stays compact at every width. */}
+            {/* The full photo leads the spread; the index stays compact at every width. */}
             <div className="relative min-w-0" role="group" aria-label="Galería del producto">
               <div
                 id="product-active-image"
-                className="relative flex aspect-4/5 w-full items-center justify-center overflow-hidden bg-warm-sand sm:aspect-square lg:aspect-4/5"
+                className="relative w-full"
+                aria-busy={Boolean(activeImage && !imageState)}
               >
-                {activeImage ? (
-                  <Image
-                    src={activeImage}
-                    alt={product.title}
-                    fill
-                    preload
-                    sizes="(min-width: 1024px) 58.33vw, 100vw"
-                    className="object-contain"
-                  />
+                {activeImage && imageState?.status !== "error" ? (
+                  <>
+                    {/* URLs have no stored dimensions. Zero attributes reserve no invented ratio;
+                        the browser uses the photo's natural ratio as soon as metadata arrives.
+                        First loads can shift layout; measured sizes reserve space on later views. */}
+                    <Image
+                      key={activeImage}
+                      src={activeImage}
+                      alt={product.title}
+                      width={imageState?.width ?? 0}
+                      height={imageState?.height ?? 0}
+                      preload
+                      sizes="(min-width: 1024px) 58.33vw, 100vw"
+                      className="block"
+                      style={{ width: "100%", height: "auto" }}
+                      onLoad={(event) => recordImageSize(activeImage, event.currentTarget)}
+                      onError={() =>
+                        setImageStates((previous) => ({
+                          ...previous,
+                          [activeImage]: { width: 0, height: 0, status: "error" },
+                        }))
+                      }
+                    />
+                    {!imageState && (
+                      <span
+                        role="status"
+                        className="block px-[18px] py-[18px] font-mono text-[13px]"
+                      >
+                        Cargando imagen…
+                      </span>
+                    )}
+                  </>
                 ) : (
-                  <span className="font-mono text-[13px] font-normal uppercase text-midnight-ink">
-                    {product.category}
+                  <span
+                    role="status"
+                    className="block px-[18px] py-[30px] font-mono text-[13px] font-normal text-midnight-ink"
+                  >
+                    {activeImage
+                      ? product.image_urls.length > 1
+                        ? "No pudimos cargar esta imagen. Probá otra vista."
+                        : "No pudimos cargar esta imagen."
+                      : product.category}
                   </span>
                 )}
               </div>

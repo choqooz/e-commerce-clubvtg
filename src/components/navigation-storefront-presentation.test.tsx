@@ -1140,10 +1140,63 @@ function signatures(text: string, adminNavigation = false) {
   return { attributes, copy, preambles };
 }
 
+// T3 replaces only the active-photo field and adds URL-keyed measured image state.
+// Restore those exact presentation surfaces for the original business-baseline comparison;
+// callback-driven natural sizing/error/switching contracts live in product-image-sizing.test.tsx.
+function beforeNaturalSizing(text: string) {
+  const prior = execFileSync(
+    "git",
+    ["show", "4ff56050aee9baf2579c19cde360b77d10b928bb:src/components/product-detail-content.tsx"],
+    { encoding: "utf8" },
+  );
+  const isPhotoField = (node: ts.Node, file: ts.SourceFile): node is ts.JsxElement =>
+    ts.isJsxElement(node) &&
+    node.openingElement.attributes.properties.some(
+      (property) => property.getText(file) === 'id="product-active-image"',
+    );
+  const priorFile = parse(prior);
+  let priorField = "";
+  const findField = (node: ts.Node) => {
+    if (isPhotoField(node, priorFile)) priorField = node.getText(priorFile);
+    ts.forEachChild(node, findField);
+  };
+  findField(priorFile);
+  expect(priorField).not.toBe("");
+  const file = parse(text);
+  const edits: { start: number; end: number; replacement: string }[] = [];
+  const deltas: string[] = [];
+  const replace = (node: ts.Node, name: string, replacement = "") => {
+    deltas.push(name);
+    edits.push({ start: node.getStart(file), end: node.end, replacement });
+  };
+  const visit = (node: ts.Node) => {
+    if (isPhotoField(node, file)) {
+      replace(node, "activePhoto", priorField);
+      return;
+    }
+    if (ts.isVariableStatement(node)) {
+      const declaration = node.declarationList.declarations[0];
+      if (
+        ts.isArrayBindingPattern(declaration.name) &&
+        declaration.name.elements[0].getText(file) === "imageStates"
+      )
+        replace(node, "imageStates");
+      else if (["imageState", "recordImageSize"].includes(declaration.name.getText(file)))
+        replace(node, declaration.name.getText(file));
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  expect(deltas).toEqual(["imageStates", "imageState", "recordImageSize", "activePhoto"]);
+  for (const edit of edits.sort((a, b) => b.start - a.start))
+    text = text.slice(0, edit.start) + edit.replacement + text.slice(edit.end);
+  return text;
+}
+
 // Normalize only the accepted detail's explicit accessibility/image presentation delta.
 // Keep its original attribute order, business expressions, copy and function preambles protected.
 function detailSignatures(text: string) {
-  const original = signatures(text);
+  const original = signatures(beforeNaturalSizing(text));
   const attribute = (value: string) => signatures(`<div ${value} />`).attributes[0];
   const additions = new Set(
     [
@@ -1279,11 +1332,9 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
         };
         expect(createHash("sha256").update(source(path)).digest("hex")).toBe(acceptedCatalog[path]);
       } else if (path === "product-detail-content.tsx") {
-        // Pin all accepted bytes as well as retaining the old semantic/business baseline.
-        // The copied product-shopping suite independently exercises the presentation additions.
-        expect(createHash("sha256").update(source(path)).digest("hex")).toBe(
-          "2097e1c4f5fc623e3d9d9a8f5697f41cf7998cec96c4340f4546754fb93558f0",
-        );
+        // T3 intentionally replaces the photo field and measured state, so the former
+        // byte hash is obsolete. Normalize only those named AST surfaces above and keep
+        // the complete original business baseline; image-sizing exercises their callbacks.
         expect(detailSignatures(source(path))).toEqual(signatures(baseline));
       } else if (path === "cart-drawer.tsx") {
         // Pin all accepted bytes alongside the original business/semantic baseline.
@@ -1427,8 +1478,6 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
         "minmax(0,7fr) minmax(0,5fr)",
       ],
       ["items-start", "align-items", "flex-start"],
-      ["sm:aspect-square", "aspect-ratio", "1 / 1"],
-      ["lg:aspect-4/5", "aspect-ratio", "4/5"],
       ["w-[72px]", "width", "72px"],
       ["md:w-[84px]", "width", "84px"],
       ["min-h-[48px]", "min-height", "48px"],
@@ -1445,8 +1494,6 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
       ["md:hidden", "(width >= 48rem)"],
       ["sm:max-w-[360px]", "(width >= 40rem)"],
       ["lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]", "(width >= 64rem)"],
-      ["sm:aspect-square", "(width >= 40rem)"],
-      ["lg:aspect-4/5", "(width >= 64rem)"],
       ["md:w-[84px]", "(width >= 48rem)"],
       ["sm:max-w-[560px]", "(width >= 40rem)"],
       ["sm:w-[104px]", "(width >= 40rem)"],

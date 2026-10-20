@@ -12,12 +12,15 @@ const probe = vi.hoisted(() => ({ active: undefined as string | null | undefined
 vi.mock("react", async (original) => ({
   ...(await original<typeof import("react")>()),
   useEffect: vi.fn(),
-  useState: (initial: string | null) => [
-    probe.active === undefined ? initial : probe.active,
-    (value: string | null) => {
-      probe.active = value;
-    },
-  ],
+  useState: (initial: unknown) =>
+    typeof initial === "object" && initial !== null
+      ? [initial, vi.fn()]
+      : [
+          probe.active === undefined ? initial : probe.active,
+          (value: string | null) => {
+            probe.active = value;
+          },
+        ],
 }));
 vi.mock("posthog-js/react", () => ({ usePostHog: () => null }));
 vi.mock("@/contexts/cart-context", () => ({ useCart: () => ({ addItem: vi.fn() }) }));
@@ -80,17 +83,18 @@ describe("V1 editorial product composition", () => {
     expect(info.props.className).not.toMatch(/justify-center|order-|sticky/);
     expect(info.props.className).toContain("lg:py-[36px]");
     const field = nodes.find((element) => element.props.id === "product-active-image")!;
-    expect(field.props.className).toContain("aspect-4/5");
-    expect(field.props.className).toContain("sm:aspect-square lg:aspect-4/5");
-    expect(field.props.className).not.toMatch(/max-h/);
+    expect(field.props.className).toBe("relative w-full");
+    expect(field.props["aria-busy"]).toBe(true);
     const hero = descendants(field).find((element) => element.type === Image)!;
     expect(hero.props).toMatchObject({
-      fill: true,
+      width: 0,
+      height: 0,
       preload: true,
       sizes: "(min-width: 1024px) 58.33vw, 100vw",
-      className: "object-contain",
+      style: { width: "100%", height: "auto" },
       alt: product.title,
     });
+    expect(hero.props.fill).toBeUndefined();
     expect(hero.props.priority).toBeUndefined(); // Next 16 replaces deprecated priority with preload.
     const header = descendants(info).find((element) => element.type === "header")!;
     expect(header.props.className).toContain("border-b border-midnight-ink");
@@ -173,7 +177,7 @@ describe("V1 editorial product composition", () => {
     }
   });
 
-  it("preserves every leaf JSX business expression against the immutable pretask detail source", () => {
+  it("preserves leaf JSX business expressions outside the accepted main-photo field against the immutable pretask source", () => {
     // Product detail was clean at task entry. Unlike accepted dirty home, this HEAD snapshot is valid.
     const baseline = execFileSync(
       "git",
@@ -198,6 +202,22 @@ describe("V1 editorial product composition", () => {
         ts.isJsxFragment(node) ||
         (ts.forEachChild(node, containsJSX) ?? false);
       const visit = (node: ts.Node) => {
+        // T3's active photo now has natural sizing/loading/error semantics, exercised separately.
+        // Retain the immutable business-expression guard everywhere outside that exact field.
+        if (
+          ts.isJsxElement(node) &&
+          (node.openingElement.attributes.properties.some(
+            (property) => property.getText(file) === 'id="product-active-image"',
+          ) ||
+            node.children.some(
+              (child) =>
+                ts.isJsxExpression(child) &&
+                child.expression &&
+                ts.isConditionalExpression(child.expression) &&
+                child.expression.condition.getText(file) === "activeImage",
+            ))
+        )
+          return;
         if (ts.isJsxExpression(node) && node.expression && !containsJSX(node.expression)) {
           const attribute = ts.isJsxAttribute(node.parent) ? node.parent.name.getText(file) : null;
           if (!["className", "aria-pressed", "aria-label"].includes(attribute ?? ""))
