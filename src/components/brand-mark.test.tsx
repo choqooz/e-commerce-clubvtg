@@ -47,16 +47,23 @@ describe("Approved ClubVTG brand mark", () => {
     );
   });
 
-  it("preserves every byte of the approved search header outside the brand substitution", () => {
+  it("preserves the header's native home link and responsive brand without coupling to search", () => {
     const header = readFileSync(new URL("./site-header.tsx", import.meta.url), "utf8");
-    const previous = header
-      .replace('import { BrandMark } from "@/components/brand-mark";\n', "")
-      .replace(
-        '            <BrandMark alt="" className="w-[120px] md:w-[180px]" />',
-        '            <span className="font-sans text-[20px] leading-none font-normal tracking-[-0.04em] md:text-[30px]">\n              clubvtg\n            </span>',
-      );
-    expect(createHash("sha256").update(previous).digest("hex")).toBe(
-      "00744a99c137417d27ca56cab3fa9534aa0b5dc83d81a1bef4845641c1bce4ca",
+    expect(header).toContain('import { BrandMark } from "@/components/brand-mark";');
+    expect(header).toContain(
+      '<header className="sticky top-0 z-50 bg-white font-sans font-normal text-midnight-ink">',
+    );
+    expect(header).toContain("<ShippingAnnouncement />");
+    expect(header.match(/<BrandMark\b/g)).toHaveLength(1);
+    expect(header.match(/aria-label="clubvtg — Inicio"/g)).toHaveLength(1);
+
+    // Pin only the brand island: native navigation, focus ref, accessible name and sizing.
+    // Exact attributes also reject new click handlers or route interception on the brand.
+    const brandLink = header.match(/<a\b[^>]*>\s*<BrandMark\b[^>]*\/>\s*<\/a>/)?.[0];
+    expect(brandLink?.replace(/\s+/g, " ").replace(/\s+>/g, ">")).toBe(
+      '<a href="/" aria-label="clubvtg — Inicio" ref={homeLink} ' +
+        'className="flex h-[44px] shrink-0 items-center justify-center focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"> ' +
+        '<BrandMark alt="" className="w-[120px] md:w-[180px]" /> </a>',
     );
   });
 

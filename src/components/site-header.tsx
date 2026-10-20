@@ -91,6 +91,9 @@ export function SiteHeader() {
     emptySearchSnapshot,
   );
   const catalogHref = catalogSearchHref(query);
+  const [searchDraft, setSearchDraft] = useState({ query, value: query });
+  // Reconcile before rendering, not in an effect that could restore an old draft after navigation.
+  if (searchDraft.query !== query) setSearchDraft({ query, value: query });
 
   // One session-scoped request supplies both presentations; stale results stay invisible.
   useEffect(() => {
@@ -389,39 +392,49 @@ export function SiteHeader() {
             aria-label="Buscar prendas"
             action="/#catalog"
             method="get"
-            className="flex flex-wrap items-center gap-[6px] px-[14px] pb-[18px] md:px-[6.25%]"
+            className="px-[14px] pb-[18px] md:px-[6.25%]"
             onSubmit={(event) => {
               event.preventDefault();
               const input = event.currentTarget.elements.namedItem("q") as HTMLInputElement;
               navigateCatalogSearch(input.value);
             }}
           >
-            <input
-              key={query}
-              ref={searchInput}
-              name="q"
-              defaultValue={query}
-              aria-label="Buscar prendas"
-              type="search"
-              placeholder="Buscar prendas..."
-              className="h-[36px] min-w-0 flex-1 rounded-none border border-midnight-ink bg-bone-white px-[6px] py-[2px] font-sans text-[16px] font-normal text-midnight-ink placeholder:text-concrete-gray md:text-[15px] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
-              autoFocus
-            />
-            <button
-              type="submit"
-              className="min-h-[36px] px-[6px] font-mono text-[13px] underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
-            >
-              Buscar prendas
-            </button>
-            {query && (
-              <button
-                type="button"
-                onClick={() => navigateCatalogSearch("")}
-                className="min-h-[36px] px-[6px] font-mono text-[13px] underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
-              >
-                Limpiar búsqueda
-              </button>
-            )}
+            <div className="relative flex items-center">
+              <input
+                ref={searchInput}
+                name="q"
+                value={searchDraft.value}
+                onChange={(event) => setSearchDraft({ query, value: event.target.value })}
+                aria-label="Buscar prendas"
+                type="search"
+                placeholder="Buscar prendas..."
+                className="h-[36px] min-w-0 flex-1 rounded-none border border-midnight-ink bg-bone-white py-[2px] pr-[88px] pl-[6px] font-sans text-[16px] font-normal text-midnight-ink placeholder:text-concrete-gray md:text-[15px] [&::-webkit-search-cancel-button]:appearance-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
+                autoFocus
+              />
+              <div className="absolute inset-y-0 right-0 flex items-center">
+                {(searchDraft.value || query) && (
+                  <button
+                    type="button"
+                    aria-label="Limpiar búsqueda"
+                    onClick={() => {
+                      setSearchDraft({ query, value: "" });
+                      navigateCatalogSearch("");
+                      searchInput.current?.focus();
+                    }}
+                    className="flex h-[36px] w-[44px] items-center justify-center focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
+                  >
+                    <X size={18} strokeWidth={1.5} aria-hidden="true" />
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  aria-label="Buscar prendas"
+                  className="flex h-[36px] w-[44px] items-center justify-center focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
+                >
+                  <Search size={18} strokeWidth={1.5} aria-hidden="true" />
+                </button>
+              </div>
+            </div>
           </form>
         )}
       </div>

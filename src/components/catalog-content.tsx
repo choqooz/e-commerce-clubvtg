@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, SlidersHorizontal, X } from "lucide-react";
+import { ArrowLeft, SlidersHorizontal } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { CartDrawer } from "@/components/cart-drawer";
 import {
@@ -33,12 +33,7 @@ import {
   SheetFooter,
   SheetClose,
 } from "@/components/ui/sheet";
-import {
-  catalogSearchSnapshot,
-  emptySearchSnapshot,
-  navigateCatalogSearch,
-  searchProducts,
-} from "@/lib/catalog-search";
+import { catalogSearchSnapshot, emptySearchSnapshot, searchProducts } from "@/lib/catalog-search";
 import { CATEGORIES, type Category } from "@/lib/config";
 import type { Product } from "@/lib/types";
 
@@ -241,16 +236,6 @@ export function CatalogContent({
                     {finalProducts.length === 1 ? "prenda encontrada" : "prendas encontradas"}
                     {query && <> para “{query}”</>}
                   </span>
-                  {query && (
-                    <button
-                      type="button"
-                      onClick={() => navigateCatalogSearch("")}
-                      className="flex min-h-[36px] items-center gap-[6px] underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2"
-                    >
-                      <X size={12} aria-hidden="true" />
-                      Limpiar búsqueda
-                    </button>
-                  )}
                 </div>
               </div>
               {typesLoadError ? (
