@@ -54,8 +54,12 @@ test.describe("editorial collection", { tag: ["@e2e", "@storefront"] }, () => {
       );
       expect(matches).toContain(originalLinks[0]);
       expect(new Set(matches).size).toBe(matches.length);
+      await expect(page.getByRole("button", { name: "Limpiar búsqueda", exact: true })).toHaveCount(
+        1,
+      );
       await banner.getByRole("button", { name: "Limpiar búsqueda", exact: true }).click();
       await expect(search).toHaveValue("");
+      await expect(search).toBeFocused();
       await expect(storefront.catalogHeading).toHaveText("Todas las prendas");
       await expect(storefront.productLinks).toHaveCount(originalLinks.length);
       await page.goBack();

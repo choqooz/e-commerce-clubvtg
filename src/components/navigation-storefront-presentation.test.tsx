@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Product } from "@/lib/types";
 import { CATEGORIES, formatPrice } from "@/lib/config";
 import { COLOR_MAP } from "@/lib/constants";
+import { navigateCatalogSearch } from "@/lib/catalog-search";
 
 type CatalogSnapshot = import("./catalog-url-state").CatalogSnapshot;
 
@@ -362,7 +363,7 @@ describe("Navigation contracts", () => {
     expect(input.props).toMatchObject({
       type: "search",
       name: "q",
-      defaultValue: "Lino",
+      value: "Lino",
       placeholder: "Buscar prendas...",
       autoFocus: true,
     });
@@ -377,7 +378,7 @@ describe("Navigation contracts", () => {
     expect(browser.location.search).toBe("?category=tops&q=ORIGINAL&keep=1");
     probe.stateIndex = 0;
     tree = SiteHeader();
-    expect(elements(tree, "input")[0].props.defaultValue).toBe("ORIGINAL");
+    expect(elements(tree, "input")[0].props.value).toBe("ORIGINAL");
     expect(
       elements(tree, "a").filter((link) => link.props.href === "/?q=ORIGINAL#catalog"),
     ).toHaveLength(2);
@@ -624,7 +625,9 @@ describe("Storefront state, data and callback preservation", () => {
     expect(html(tree)).toContain("1 prenda encontrada para “LiNo”");
     expect(elements(tree, CatalogFilters)[0].props.categoryProducts).toEqual([top, otherSize]);
     // Changing only query must not trigger the category's subcategory reset.
-    click(catalogButton(tree, "Limpiar búsqueda"));
+    // The header owns the sole clear control; the collection responds to the shared URL event.
+    expect(catalogButton(tree, "Limpiar búsqueda")).toBeUndefined();
+    navigateCatalogSearch("");
     expect(browser.location.search).toBe("?category=tops&keep=1");
     expect(probe.states[1]).toBe(filters);
     browser.back();
@@ -654,7 +657,8 @@ describe("Storefront state, data and callback preservation", () => {
     expect(html(tree)).toContain(
       "No encontramos prendas para esta búsqueda con la categoría y los filtros actuales.",
     );
-    click(catalogButton(tree, "Limpiar búsqueda"));
+    expect(catalogButton(tree, "Limpiar búsqueda")).toBeUndefined();
+    navigateCatalogSearch("");
     tree = renderCatalog([product], ["tops"]);
     expect(browser.location.search).toBe("?category=tops");
     expect(elements(tree, ProductCard)[0].props.product).toBe(product);
@@ -1326,8 +1330,8 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
         // Chrome deliberately replaces old markup and logic. Pin every accepted byte,
         // including all callbacks, literals and imports; do not discard AST nodes.
         const acceptedChrome = {
-          // B1 changes only the brand image; accepted S1 search/navigation remain exercised above.
-          "site-header.tsx": "afdc24465972478bb3383c0812360e422e4973b8ef1eafdf59c9ac5d80738a0f",
+          // T2 adds in-field submit/clear and URL-synchronized draft; navigation stays protected.
+          "site-header.tsx": "3965c8174067df9e40d5c66884136a743bc6f13de89b07b063052235d05da857",
           "site-footer.tsx": "1e9a96519016d16e1c243e93281e9f3f464ab28336f8ac41990e4c510869f6bb",
         };
         expect(createHash("sha256").update(source(path)).digest("hex")).toBe(acceptedChrome[path]);
@@ -1362,7 +1366,12 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
             // Only redundant clear controls were removed; retain every distinct callback.
             return [...new Set(result)].sort();
           };
-          expect(callbacks(source(path))).toEqual(callbacks(accepted));
+          const duplicateQueryClear = signatures(
+            '<button onClick={() => navigateCatalogSearch("")} />',
+          ).attributes[0];
+          expect(callbacks(source(path))).toEqual(
+            callbacks(accepted).filter((callback) => callback !== duplicateQueryClear),
+          );
         }
       } else if (path === "product-detail-content.tsx") {
         // T3 intentionally replaces the photo field and measured state, so the former
@@ -1457,6 +1466,7 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
       ["sm:w-[104px]", "width", "104px"],
       ["aspect-4/5", "aspect-ratio", "4/5"],
       ["h-[36px]", "height", "36px"], // Retained header search field.
+      ["[&::-webkit-search-cancel-button]:appearance-none", "appearance", "none"],
       ["h-[44px]", "height", "44px"],
       ["w-[44px]", "width", "44px"],
       ["h-[48px]", "height", "48px"],
@@ -1535,5 +1545,8 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
       expect(utility(name)).toContain(`@media ${media}`);
     }
     expect(utility("focus-visible:outline-2")).toContain("&:focus-visible");
+    expect(utility("[&::-webkit-search-cancel-button]:appearance-none")).toContain(
+      "&::-webkit-search-cancel-button",
+    );
   });
 });
