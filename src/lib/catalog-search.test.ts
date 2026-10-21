@@ -71,6 +71,41 @@ describe("Catalog search", () => {
     expect(catalogSearchSnapshot()).toBe("Lino");
   });
 
+  it("keeps a rapid clear intent while the previous native search capture is pending", () => {
+    const location = { pathname: "/", search: "", hash: "#catalog" };
+    const callbacks: (() => void)[] = [];
+    const skipTransition = vi.fn();
+    const finished = Promise.resolve();
+    vi.stubGlobal("CSS", { supports: () => true });
+    const pushState = vi.fn((_state, _title, href: string) => {
+      const url = new URL(href, "https://store.example");
+      Object.assign(location, { search: url.search, hash: url.hash });
+    });
+    vi.stubGlobal("window", {
+      location,
+      history: { pushState },
+      dispatchEvent: vi.fn(),
+      matchMedia: () => ({
+        matches: false,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }),
+    });
+    vi.stubGlobal("document", {
+      querySelector: () => ({}),
+      startViewTransition: ({ update }: { update: () => void }) => {
+        callbacks.push(update);
+        return { skipTransition, finished, ready: finished, updateCallbackDone: finished };
+      },
+    });
+    navigateCatalogSearch("lino");
+    navigateCatalogSearch("");
+    callbacks.forEach((callback) => callback());
+    expect(catalogSearchSnapshot()).toBe("");
+    expect(skipTransition).toHaveBeenCalledOnce();
+    expect(pushState).toHaveBeenCalledTimes(2);
+  });
+
   it("uses native history locally, avoids duplicate entries and strips other-page parameters", () => {
     const location = {
       pathname: "/",

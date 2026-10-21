@@ -155,6 +155,34 @@ describe("Public taxonomy URL state", () => {
 });
 
 describe("Catalog URL state", () => {
+  it("keeps the latest home intent when a native category snapshot has not committed yet", () => {
+    const browser = memoryWindow("/");
+    const callbacks: (() => void)[] = [];
+    const skipTransition = vi.fn();
+    const finished = Promise.resolve();
+    vi.stubGlobal("CSS", { supports: () => true });
+    Object.assign(window, {
+      matchMedia: () => ({
+        matches: false,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }),
+    });
+    vi.stubGlobal("document", {
+      querySelector: () => ({}),
+      startViewTransition: ({ update }: { update: () => void }) => {
+        callbacks.push(update);
+        return { skipTransition, finished, ready: finished, updateCallbackDone: finished };
+      },
+    });
+    navigateCollection("legacy:tops");
+    navigateCollection("home");
+    callbacks.forEach((callback) => callback());
+    expect(collectionSnapshot()).toBe("home");
+    expect(skipTransition).toHaveBeenCalledOnce();
+    expect(browser.pushState).toHaveBeenCalledTimes(2);
+  });
+
   it.each(CATEGORIES)("opens configured $id directly without a fragment", ({ id }) => {
     const expected = id === "all" ? "all" : `legacy:${id}`;
     expect(parseCatalogLocation(`?category=${id}`, "")).toBe(expected);

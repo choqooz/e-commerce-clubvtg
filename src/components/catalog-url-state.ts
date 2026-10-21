@@ -1,3 +1,7 @@
+import {
+  finishPendingCatalogTransition,
+  runCatalogTransition,
+} from "@/components/catalog-transition";
 import { CATEGORIES } from "@/lib/config";
 
 // Tagged primitive snapshots separate stored names from view/legacy identifiers.
@@ -55,6 +59,7 @@ export const homeSnapshot = (): CatalogSnapshot => "home";
 
 export function navigateCollection(category: string, names: readonly string[] = []) {
   if (!isCatalogSelection(category, names)) return;
+  finishPendingCatalogTransition();
   const params = new URLSearchParams(window.location.search);
   if (category === "home" || category === "all") params.delete("category");
   else params.set("category", category.slice(category.startsWith("type:") ? 5 : 7));
@@ -66,6 +71,8 @@ export function navigateCollection(category: string, names: readonly string[] = 
   const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
   if (next === current) return;
   // Native history keeps unrelated query state and lets Back restore category and view.
-  window.history.pushState(null, "", next);
-  window.dispatchEvent(new Event("hashchange"));
+  runCatalogTransition(() => {
+    window.history.pushState(null, "", next);
+    window.dispatchEvent(new Event("hashchange"));
+  });
 }
