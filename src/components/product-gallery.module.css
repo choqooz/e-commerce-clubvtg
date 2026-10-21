@@ -1,0 +1,54 @@
+.viewport {
+  overflow: hidden;
+}
+
+.swiper {
+  width: 100%;
+  height: 100%;
+}
+
+.swiper :global(.swiper-wrapper) {
+  transition-property: transform;
+  transition-timing-function: ease;
+}
+
+.swiper .slide {
+  height: auto;
+}
+
+.photo {
+  position: relative;
+  width: 100%;
+}
+
+.loading {
+  position: absolute;
+  inset: 0 auto auto 0;
+  padding: 18px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.control {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 6px 18px;
+  border: 1px solid currentColor;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.control:disabled {
+  opacity: 0.5;
+}
+
+.control:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .swiper :global(.swiper-wrapper) {
+    transition-duration: 0ms !important;
+  }
+}
