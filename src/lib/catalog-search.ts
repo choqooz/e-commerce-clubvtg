@@ -1,3 +1,7 @@
+import {
+  finishPendingCatalogTransition,
+  runCatalogTransition,
+} from "@/components/catalog-transition";
 import type { Product } from "@/lib/types";
 
 export function searchProducts(products: Product[], query: string): Product[] {
@@ -26,6 +30,7 @@ export function catalogSearchHref(query: string, search = ""): string {
 }
 
 export function navigateCatalogSearch(query: string) {
+  finishPendingCatalogTransition();
   // Keep category/foreign state only on the catalog route, never copy another page's params.
   const local = window.location.pathname === "/";
   const href = catalogSearchHref(query, local ? window.location.search : "");
@@ -34,8 +39,10 @@ export function navigateCatalogSearch(query: string) {
     return;
   }
   if (href !== `${window.location.pathname}${window.location.search}${window.location.hash}`) {
-    window.history.pushState(null, "", href);
-    // Share the existing collection subscription; pushState itself emits no event.
-    window.dispatchEvent(new Event("hashchange"));
+    runCatalogTransition(() => {
+      window.history.pushState(null, "", href);
+      // Share the existing collection subscription; pushState itself emits no event.
+      window.dispatchEvent(new Event("hashchange"));
+    });
   }
 }
