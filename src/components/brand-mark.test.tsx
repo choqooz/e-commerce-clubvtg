@@ -47,7 +47,7 @@ describe("Approved ClubVTG brand mark", () => {
     );
   });
 
-  it("preserves the header's native home link and responsive brand without coupling to search", () => {
+  it("preserves the header's scoped Next home link and responsive brand without coupling to search", () => {
     const header = readFileSync(new URL("./site-header.tsx", import.meta.url), "utf8");
     expect(header).toContain('import { BrandMark } from "@/components/brand-mark";');
     expect(header).toContain(
@@ -57,13 +57,15 @@ describe("Approved ClubVTG brand mark", () => {
     expect(header.match(/<BrandMark\b/g)).toHaveLength(1);
     expect(header.match(/aria-label="clubvtg — Inicio"/g)).toHaveLength(1);
 
-    // Pin only the brand island: native navigation, focus ref, accessible name and sizing.
-    // Exact attributes also reject new click handlers or route interception on the brand.
-    const brandLink = header.match(/<a\b[^>]*>\s*<BrandMark\b[^>]*\/>\s*<\/a>/)?.[0];
+    // Pin the brand island: Next owns native click guards; no brand-specific interceptor.
+    expect(header).toContain(
+      'import { StorefrontLink as Link } from "@/components/storefront-transition";',
+    );
+    const brandLink = header.match(/<Link\b[^>]*>\s*<BrandMark\b[^>]*\/>\s*<\/Link>/)?.[0];
     expect(brandLink?.replace(/\s+/g, " ").replace(/\s+>/g, ">")).toBe(
-      '<a href="/" aria-label="clubvtg — Inicio" ref={homeLink} ' +
+      '<Link href="/" aria-label="clubvtg — Inicio" ref={homeLink} ' +
         'className="flex h-[44px] shrink-0 items-center justify-center focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"> ' +
-        '<BrandMark alt="" className="w-[120px] md:w-[180px]" /> </a>',
+        '<BrandMark alt="" className="w-[120px] md:w-[180px]" /> </Link>',
     );
   });
 

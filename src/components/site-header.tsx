@@ -2,11 +2,11 @@
 
 import { useAuth, useClerk, SignInButton, UserButton } from "@clerk/nextjs";
 import { Search, ShoppingBag, Sparkles, User, Package, CreditCard, Menu, X } from "lucide-react";
-import Link from "next/link";
 import { useState, useEffect, useId, useRef, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 import { BrandMark } from "@/components/brand-mark";
 import { subscribeToCollection } from "@/components/catalog-url-state";
+import { StorefrontLink as Link } from "@/components/storefront-transition";
 import { Sheet, SheetTrigger, SheetContent, SheetTitle, SheetClose } from "@/components/ui/sheet";
 import { useCart } from "@/contexts/cart-context";
 import { getUserCredits } from "@/lib/actions/credits";
@@ -166,9 +166,7 @@ export function SiteHeader() {
   const navigateCatalog = () => {
     if (menuOpenRef.current) queueAction("catalog");
     else changeMenuOpen(false);
-    // Native anchors emit no hashchange when the fragment is already selected.
-    if (window.location.pathname === "/" && window.location.hash === "#catalog")
-      window.dispatchEvent(new Event("hashchange"));
+    // The scoped link owns the synchronous catalog commit and its single notification.
   };
 
   return (
@@ -223,9 +221,9 @@ export function SiteHeader() {
                 </SheetClose>
               </div>
               <nav aria-label="Navegación móvil" className="flex min-w-0 flex-col">
-                <a href={catalogHref} className={MENU_ITEM} onClick={navigateCatalog}>
+                <Link href={catalogHref} className={MENU_ITEM} onNavigate={navigateCatalog}>
                   Catálogo
-                </a>
+                </Link>
                 <button type="button" className={MENU_ITEM} onClick={() => queueAction("search")}>
                   Buscar
                 </button>
@@ -287,15 +285,15 @@ export function SiteHeader() {
             aria-label="Tienda"
             className="hidden shrink-0 items-center md:flex md:justify-between md:pr-[24px]"
           >
-            {/* Native fragment navigation notifies the collection's hash subscription. */}
-            <a
+            {/* Same-document navigation commits before the catalog snapshot is captured. */}
+            <Link
               href={catalogHref}
               aria-label="Catálogo"
-              onClick={navigateCatalog}
+              onNavigate={navigateCatalog}
               className="flex h-[44px] min-w-[40px] items-center text-[11px] leading-[18px] uppercase md:text-[15px] hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
             >
               <span className="hidden md:inline">Catálogo</span>
-            </a>
+            </Link>
             <Link
               href="/credits"
               className="hidden h-[44px] items-center text-[15px] leading-[18px] uppercase md:flex hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
@@ -304,16 +302,15 @@ export function SiteHeader() {
             </Link>
           </nav>
 
-          {/* Brand is not a route heading. Native home navigation clears collection state. */}
-          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- A home visit must leave the hash-only collection even when the pathname is already /. */}
-          <a
+          {/* Exact home href clears collection/query state even on the same pathname. */}
+          <Link
             href="/"
             aria-label="clubvtg — Inicio"
             ref={homeLink}
             className="flex h-[44px] shrink-0 items-center justify-center focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
           >
             <BrandMark alt="" className="w-[120px] md:w-[180px]" />
-          </a>
+          </Link>
 
           <div className="flex min-w-0 items-center justify-end md:justify-between md:pl-[24px]">
             <button

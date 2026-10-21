@@ -2,7 +2,17 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { CatalogContent } from "@/components/catalog-content";
+import { StorefrontTransition } from "@/components/storefront-transition";
 import HomePage from "./page";
+
+async function catalogPage() {
+  const page = await HomePage();
+  expect(page.type).toBe(StorefrontTransition);
+  expect(Object.keys(page.props)).toEqual(["children"]);
+  expect(page.props.children.type).toBe(CatalogContent);
+  return page.props.children;
+}
 
 // All backend boundaries are mocked before importing HomePage. No SSR client,
 // reservation service, environment credentials or network request runs here.
@@ -108,7 +118,7 @@ describe("Home public taxonomy boundary (fully mocked)", () => {
       null,
     ];
     const before = JSON.stringify({ products: backend.products, types: backend.types });
-    const tree = await HomePage();
+    const tree = await catalogPage();
     expect(backend.events).toEqual(expectedChain);
     expect(backend.release).toHaveBeenCalledOnce();
     expect(backend.client).toHaveBeenCalledOnce();
@@ -136,7 +146,7 @@ describe("Home public taxonomy boundary (fully mocked)", () => {
     async (rows) => {
       backend.types = rows;
       backend.products = null;
-      expect((await HomePage()).props).toEqual({
+      expect((await catalogPage()).props).toEqual({
         initialProducts: [],
         publicTypeNames: [],
         typesLoadError: false,
@@ -153,7 +163,7 @@ describe("Home public taxonomy boundary (fully mocked)", () => {
       backend.types = [{ name: "Do not use partial errored data" }];
       backend.error = { message: "Private database detail", code: "42501", hint: "private table" };
       backend.rejection = throws;
-      const tree = await HomePage();
+      const tree = await catalogPage();
       expect(tree.props).toEqual({
         initialProducts: backend.products,
         publicTypeNames: [],
@@ -202,7 +212,18 @@ function semantic(node: ts.Node): unknown {
 const parse = (text: string) =>
   ts.createSourceFile("surface.tsx", text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 const identity = (node: ts.Node) => JSON.stringify(semantic(node));
-const source = () => readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
+// Normalize only the approved, prop-free presentation wrapper/import. The original
+// business AST fingerprint and every adversarial query mutation remain unchanged.
+function normalizePresentation(text: string) {
+  return text
+    .replace('import { StorefrontTransition } from "@/components/storefront-transition";\n', "")
+    .replace(
+      /return\s*\(\s*<StorefrontTransition>\s*(<CatalogContent\b[^]*?\/>)[\s]*<\/StorefrontTransition>\s*\);/,
+      "return ($1);",
+    );
+}
+const source = () =>
+  normalizePresentation(readFileSync(new URL("./page.tsx", import.meta.url), "utf8"));
 function serverPreservationHash(text: string) {
   const file = parse(text);
   const page = file.statements[4];
@@ -244,6 +265,17 @@ describe("Strict server preservation from actual parent pre-T1 copy", () => {
   it("permits only the exact names query/normalization/error/serialized props at fixed slots", () => {
     expect(serverPreservationHash(source())).toBe(expected);
     expect(serverPreservationHash(source().replace(/\n  /g, "\n    "))).toBe(expected);
+  });
+
+  it("rejects changes to the approved wrapper rather than normalizing arbitrary JSX", () => {
+    const raw = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
+    for (const mutation of [
+      raw.replace("<StorefrontTransition>", '<StorefrontTransition name="other">'),
+      raw.replace("<StorefrontTransition>", "<OtherWrapper>"),
+      raw.replace("<CatalogContent", '<CatalogContent privateData="leak"'),
+    ]) {
+      expect(serverPreservationHash(normalizePresentation(mutation))).not.toBe(expected);
+    }
   });
 
   it.each([

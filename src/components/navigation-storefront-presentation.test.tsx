@@ -138,6 +138,7 @@ vi.mock("@/components/ui/sheet", () => {
 import { BrandMark } from "./brand-mark";
 import { ProductGallery } from "./product-gallery";
 import { SiteHeader } from "./site-header";
+import { StorefrontContentTransition, StorefrontLink } from "./storefront-transition";
 import { SiteFooter } from "./site-footer";
 import { AdminMobileNavigation, AdminSidebar } from "./admin/sidebar";
 import { CatalogContent } from "./catalog-content";
@@ -326,6 +327,37 @@ function renderAdminMobile() {
 }
 
 describe("Navigation contracts", () => {
+  it("snapshots only each semantic main, with header/cart/footer as live siblings", () => {
+    catalogBrowser("/#catalog");
+    for (const tree of [renderCatalog([garment]), detail()]) {
+      const shell = Children.toArray(tree.props.children) as Element[];
+      expect(shell.map((child) => child.type)).toEqual([
+        SiteHeader,
+        CartDrawer,
+        StorefrontContentTransition,
+        SiteFooter,
+      ]);
+      const boundary = shell[2];
+      const main = boundary.props.children as Element;
+      expect(main.type).toBe("main");
+      expect(elements(main, SiteHeader)).toHaveLength(0);
+      expect(elements(main, SiteFooter)).toHaveLength(0);
+      expect(elements(main, CartDrawer)).toHaveLength(0);
+      expect(elements(main, StorefrontContentTransition)).toHaveLength(0);
+    }
+  });
+
+  it("routes the logo and both catalog presentations through scoped Next links", () => {
+    const links = elements(SiteHeader(), StorefrontLink);
+    expect(links.find((link) => link.props.href === "/")?.props["aria-label"]).toBe(
+      "clubvtg — Inicio",
+    );
+    const catalogLinks = links.filter((link) => link.props.href === "/#catalog");
+    expect(catalogLinks).toHaveLength(2);
+    expect(catalogLinks[0].props.onNavigate).toBe(catalogLinks[1].props.onNavigate);
+    expect(catalogLinks[0].props.onClick).toBeUndefined();
+  });
+
   it("keeps announcement, wordmark, catalog, modal sign-in and zero-count cart", () => {
     const tree = SiteHeader();
     const markup = html(tree);
@@ -333,17 +365,19 @@ describe("Navigation contracts", () => {
       expect(markup).toContain(copy);
     expect(markup).toContain('data-mode="modal"');
     expect(markup.match(/href="\/"/g)).toHaveLength(1);
-    const home = elements(tree, "a").find((anchor) => anchor.props.href === "/")!;
+    const home = elements(tree, StorefrontLink).find((anchor) => anchor.props.href === "/")!;
     expect(home.props["aria-label"]).toBe("clubvtg — Inicio");
     expect(elements(home, BrandMark)[0].props).toMatchObject({
       alt: "",
       className: "w-[120px] md:w-[180px]",
     });
     // This shallow Sheet mock includes both desktop and unmounted mobile JSX.
-    const catalogLinks = elements(tree, "a").filter((anchor) => anchor.props.href === "/#catalog");
+    const catalogLinks = elements(tree, StorefrontLink).filter(
+      (anchor) => anchor.props.href === "/#catalog",
+    );
     expect(catalogLinks).toHaveLength(2);
     expect(catalogLinks[1].props["aria-label"]).toBe("Catálogo");
-    expect(catalogLinks[0].props.onClick).toBe(catalogLinks[1].props.onClick);
+    expect(catalogLinks[0].props.onNavigate).toBe(catalogLinks[1].props.onNavigate);
     expect(markup).not.toContain("<h1");
     expect(button(tree, "Buscar").props).toMatchObject({
       "aria-expanded": false,
@@ -415,7 +449,7 @@ describe("Navigation contracts", () => {
     tree = SiteHeader();
     expect(elements(tree, "input")[0].props.value).toBe("ORIGINAL");
     expect(
-      elements(tree, "a").filter((link) => link.props.href === "/?q=ORIGINAL#catalog"),
+      elements(tree, StorefrontLink).filter((link) => link.props.href === "/?q=ORIGINAL#catalog"),
     ).toHaveLength(2);
     click(button(tree, "Limpiar búsqueda"));
     expect(browser.location.search).toBe("?category=tops&keep=1");
@@ -1379,8 +1413,9 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
         // Chrome deliberately replaces old markup and logic. Pin every accepted byte,
         // including all callbacks, literals and imports; do not discard AST nodes.
         const acceptedChrome = {
-          // Motion T1 adds scoped menu classes and closed-panel inertness; callbacks stay pinned.
-          "site-header.tsx": "e8413c5979e9a886a48030a9b603ed76c5ce2fdad5d74c893bcc603f0d04f0da",
+          // N3 replaces only scoped catalog/logo anchors and their notification owner.
+          // Existing menu/cart/auth layout and callbacks remain pinned in full.
+          "site-header.tsx": "e56eaff327dc2adffae8c460f983753382a3dbaf33652d0617133a61317d5c7f",
           "site-footer.tsx": "1e9a96519016d16e1c243e93281e9f3f464ab28336f8ac41990e4c510869f6bb",
         };
         expect(createHash("sha256").update(source(path)).digest("hex")).toBe(acceptedChrome[path]);
