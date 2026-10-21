@@ -1,26 +1,32 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import Image from "next/image";
-import { Children, isValidElement, type ReactElement, type ReactNode } from "react";
+import { ProgressiveImage } from "./progressive-image";
+import { Children, cloneElement, isValidElement, type ReactElement, type ReactNode } from "react";
+import { Swiper } from "swiper/react";
 import ts from "typescript";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Product } from "@/lib/types";
 import { ProductDetailContent } from "./product-detail-content";
+import { ProductGallery } from "./product-gallery";
 
 // Shallow element contracts only: no mounted DOM, network, cart or analytics services.
-const probe = vi.hoisted(() => ({ active: undefined as string | null | undefined }));
+const probe = vi.hoisted(() => ({ states: [] as unknown[], index: 0 }));
 vi.mock("react", async (original) => ({
   ...(await original<typeof import("react")>()),
   useEffect: vi.fn(),
-  useState: (initial: unknown) =>
-    typeof initial === "object" && initial !== null
-      ? [initial, vi.fn()]
-      : [
-          probe.active === undefined ? initial : probe.active,
-          (value: string | null) => {
-            probe.active = value;
-          },
-        ],
+  useRef: (initial: unknown) => ({ current: initial }),
+  useCallback: (callback: unknown) => callback,
+  useState: (initial: unknown) => {
+    const index = probe.index++;
+    if (index >= probe.states.length) probe.states[index] = initial;
+    return [
+      probe.states[index],
+      (value: unknown) => {
+        probe.states[index] = typeof value === "function" ? value(probe.states[index]) : value;
+      },
+    ];
+  },
 }));
 vi.mock("posthog-js/react", () => ({ usePostHog: () => null }));
 vi.mock("@/contexts/cart-context", () => ({ useCart: () => ({ addItem: vi.fn() }) }));
@@ -61,15 +67,39 @@ const descendants = (node: ReactNode): Element[] =>
       ? [child as Element, ...descendants((child as Element).props.children)]
       : [],
   );
-const tree = (overrides: Partial<Product> = {}) =>
-  ProductDetailContent({ product: { ...product, ...overrides }, relatedProducts: [product] });
+const tree = (overrides: Partial<Product> = {}) => {
+  probe.index = 0;
+  const expand = (tree: ReactNode): ReactNode => {
+    if (Array.isArray(tree)) return tree.map(expand);
+    if (!isValidElement(tree)) return tree;
+    const node = tree as Element;
+    if (node.type === ProductGallery)
+      return expand(ProductGallery(node.props as Parameters<typeof ProductGallery>[0]));
+    return cloneElement(node, {}, expand(node.props.children));
+  };
+  const result = expand(
+    ProductDetailContent({ product: { ...product, ...overrides }, relatedProducts: [product] }),
+  );
+  const carousel = descendants(result).find((node) => node.type === Swiper);
+  if (carousel) {
+    const instance = {
+      activeIndex: probe.states[0],
+      slideTo(index: number) {
+        this.activeIndex = index;
+        (carousel.props.onSlideChange as (instance: unknown) => void)(this);
+      },
+    };
+    (carousel.props.onSwiper as (instance: unknown) => void)(instance);
+  }
+  return result;
+};
 const controls = (node: ReactNode) =>
   descendants(node).filter(
-    (element) =>
-      element.type === "button" && element.props["aria-controls"] === "product-active-image",
+    (element) => element.type === "button" && typeof element.props["aria-pressed"] === "boolean",
   );
 beforeEach(() => {
-  probe.active = undefined;
+  probe.states = [];
+  probe.index = 0;
 });
 
 describe("V1 editorial product composition", () => {
@@ -83,9 +113,9 @@ describe("V1 editorial product composition", () => {
     expect(info.props.className).not.toMatch(/justify-center|order-|sticky/);
     expect(info.props.className).toContain("lg:py-[36px]");
     const field = nodes.find((element) => element.props.id === "product-active-image")!;
-    expect(field.props.className).toBe("relative w-full");
+    expect(field.props.className).toContain("relative w-full");
     expect(field.props["aria-busy"]).toBe(true);
-    const hero = descendants(field).find((element) => element.type === Image)!;
+    const hero = descendants(field).find((element) => element.type === ProgressiveImage)!;
     expect(hero.props).toMatchObject({
       width: 0,
       height: 0,
@@ -138,9 +168,12 @@ describe("V1 editorial product composition", () => {
     const field = descendants(current).find(
       (element) => element.props.id === "product-active-image",
     )!;
-    expect(descendants(field).find((element) => element.type === Image)!.props.src).toBe(
-      "/back.jpg",
-    );
+    const activePhoto = descendants(field).find(
+      (element) => element.props["data-active"] === true,
+    )!;
+    expect(
+      descendants(activePhoto).find((element) => element.type === ProgressiveImage)!.props.src,
+    ).toBe("/back.jpg");
   });
 
   it.each([{ images: [] }, { images: ["/front.jpg"] }])(
@@ -151,7 +184,7 @@ describe("V1 editorial product composition", () => {
       const field = descendants(current).find(
         (element) => element.props.id === "product-active-image",
       )!;
-      const media = descendants(field).filter((element) => element.type === Image);
+      const media = descendants(field).filter((element) => element.type === ProgressiveImage);
       expect(media).toHaveLength(images.length);
       if (!images.length)
         expect(descendants(field).find((element) => element.type === "span")!.props.children).toBe(
@@ -202,8 +235,20 @@ describe("V1 editorial product composition", () => {
         ts.isJsxFragment(node) ||
         (ts.forEachChild(node, containsJSX) ?? false);
       const visit = (node: ts.Node) => {
-        // T3's active photo now has natural sizing/loading/error semantics, exercised separately.
-        // Retain the immutable business-expression guard everywhere outside that exact field.
+        // The extracted gallery's ratios/errors, badges and index callbacks are exercised
+        // against the real ProductGallery in product-image-sizing and gallery tests.
+        if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(file) === "ProductGallery") {
+          expect(node.getText(file)).toBe("<ProductGallery key={product.id} product={product} />");
+          return;
+        }
+        if (
+          ts.isJsxElement(node) &&
+          node.openingElement.attributes.properties.some(
+            (property) => property.getText(file) === 'className="relative min-w-0 space-y-[13px]"',
+          )
+        )
+          return;
+        // Retain the immutable business-expression guard everywhere outside that exact gallery.
         if (
           ts.isJsxElement(node) &&
           (node.openingElement.attributes.properties.some(

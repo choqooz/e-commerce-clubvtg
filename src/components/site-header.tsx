@@ -17,6 +17,7 @@ import {
   navigateCatalogSearch,
 } from "@/lib/catalog-search";
 import announcement from "./storefront-announcement.module.css";
+import motion from "./storefront-motion.module.css";
 
 const SHIPPING_NOTICE = "Envío a todo el país · Correo Argentino";
 
@@ -191,7 +192,10 @@ export function SiteHeader() {
               side="left"
               showCloseButton={false}
               aria-describedby={undefined}
-              className="w-[min(360px,100vw)] max-w-full overflow-y-auto bg-white p-[24px] sm:max-w-[360px]"
+              className={`${motion.menuPanel} w-[min(360px,100vw)] max-w-full overflow-y-auto bg-white p-[24px] sm:max-w-[360px]`}
+              overlayClassName={motion.menuOverlay}
+              // Exit presence may retain the panel, but never its interactive targets.
+              inert={!menuOpen}
               onCloseAutoFocus={(event) => {
                 if (menuOpenRef.current) return;
                 if (window.matchMedia(DESKTOP_QUERY).matches) {

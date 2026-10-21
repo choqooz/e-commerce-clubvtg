@@ -99,6 +99,23 @@ describe("V2 editorial cart composition", () => {
     expect(cart.setIsOpen).toHaveBeenCalledExactlyOnceWith(false);
   });
 
+  it("opts only the cart into right-side motion and leaves an exiting panel inert", () => {
+    for (const isOpen of [true, false, true, false]) {
+      cart.isOpen = isOpen;
+      const tree = CartDrawer();
+      const content = elements(tree, SheetContent)[0];
+      expect(tree.props.open).toBe(isOpen);
+      expect(content.props.className).toContain("cartPanel");
+      expect(content.props.className).not.toMatch(/menuPanel|blur/);
+      expect(content.props.overlayClassName).toContain("cartOverlay");
+      expect(content.props.inert).toBe(!isOpen);
+      expect(content.props.side ?? "right").toBe("right");
+      for (const name of ["forceMount", "data-state", "onEscapeKeyDown", "onInteractOutside"])
+        expect(content.props[name]).toBeUndefined();
+    }
+    expect(cart.setIsOpen).not.toHaveBeenCalled();
+  });
+
   it("owns close autofocus only after restoration and defers checkout navigation focus", () => {
     const tree = filled();
     const content = elements(tree, SheetContent)[0];
@@ -279,6 +296,14 @@ describe("V2 editorial cart composition", () => {
           const name = attribute?.name.getText(file);
           const expression = node.expression.getText(file).replace(/\s+/g, " ");
           if (
+            authorizedFocusDelta &&
+            tag === "SheetContent" &&
+            ["className", "overlayClassName", "inert"].includes(name ?? "")
+          ) {
+            if (name === "className") expect(expression).toMatch(/^`\$\{motion.cartPanel\} flex /);
+            if (name === "overlayClassName") expect(expression).toBe("motion.cartOverlay");
+            if (name === "inert") expect(expression).toBe("!isOpen");
+          } else if (
             authorizedFocusDelta &&
             tag === "SheetContent" &&
             (name === "onOpenAutoFocus" || name === "onCloseAutoFocus")

@@ -294,6 +294,22 @@ describe("container contracts", () => {
     },
   );
 
+  it("opts into overlay styling without leaking the API onto Radix content or changing defaults", () => {
+    const [defaultOverlay, defaultContent] = elements(SheetContent({}).props.children);
+    const styling = { overlayClassName: "menu-backdrop", className: "menu-panel", inert: true };
+    const [overlay, content] = elements(SheetContent(styling).props.children);
+    const renderOverlay = overlay.type as (props: typeof overlay.props) => Element;
+    expect(renderOverlay(overlay.props).props.className).toContain("menu-backdrop");
+    expect(tokens(renderOverlay(overlay.props))).toContain("bg-midnight-ink/20");
+    expect(content.props.className).toContain("menu-panel");
+    expect(content.props.inert).toBe(true);
+    expect(content.props).not.toHaveProperty("overlayClassName");
+    expect(renderOverlay(overlay.props).props).not.toHaveProperty("overlayClassName");
+    expect(defaultOverlay.props.className).toBeUndefined();
+    expect(defaultContent.props.inert).toBeUndefined();
+    expect(defaultContent.props.className).not.toMatch(noDecoration);
+  });
+
   it("defaults to the right and allows the cart width/max-width and caller data overrides", () => {
     expect(elements(SheetContent({}).props.children)[1].props["data-side"]).toBe("right");
     const [, content] = elements(

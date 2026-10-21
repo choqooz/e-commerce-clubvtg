@@ -7,6 +7,7 @@ import { useRef } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useCart } from "@/contexts/cart-context";
 import { formatPrice } from "@/lib/config";
+import motion from "./storefront-motion.module.css";
 
 export function CartDrawer() {
   const {
@@ -25,6 +26,8 @@ export function CartDrawer() {
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetContent
+        inert={!isOpen}
+        overlayClassName={motion.cartOverlay}
         onOpenAutoFocus={() => {
           navigatingToCheckout.current = false;
         }}
@@ -32,7 +35,7 @@ export function CartDrawer() {
           if (!navigatingToCheckout.current && restoreCartFocus?.()) event.preventDefault();
         }}
         aria-describedby={undefined}
-        className="flex w-full min-h-0 flex-col gap-[0px] overflow-hidden rounded-none border-midnight-ink bg-bone-white font-sans font-normal text-midnight-ink sm:max-w-[560px] [&>[data-slot=sheet-close]]:size-[44px]"
+        className={`${motion.cartPanel} flex w-full min-h-0 flex-col gap-[0px] overflow-hidden rounded-none border-midnight-ink bg-bone-white font-sans font-normal text-midnight-ink sm:max-w-[560px] [&>[data-slot=sheet-close]]:size-[44px]`}
       >
         <SheetHeader className="shrink-0 border-b border-midnight-ink px-[18px] py-[24px] pr-[72px] sm:px-[30px] sm:pr-[72px]">
           <SheetTitle className="break-words font-sans text-[30px] leading-[1.2] font-normal">
