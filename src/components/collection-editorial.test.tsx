@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import Image from "next/image";
+import { ProgressiveImage } from "./progressive-image";
 import { Children, isValidElement, type ReactElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { compile } from "tailwindcss";
@@ -68,7 +68,7 @@ describe("Editorial collection and search", () => {
     const second = product(1, { image_urls: [" /selected.jpg ", "/second-angle.jpg"] });
     const tree = render([first, second, product(2)]);
     expect(hero(tree)?.props["aria-hidden"]).toBe("true");
-    const image = nodes(hero(tree)).find((node) => node.type === Image)!;
+    const image = nodes(hero(tree)).find((node) => node.type === ProgressiveImage)!;
     expect(image.props).toMatchObject({
       src: "/selected.jpg",
       alt: "",
@@ -87,7 +87,7 @@ describe("Editorial collection and search", () => {
     expect(cards(tree)).toHaveLength(2);
     const grid = nodes(tree).find((node) => "data-collection-products" in node.props)!;
     expect(grid.props.className).toContain("lg:col-span-2 lg:grid-cols-4");
-    expect(nodes(tree).filter((node) => node.type === Image)).toHaveLength(0);
+    expect(nodes(tree).filter((node) => node.type === ProgressiveImage)).toHaveLength(0);
   });
 
   it("names searches honestly across mixed categories and states an optional category constraint", () => {

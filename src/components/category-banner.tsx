@@ -1,5 +1,5 @@
-import Image from "next/image";
 import { useState } from "react";
+import { ProgressiveImage } from "@/components/progressive-image";
 import { CATEGORIES, type Category } from "@/lib/config";
 import type { Product } from "@/lib/types";
 
@@ -114,7 +114,7 @@ function CategoryTile({
       className={`group relative flex min-w-0 items-center justify-center overflow-hidden rounded-none bg-warm-sand p-[13px] text-center font-normal focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-[6px] focus-visible:outline-midnight-ink ${layout.spans}`}
     >
       {source && (
-        <Image
+        <ProgressiveImage
           src={source}
           alt=""
           fill

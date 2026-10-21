@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import Image from "next/image";
 import postcss from "postcss";
 import { Children, isValidElement, type ReactElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -10,11 +9,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CATEGORIES } from "@/lib/config";
 import type { Product } from "@/lib/types";
 import { CategoryBanner } from "./category-banner";
+import { ProgressiveImage } from "./progressive-image";
 
-const probe = vi.hoisted(() => ({ failedCover: null as string | null, setFailedCover: vi.fn() }));
+const probe = vi.hoisted(() => ({
+  failedCover: null as string | null,
+  setFailedCover: vi.fn(),
+  pendingPhotos: false,
+}));
 vi.mock("react", async (original) => ({
   ...(await original<typeof import("react")>()),
-  useState: () => [probe.failedCover, probe.setFailedCover],
+  // CategoryTile's failed source is independent of the helper's own state.
+  // SSR traverses the real helper with its unhydrated initial presentation.
+  useState: (initial: unknown) =>
+    initial && typeof initial === "object"
+      ? [probe.pendingPhotos ? { ...initial, status: "pending" } : initial, vi.fn()]
+      : [probe.failedCover, probe.setFailedCover],
 }));
 
 type Element = ReactElement<{ children?: ReactNode; className?: string; [key: string]: unknown }>;
@@ -59,11 +68,42 @@ const entryOrder = ["tops", "outerwear", "accessories", "footwear", "bottoms", "
 function renderTile(tile: Element): Element {
   return (tile.type as (props: Element["props"]) => Element)(tile.props);
 }
-const image = (tree: ReactNode) => descendants(tree).find((element) => element.type === Image);
+const image = (tree: ReactNode) =>
+  descendants(tree).find((element) => element.type === ProgressiveImage);
+
+function expectSixCoverImages(markup: string, expectedSources: string[]) {
+  const photos = [...markup.matchAll(/<img\b[^>]*>/g)].map((match) => match[0]);
+  const covers = photos.filter((photo) => photo.includes('data-nimg="fill"'));
+  const previews = photos.filter((photo) => photo.includes("data-image-preview"));
+  expect(covers).toHaveLength(6);
+  expect(previews).toHaveLength(6);
+  expect(photos).toHaveLength(covers.length + previews.length);
+  const sourceAttribute = (photo: string) =>
+    photo.match(/\bsrc="([^"]+)"/)![1].replaceAll("&amp;", "&");
+  const source = (photo: string) => new URL(sourceAttribute(photo), "https://store.example");
+  expect(
+    covers.map((cover) => {
+      const url = source(cover);
+      return url.pathname === "/_next/image" ? url.searchParams.get("url") : sourceAttribute(cover);
+    }),
+  ).toEqual(expectedSources);
+  for (const [index, preview] of previews.entries()) {
+    expect(preview).toContain('alt=""');
+    expect(preview).toContain('aria-hidden="true"');
+    expect(preview).not.toMatch(/\b(?:srcset|sizes|data-nimg)=/i);
+    const tiny = source(preview);
+    expect(tiny.pathname).toBe("/_next/image");
+    expect(tiny.searchParams.get("w")).toBe("32");
+    expect(tiny.searchParams.get("url")).toBe(expectedSources[index]);
+    expect(photos[index * 2]).toBe(preview);
+    expect(photos[index * 2 + 1]).toBe(covers[index]);
+  }
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
   probe.failedCover = null;
+  probe.pendingPhotos = false;
 });
 
 describe("Category-photo entry", () => {
@@ -76,15 +116,19 @@ describe("Category-photo entry", () => {
       product({ id: "cover", image_urls: [" ", "  /real-shirt.jpg  ", "/other-angle.jpg"] }),
       product({ id: "later", image_urls: ["/later.jpg"] }),
     ];
-    const tile = tiles(entry(products))[0];
+    const tree = entry(products);
+    const tile = tiles(tree)[0];
     expect(tile.props.cover).toBe("/real-shirt.jpg");
-    const markup = renderToStaticMarkup(entry(products));
+    const markup = renderToStaticMarkup(tree);
     expect(markup).toContain("real-shirt.jpg");
     expect(markup).not.toContain("sold.jpg");
     expect(markup).not.toContain("other-angle.jpg");
     // Exact mismatches may be illustrative elsewhere, never a matching Tops cover.
     expect(tile.props.illustrative).toBe(false);
-    expect(markup.match(/<img\b/g)).toHaveLength(6);
+    expectSixCoverImages(
+      markup,
+      tiles(tree).map((cover) => cover.props.cover as string),
+    );
     expect(markup.match(/Imagen ilustrativa/g)).toHaveLength(5);
     const realTile = renderToStaticMarkup(renderTile(tile));
     expect(realTile).not.toContain("Imagen ilustrativa");
@@ -98,7 +142,10 @@ describe("Category-photo entry", () => {
     );
     const tree = entry(products);
     const markup = renderToStaticMarkup(tree);
-    expect(markup.match(/<img\b/g)).toHaveLength(6);
+    expectSixCoverImages(
+      markup,
+      entryOrder.map((category) => `/${category}.jpg`),
+    );
     expect(markup).not.toMatch(/Imagen ilustrativa|Foto ilustrativa|Imagen no disponible/);
     expect(descendants(tree).filter((element) => element.type === "a")).toHaveLength(0);
     expect(tiles(tree).map((tile) => image(renderTile(tile))?.props.src)).toEqual(
@@ -165,6 +212,24 @@ describe("Category-photo entry", () => {
     expect(image(bottom)?.props.sizes).toBe("(min-width: 768px) 50vw, 100vw");
   });
 
+  it("gives allowlisted Supabase category covers a tiny preview while keeping the main URL direct", () => {
+    const src = "https://project.supabase.co/storage/v1/object/public/products/category.jpg";
+    const tile = renderTile(tiles(entry([product({ image_urls: [src] })]))[0]);
+    expect(image(tile)?.props).toMatchObject({ src, unoptimized: true, fill: true });
+    // Explicitly project post-hydration pending state; this is markup/URL
+    // coverage, not a browser decode, layout or reconciliation test.
+    probe.pendingPhotos = true;
+    const markup = renderToStaticMarkup(tile);
+    const photos = [...markup.matchAll(/<img\b[^>]*>/g)].map((match) => match[0]);
+    expect(photos).toHaveLength(2);
+    expect(photos[0]).toContain("data-image-preview");
+    expect(photos[0]).toContain(encodeURIComponent(src));
+    expect(photos[0]).toContain("w=32");
+    expect(photos[0]).not.toMatch(/srcSet|sizes=/i);
+    expect(photos[1]).toContain(`src="${src}"`);
+    expect(photos[1]).not.toMatch(/\/_next\/image|srcSet=/i);
+  });
+
   it.each([
     { products: [] },
     { products: [product({ image_urls: ["", " "] })] },
@@ -174,7 +239,7 @@ describe("Category-photo entry", () => {
     ({ products }) => {
       const tree = entry(products);
       const markup = renderToStaticMarkup(tree);
-      expect(markup.match(/<img\b/g)).toHaveLength(6);
+      expectSixCoverImages(markup, Array(6).fill(illustrativeCover));
       expect(markup.match(/Imagen ilustrativa/g)).toHaveLength(6);
       expect(markup).not.toMatch(/En stock|Agotado|Disponible|Imagen no disponible/);
       expect(markup.match(/type="button"/g)).toHaveLength(6);
