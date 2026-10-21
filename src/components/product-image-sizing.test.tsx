@@ -1,14 +1,27 @@
-import Image, { getImageProps, type ImageProps } from "next/image";
-import { Children, isValidElement, type ReactElement, type ReactNode } from "react";
+import { getImageProps, type ImageProps } from "next/image";
+import { ProgressiveImage } from "./progressive-image";
+import { Children, cloneElement, isValidElement, type ReactElement, type ReactNode } from "react";
+import { Swiper, SwiperSlide } from "swiper/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Product } from "@/lib/types";
 import { ProductDetailContent } from "./product-detail-content";
+import { ProductGallery } from "./product-gallery";
 
 // Existing node-only setup: replay real gallery callbacks/state, without DOM or remote requests.
-const hooks = vi.hoisted(() => ({ states: [] as unknown[], index: 0 }));
+const hooks = vi.hoisted(() => ({
+  states: [] as unknown[],
+  index: 0,
+  refs: [] as { current: unknown }[],
+  refIndex: 0,
+}));
 vi.mock("react", async (original) => ({
   ...(await original<typeof import("react")>()),
   useEffect: vi.fn(),
+  useRef: (initial: unknown) => {
+    const i = hooks.refIndex++;
+    return hooks.refs[i] ?? (hooks.refs[i] = { current: initial });
+  },
+  useCallback: (callback: unknown) => callback,
   useState: (initial: unknown) => {
     const index = hooks.index++;
     if (index >= hooks.states.length) hooks.states[index] = initial;
@@ -56,14 +69,42 @@ const nodes = (tree: ReactNode): Element[] =>
   );
 function render(overrides: Partial<Product> = {}) {
   hooks.index = 0;
-  return ProductDetailContent({ product: { ...product, ...overrides }, relatedProducts: [] });
+  hooks.refIndex = 0;
+  const expand = (tree: ReactNode): ReactNode => {
+    if (Array.isArray(tree)) return tree.map(expand);
+    if (!isValidElement(tree)) return tree;
+    const node = tree as Element;
+    if (node.type === ProductGallery)
+      return expand(ProductGallery(node.props as Parameters<typeof ProductGallery>[0]));
+    return cloneElement(node, {}, expand(node.props.children));
+  };
+  const tree = expand(
+    ProductDetailContent({ product: { ...product, ...overrides }, relatedProducts: [] }),
+  );
+  const carousel = nodes(tree).find((node) => node.type === Swiper);
+  if (carousel) {
+    const instance = {
+      activeIndex: hooks.states[0] as number,
+      slideTo(index: number) {
+        this.activeIndex = index;
+        (carousel.props.onSlideChange as (instance: unknown) => void)(this);
+      },
+    };
+    (carousel.props.onSwiper as (instance: unknown) => void)(instance);
+  }
+  return tree;
 }
 const field = (tree: ReactNode) =>
   nodes(tree).find((node) => node.props.id === "product-active-image")!;
-const photo = (tree: ReactNode) => nodes(field(tree)).find((node) => node.type === Image)!;
+const activePhoto = (tree: ReactNode) =>
+  nodes(field(tree)).find((node) => node.props["data-active"] === true)!;
+// The real helper keeps the gallery's ImageProps/callback contract. Its underlying
+// Next Image forwarding and completion state are exercised in progressive-image.test.
+const photo = (tree: ReactNode) =>
+  nodes(activePhoto(tree)).find((node) => node.type === ProgressiveImage)!;
 const thumbnails = (tree: ReactNode) =>
   nodes(tree).filter(
-    (node) => node.type === "button" && node.props["aria-controls"] === "product-active-image",
+    (node) => node.type === "button" && typeof node.props["aria-pressed"] === "boolean",
   );
 const click = (node: Element) => (node.props.onClick as () => void)();
 const load = (node: Element, width: number, height: number) =>
@@ -76,9 +117,18 @@ const optimized = (tree: ReactNode) =>
 beforeEach(() => {
   hooks.states = [];
   hooks.index = 0;
+  hooks.refs = [];
+  hooks.refIndex = 0;
 });
 
 describe("Natural-ratio product photos", () => {
+  it("renders a non-looping Swiper slide for every full photo at 400ms", () => {
+    const tree = render();
+    const carousel = nodes(tree).find((node) => node.type === Swiper);
+    expect(carousel, "multiple photos need a real Swiper React viewport").toBeDefined();
+    expect(carousel!.props).toMatchObject({ speed: 400, loop: false, autoHeight: false });
+    expect(nodes(carousel).filter((node) => node.type === SwiperSlide)).toHaveLength(3);
+  });
   it.each([
     ["portrait", 800, 1200],
     ["landscape", 1600, 900],
@@ -87,9 +137,9 @@ describe("Natural-ratio product photos", () => {
     let tree = render();
     expect(optimized(tree)).toMatchObject({ width: 0, height: 0 });
     expect(field(tree).props["aria-busy"]).toBe(true);
-    expect(nodes(field(tree)).find((node) => node.props.role === "status")?.props.children).toBe(
-      "Cargando imagen…",
-    );
+    expect(
+      nodes(activePhoto(tree)).find((node) => node.props.role === "status")?.props.children,
+    ).toBe("Cargando imagen…");
     load(photo(tree), width, height);
     tree = render();
     const image = optimized(tree);
@@ -107,10 +157,11 @@ describe("Natural-ratio product photos", () => {
     expect(photo(tree).props.fill).toBeUndefined();
     expect(photo(tree).props.preload).toBe(true);
     expect(photo(tree).props.priority).toBeUndefined();
-    // Normal flow, with neither wrapper ratio/padding nor clipped overflow; not browser evidence.
-    expect(field(tree).props.className).toBe("relative w-full");
+    // The photo stays natural inside a separately constrained Swiper viewport.
+    expect(field(tree).props.className).toContain("relative w-full");
+    expect(activePhoto(tree).props.style).toBeUndefined();
     expect(field(tree).props["aria-busy"]).toBe(false);
-    expect(nodes(field(tree)).filter((node) => node.props.role === "status")).toHaveLength(0);
+    expect(nodes(activePhoto(tree)).filter((node) => node.props.role === "status")).toHaveLength(0);
   });
 
   it("switches portrait/landscape/square and reuses only each URL's measured ratio", () => {
@@ -158,9 +209,9 @@ describe("Natural-ratio product photos", () => {
     tree = render();
     expect(photo(tree)).toBeUndefined();
     expect(field(tree).props["aria-busy"]).toBe(false);
-    expect(nodes(field(tree)).find((node) => node.props.role === "status")?.props.children).toBe(
-      "No pudimos cargar esta imagen. Probá otra vista.",
-    );
+    expect(
+      nodes(activePhoto(tree)).find((node) => node.props.role === "status")?.props.children,
+    ).toBe("No pudimos cargar esta imagen. Probá otra vista.");
     click(thumbnails(tree)[1]);
     tree = render();
     expect(photo(tree).props.src).toBe("/landscape.jpg");
@@ -177,9 +228,9 @@ describe("Natural-ratio product photos", () => {
     (photo(tree).props.onError as () => void)();
     tree = render(overrides);
     expect(thumbnails(tree)).toHaveLength(0);
-    expect(nodes(field(tree)).find((node) => node.props.role === "status")?.props.children).toBe(
-      "No pudimos cargar esta imagen.",
-    );
+    expect(
+      nodes(activePhoto(tree)).find((node) => node.props.role === "status")?.props.children,
+    ).toBe("No pudimos cargar esta imagen.");
   });
 
   it.each(["sold", "reserved"] as const)(
@@ -197,7 +248,9 @@ describe("Natural-ratio product photos", () => {
       ).toBe(true);
       expect(nodes(tree).find((node) => node.type === "h1")?.props.children).toBe(product.title);
       expect(
-        nodes(tree).find((node) => node.type === "button" && node.props.disabled)?.props.children,
+        nodes(tree).find(
+          (node) => node.type === "button" && node.props.disabled && !node.props["aria-controls"],
+        )?.props.children,
       ).toBe(label);
       for (const value of [
         product.description,
@@ -218,8 +271,8 @@ describe("Natural-ratio product photos", () => {
     expect(photo(tree)).toBeUndefined();
     expect(field(tree).props["aria-busy"]).toBe(false);
     expect(thumbnails(tree)).toHaveLength(0);
-    expect(nodes(field(tree)).find((node) => node.props.role === "status")?.props.children).toBe(
-      product.category,
-    );
+    expect(
+      nodes(activePhoto(tree)).find((node) => node.props.role === "status")?.props.children,
+    ).toBe(product.category);
   });
 });

@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { Children, isValidElement, type ReactElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { Swiper } from "swiper/react";
 import { compile } from "tailwindcss";
 import ts from "typescript";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -61,6 +62,7 @@ vi.mock("react", async (original) => ({
       },
     ];
   },
+  useCallback: (callback: unknown) => callback,
   useEffect: (effect: () => void | (() => void)) => {
     probe.effects.push(effect);
   },
@@ -134,6 +136,7 @@ vi.mock("@/components/ui/sheet", () => {
   );
 });
 import { BrandMark } from "./brand-mark";
+import { ProductGallery } from "./product-gallery";
 import { SiteHeader } from "./site-header";
 import { SiteFooter } from "./site-footer";
 import { AdminMobileNavigation, AdminSidebar } from "./admin/sidebar";
@@ -353,6 +356,38 @@ describe("Navigation contracts", () => {
     click(button(tree, "Carrito"));
     expect(probe.cart.setIsOpen).toHaveBeenCalledWith(true);
     expect(getUserCredits).not.toHaveBeenCalled();
+  });
+
+  it("scopes motion and closed-state inertness to the controlled mobile menu", () => {
+    const menuContent = (tree: ReactNode) =>
+      elements(tree, Sheet).find((node) => node.props.side === "left")!;
+    const closed = SiteHeader();
+    const content = menuContent(closed);
+    expect(content.props.className).toContain("menuPanel");
+    expect(content.props.overlayClassName).toContain("menuOverlay");
+    expect(content.props.inert).toBe(true);
+    expect(content.props.forceMount).toBeUndefined();
+    expect(content.props["data-state"]).toBeUndefined(); // Radix owns presence state.
+    const desktop = elements(closed, "nav").find((node) => node.props["aria-label"] === "Tienda")!;
+    expect(desktop.props.className).not.toMatch(/menuPanel|menuOverlay|animate|transition/);
+    // The cart relies on Sheet's default right side; the mock aliases all Sheet exports.
+    const cartContent = elements(CartDrawer(), Sheet).find((node) => node.props.onCloseAutoFocus)!;
+    expect(cartContent.props.className).toContain("cartPanel");
+    expect(cartContent.props.className).not.toContain("menuPanel");
+    expect(cartContent.props.overlayClassName).toContain("cartOverlay");
+    expect(cartContent.props.inert).toBe(true);
+    const adminContent = elements(AdminMobileNavigation(), Sheet).find(
+      (node) => node.props.side === "left",
+    )!;
+    expect(adminContent.props.overlayClassName).toBeUndefined();
+    expect(adminContent.props.className).not.toMatch(/cartPanel|menuPanel/);
+
+    // Explicit shallow state sequence, not mounted presence, focus or animation evidence.
+    for (const open of [true, false, true, false]) {
+      probe.states = [false, open];
+      probe.stateIndex = 0;
+      expect(menuContent(SiteHeader()).props.inert).toBe(!open);
+    }
   });
 
   it("submits the expandable search, restores its URL value and clears without dropping category", () => {
@@ -989,12 +1024,24 @@ describe("Storefront state, data and callback preservation", () => {
       ["Multicolor", { background: COLOR_MAP.multicolor }],
       ["Desconocido", { backgroundColor: "#cccccc" }],
     ]);
-    const thumbnails = elements(tree, "button").filter(
-      (element) => element.props.disabled === undefined,
+    // Invoke the extracted real gallery; retain the callback guard through Swiper's local API.
+    const gallery = ProductGallery({ product: garment });
+    const slider = elements(gallery, Swiper)[0];
+    const instance = {
+      activeIndex: 0,
+      slideTo: vi.fn((index: number) => {
+        instance.activeIndex = index;
+        (slider.props.onSlideChange as (api: unknown) => void)(instance);
+      }),
+    };
+    (slider.props.onSwiper as (api: unknown) => void)(instance);
+    const thumbnails = elements(gallery, "button").filter(
+      (element) => typeof element.props["aria-pressed"] === "boolean",
     );
     expect(thumbnails).toHaveLength(2);
     click(thumbnails[1]);
-    expect(probe.setState).toHaveBeenCalledWith("/shirt-back.jpg");
+    expect(instance.slideTo).toHaveBeenCalledWith(1, 400);
+    expect(probe.setState).toHaveBeenCalledWith(1);
     expect(markup).toContain('src="/shirt-front.jpg"');
     expect(markup).toContain('alt="Vista 2"');
     expect(probe.capture).not.toHaveBeenCalled();
@@ -1153,54 +1200,48 @@ function signatures(text: string, adminNavigation = false) {
   return { attributes, copy, preambles };
 }
 
-// T3 replaces only the active-photo field and adds URL-keyed measured image state.
-// Restore those exact presentation surfaces for the original business-baseline comparison;
-// callback-driven natural sizing/error/switching contracts live in product-image-sizing.test.tsx.
+// Restore only the extracted gallery and its old selection state for the immutable
+// business-baseline comparison. Real gallery callbacks/ratios/errors are tested separately.
 function beforeNaturalSizing(text: string) {
   const prior = execFileSync(
     "git",
     ["show", "4ff56050aee9baf2579c19cde360b77d10b928bb:src/components/product-detail-content.tsx"],
     { encoding: "utf8" },
   );
-  const isPhotoField = (node: ts.Node, file: ts.SourceFile): node is ts.JsxElement =>
-    ts.isJsxElement(node) &&
-    node.openingElement.attributes.properties.some(
-      (property) => property.getText(file) === 'id="product-active-image"',
-    );
   const priorFile = parse(prior);
-  let priorField = "";
-  const findField = (node: ts.Node) => {
-    if (isPhotoField(node, priorFile)) priorField = node.getText(priorFile);
-    ts.forEachChild(node, findField);
+  let priorGallery = "";
+  let priorSelection = "";
+  const findPrior = (node: ts.Node) => {
+    if (
+      ts.isJsxElement(node) &&
+      node.openingElement.attributes.properties.some(
+        (property) => property.getText(priorFile) === 'id="product-active-image"',
+      )
+    )
+      priorGallery = node.parent.getText(priorFile);
+    if (ts.isVariableStatement(node)) {
+      const name = node.declarationList.declarations[0].name;
+      if (ts.isArrayBindingPattern(name) && name.elements[0].getText(priorFile) === "activeImage")
+        priorSelection = node.getText(priorFile);
+    }
+    ts.forEachChild(node, findPrior);
   };
-  findField(priorFile);
-  expect(priorField).not.toBe("");
+  findPrior(priorFile);
+  expect(priorGallery).toContain("Thumbnails");
+  expect(priorSelection).toContain("setActiveImage");
   const file = parse(text);
   const edits: { start: number; end: number; replacement: string }[] = [];
-  const deltas: string[] = [];
-  const replace = (node: ts.Node, name: string, replacement = "") => {
-    deltas.push(name);
-    edits.push({ start: node.getStart(file), end: node.end, replacement });
-  };
   const visit = (node: ts.Node) => {
-    if (isPhotoField(node, file)) {
-      replace(node, "activePhoto", priorField);
-      return;
+    if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(file) === "ProductGallery") {
+      expect(node.getText(file)).toBe("<ProductGallery key={product.id} product={product} />");
+      edits.push({ start: node.getStart(file), end: node.end, replacement: priorGallery });
     }
-    if (ts.isVariableStatement(node)) {
-      const declaration = node.declarationList.declarations[0];
-      if (
-        ts.isArrayBindingPattern(declaration.name) &&
-        declaration.name.elements[0].getText(file) === "imageStates"
-      )
-        replace(node, "imageStates");
-      else if (["imageState", "recordImageSize"].includes(declaration.name.getText(file)))
-        replace(node, declaration.name.getText(file));
-    }
+    if (ts.isVariableStatement(node) && node.getText(file) === "const posthog = usePostHog();")
+      edits.push({ start: node.end, end: node.end, replacement: `\n${priorSelection}` });
     ts.forEachChild(node, visit);
   };
   visit(file);
-  expect(deltas).toEqual(["imageStates", "imageState", "recordImageSize", "activePhoto"]);
+  expect(edits).toHaveLength(2);
   for (const edit of edits.sort((a, b) => b.start - a.start))
     text = text.slice(0, edit.start) + edit.replacement + text.slice(edit.end);
   return text;
@@ -1270,7 +1311,13 @@ function cartSignatures(text: string) {
     if (ts.isJsxAttribute(node)) {
       const name = node.name.getText(file);
       const owner = node.parent.parent;
-      if (name === "onOpenAutoFocus" || name === "onCloseAutoFocus") {
+      if (name === "inert" || name === "overlayClassName") {
+        expect(ts.isJsxOpeningElement(owner) && owner.tagName.getText(file)).toBe("SheetContent");
+        expect(JSON.stringify(semanticNode(node))).toBe(
+          attribute(name === "inert" ? "inert={!isOpen}" : "overlayClassName={motion.cartOverlay}"),
+        );
+        replace(node, name);
+      } else if (name === "onOpenAutoFocus" || name === "onCloseAutoFocus") {
         expect(ts.isJsxOpeningElement(owner) && owner.tagName.getText(file)).toBe("SheetContent");
         const expected =
           name === "onOpenAutoFocus"
@@ -1300,6 +1347,8 @@ function cartSignatures(text: string) {
   expect(deltas).toEqual([
     "restoreCartFocus",
     "navigationRef",
+    "inert",
+    "overlayClassName",
     "onOpenAutoFocus",
     "onCloseAutoFocus",
     "checkout",
@@ -1330,8 +1379,8 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
         // Chrome deliberately replaces old markup and logic. Pin every accepted byte,
         // including all callbacks, literals and imports; do not discard AST nodes.
         const acceptedChrome = {
-          // T2 adds in-field submit/clear and URL-synchronized draft; navigation stays protected.
-          "site-header.tsx": "3965c8174067df9e40d5c66884136a743bc6f13de89b07b063052235d05da857",
+          // Motion T1 adds scoped menu classes and closed-panel inertness; callbacks stay pinned.
+          "site-header.tsx": "e8413c5979e9a886a48030a9b603ed76c5ce2fdad5d74c893bcc603f0d04f0da",
           "site-footer.tsx": "1e9a96519016d16e1c243e93281e9f3f464ab28336f8ac41990e4c510869f6bb",
         };
         expect(createHash("sha256").update(source(path)).digest("hex")).toBe(acceptedChrome[path]);
@@ -1374,15 +1423,25 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
           );
         }
       } else if (path === "product-detail-content.tsx") {
-        // T3 intentionally replaces the photo field and measured state, so the former
-        // byte hash is obsolete. Normalize only those named AST surfaces above and keep
-        // the complete original business baseline; image-sizing exercises their callbacks.
+        // Motion T2 extracts the gallery. Normalize only that exact component call and
+        // removed selection state, retaining the original business baseline elsewhere.
+        // Image-sizing/gallery tests exercise the real extracted callbacks and ratios.
         expect(detailSignatures(source(path))).toEqual(signatures(baseline));
       } else if (path === "cart-drawer.tsx") {
         // Pin all accepted bytes alongside the original business/semantic baseline.
         // Authorized C1a autofocus/checkout handoff shapes are qualified above and in cart-shopping.
         // Mounted focus remains Playwright's responsibility, not these shallow callbacks.
-        expect(createHash("sha256").update(source(path)).digest("hex")).toBe(
+        // Reverse only T3's exact opt-in motion additions; retain the prior full-byte pin.
+        const beforeMotion = source(path)
+          .replace('import motion from "./storefront-motion.module.css";\n', "")
+          .replace("        inert={!isOpen}\n", "")
+          .replace("        overlayClassName={motion.cartOverlay}\n", "")
+          .replace("className={`${motion.cartPanel} ", 'className="')
+          .replace(
+            "[&>[data-slot=sheet-close]]:size-[44px]`}",
+            '[&>[data-slot=sheet-close]]:size-[44px]"',
+          );
+        expect(createHash("sha256").update(beforeMotion).digest("hex")).toBe(
           "366549392ec3d1e022a70634f76a1d97a37d80d08b00fa9996afe7ae6017ad0a",
         );
         expect(cartSignatures(source(path))).toEqual(signatures(baseline));
@@ -1413,7 +1472,7 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
 
   it("compiles explicit dimensions, responsive fits, flat surfaces, regular type and focus", async () => {
     const candidates: string[] = [];
-    for (const path of [...paths, "collection-editorial.tsx"]) {
+    for (const path of [...paths, "collection-editorial.tsx", "product-gallery.tsx"]) {
       const file = parse(source(path));
       const visit = (node: ts.Node) => {
         if (

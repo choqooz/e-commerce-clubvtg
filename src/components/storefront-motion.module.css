@@ -1,0 +1,150 @@
+/* Distinct names let Radix Presence retain the exit until animationend/cancel.
+   Reversals restart keyframes rather than interpolating the current position. */
+.menuPanel[data-state="open"] {
+  animation: menuEnter 250ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.menuPanel[data-state="closed"] {
+  animation: menuExit 200ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.menuOverlay {
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+.menuOverlay[data-state="open"] {
+  animation: menuBackdropEnter 250ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.menuOverlay[data-state="closed"] {
+  animation: menuBackdropExit 200ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@keyframes menuEnter {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes menuExit {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes menuBackdropEnter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes menuBackdropExit {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Cart motion is opt-in; the shared Sheet tint stays unchanged.
+   As with the menu, rapid reversals restart keyframes, not the current position. */
+.cartPanel[data-state="open"] {
+  animation: cartEnter 250ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.cartPanel[data-state="closed"] {
+  animation: cartExit 200ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.cartOverlay {
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+.cartOverlay[data-state="open"] {
+  animation: cartBackdropEnter 250ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.cartOverlay[data-state="closed"] {
+  animation: cartBackdropExit 200ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@keyframes cartEnter {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes cartExit {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes cartBackdropEnter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes cartBackdropExit {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Match state specificity and retain the name: Radix matches end/cancel events
+   against it. A zero duration finishes even an already-suspended exit. */
+@media (prefers-reduced-motion: reduce) {
+  .menuPanel[data-state],
+  .menuOverlay[data-state] {
+    animation-duration: 0ms;
+  }
+
+  .menuPanel[data-state] {
+    /* Override even a live animation's transform without changing its name. */
+    transform: translateX(0) !important;
+  }
+
+  .cartPanel[data-state] {
+    animation-duration: 0ms;
+    /* Override even a live animation's transform without changing its name. */
+    transform: translateX(0) !important;
+  }
+
+  .cartOverlay[data-state] {
+    animation-duration: 0ms;
+  }
+}
+
+/* The desktop header remains flat, including while a resize closes the Sheet. */
+@media (min-width: 48rem) {
+  .menuPanel[data-state],
+  .menuOverlay[data-state] {
+    display: none;
+    animation-duration: 0ms;
+  }
+}

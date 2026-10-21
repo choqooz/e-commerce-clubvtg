@@ -1,13 +1,13 @@
 "use client";
 
 import { ChevronRight } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePostHog } from "posthog-js/react";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { toast } from "sonner";
 import { CartDrawer } from "@/components/cart-drawer";
 import { ProductCard } from "@/components/product-card";
+import { ProductGallery } from "@/components/product-gallery";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { TryOnSection } from "@/components/try-on-section";
@@ -26,20 +26,6 @@ export function ProductDetailContent({
 }) {
   const { addItem } = useCart();
   const posthog = usePostHog();
-  const [activeImage, setActiveImage] = useState<string | null>(
-    product.image_urls && product.image_urls.length > 0 ? product.image_urls[0] : null,
-  );
-
-  const [imageStates, setImageStates] = useState<
-    Record<string, { width: number; height: number; status: "loaded" | "error" }>
-  >({});
-  const imageState = activeImage ? imageStates[activeImage] : undefined;
-  const recordImageSize = (url: string, image: HTMLImageElement) => {
-    if (!image.naturalWidth || !image.naturalHeight) return;
-    const { naturalWidth: width, naturalHeight: height } = image;
-    setImageStates((previous) => ({ ...previous, [url]: { width, height, status: "loaded" } }));
-  };
-
   useEffect(() => {
     const event = productViewedEvent(product);
     posthog?.capture(event.event, event.properties);
@@ -93,98 +79,7 @@ export function ProductDetailContent({
         <div className="pb-[42px] md:pb-[72px]">
           <div className="grid grid-cols-1 items-start gap-[0px] lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
             {/* The full photo leads the spread; the index stays compact at every width. */}
-            <div className="relative min-w-0" role="group" aria-label="Galería del producto">
-              <div
-                id="product-active-image"
-                className="relative w-full"
-                aria-busy={Boolean(activeImage && !imageState)}
-              >
-                {activeImage && imageState?.status !== "error" ? (
-                  <>
-                    {/* URLs have no stored dimensions. Zero attributes reserve no invented ratio;
-                        the browser uses the photo's natural ratio as soon as metadata arrives.
-                        First loads can shift layout; measured sizes reserve space on later views. */}
-                    <Image
-                      key={activeImage}
-                      src={activeImage}
-                      alt={product.title}
-                      width={imageState?.width ?? 0}
-                      height={imageState?.height ?? 0}
-                      preload
-                      sizes="(min-width: 1024px) 58.33vw, 100vw"
-                      className="block"
-                      style={{ width: "100%", height: "auto" }}
-                      onLoad={(event) => recordImageSize(activeImage, event.currentTarget)}
-                      onError={() =>
-                        setImageStates((previous) => ({
-                          ...previous,
-                          [activeImage]: { width: 0, height: 0, status: "error" },
-                        }))
-                      }
-                    />
-                    {!imageState && (
-                      <span
-                        role="status"
-                        className="block px-[18px] py-[18px] font-mono text-[13px]"
-                      >
-                        Cargando imagen…
-                      </span>
-                    )}
-                  </>
-                ) : (
-                  <span
-                    role="status"
-                    className="block px-[18px] py-[30px] font-mono text-[13px] font-normal text-midnight-ink"
-                  >
-                    {activeImage
-                      ? product.image_urls.length > 1
-                        ? "No pudimos cargar esta imagen. Probá otra vista."
-                        : "No pudimos cargar esta imagen."
-                      : product.category}
-                  </span>
-                )}
-              </div>
-
-              {/* Thumbnails */}
-              {product.image_urls && product.image_urls.length > 1 && (
-                <div className="flex gap-[6px] overflow-x-auto px-[18px] py-[18px] md:px-[24px]">
-                  {product.image_urls.map((url: string, i: number) => (
-                    <button
-                      key={url}
-                      type="button"
-                      aria-label={`Ver vista ${i + 1} de ${product.title}`}
-                      aria-pressed={activeImage === url}
-                      aria-controls="product-active-image"
-                      onClick={() => setActiveImage(url)}
-                      className={`relative aspect-4/5 w-[72px] shrink-0 overflow-hidden border bg-warm-sand md:w-[84px] focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink ${
-                        activeImage === url
-                          ? "border-midnight-ink"
-                          : "border-transparent hover:border-midnight-ink"
-                      }`}
-                    >
-                      <Image
-                        src={url}
-                        alt={`Vista ${i + 1}`}
-                        fill
-                        sizes="(min-width: 768px) 84px, 72px"
-                        className="object-contain"
-                      />
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {product.status === "sold" && (
-                <span className="absolute top-[18px] right-[18px] border border-midnight-ink bg-bone-white px-[6px] py-[2px] font-mono text-[13px] font-normal uppercase text-midnight-ink">
-                  Vendido
-                </span>
-              )}
-              {product.status === "reserved" && (
-                <span className="absolute top-[18px] right-[18px] border border-midnight-ink bg-warm-sand px-[6px] py-[2px] font-mono text-[13px] font-normal uppercase text-midnight-ink">
-                  Reservado
-                </span>
-              )}
-            </div>
+            <ProductGallery key={product.id} product={product} />
 
             {/* Product Info */}
             <div className="min-w-0 px-[18px] py-[30px] md:px-[24px] md:py-[42px] lg:px-[42px] lg:py-[36px]">
