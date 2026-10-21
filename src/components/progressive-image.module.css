@@ -1,0 +1,70 @@
+.frame {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  background: var(--color-warm-sand, #e8e2d9);
+}
+
+.fill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.natural {
+  min-height: inherit;
+}
+
+/* Hide partial main-image painting from the first SSR paint, not an effect. */
+.image {
+  opacity: 0;
+}
+
+.frame[data-state="loaded"] .image,
+.frame[data-state="cached"] .image,
+.frame[data-state="error"] .image {
+  opacity: 1;
+}
+
+.frame[data-state="loaded"] .image {
+  transition: opacity 250ms ease;
+}
+
+.preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  filter: blur(12px);
+  opacity: 1;
+  pointer-events: none;
+}
+
+.natural .preview {
+  object-fit: contain;
+}
+
+.frame[data-state="loaded"] .preview {
+  opacity: 0;
+  transition: opacity 250ms ease 125ms;
+}
+
+/* Scripting capability, not hydration timing: no root/bootstrap dependency. */
+@media (scripting: none) {
+  .frame[data-state] .image {
+    opacity: 1;
+  }
+
+  .preview {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .frame[data-state] .image,
+  .frame[data-state] .preview {
+    transition-duration: 0ms;
+    transition-delay: 0ms;
+  }
+}

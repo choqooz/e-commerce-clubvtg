@@ -1,5 +1,5 @@
-import Image from "next/image";
 import { ProductCard } from "@/components/product-card";
+import { ProgressiveImage } from "@/components/progressive-image";
 import type { Product } from "@/lib/types";
 
 export function CollectionEditorial({
@@ -36,7 +36,7 @@ export function CollectionEditorial({
             products.length === 1 ? "lg:aspect-[4/3]" : "lg:aspect-[2/3]"
           }`}
         >
-          <Image
+          <ProgressiveImage
             src={cover}
             alt=""
             fill

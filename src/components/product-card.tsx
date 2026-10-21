@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { ProgressiveImage } from "@/components/progressive-image";
 import Link from "next/link";
 import { formatPrice } from "@/lib/config";
 import type { Product } from "@/lib/types";
@@ -28,7 +28,7 @@ export function ProductCard({
         {/* Product image */}
         <div className="relative flex w-full aspect-[4/5] items-center justify-center object-cover bg-secondary">
           {product.image_urls && product.image_urls.length > 0 ? (
-            <Image
+            <ProgressiveImage
               src={product.image_urls[0]}
               alt={product.title}
               fill
