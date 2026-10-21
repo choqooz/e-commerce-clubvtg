@@ -23,6 +23,7 @@ import { CategoryBanner } from "@/components/category-banner";
 import { CollectionEditorial } from "@/components/collection-editorial";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { StorefrontContentTransition } from "@/components/storefront-transition";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -114,164 +115,166 @@ export function CatalogContent({
     <div className="min-h-screen bg-bone-white font-sans font-normal text-midnight-ink">
       <SiteHeader />
       <CartDrawer />
-      <main>
-        {!isCollection && (
+      <StorefrontContentTransition>
+        <main data-storefront-catalog>
+          {!isCollection && (
+            <section
+              id="category-entry"
+              aria-label="Explorar por categoría"
+              tabIndex={-1}
+              className="w-full scroll-mt-[156px] focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-midnight-ink"
+            >
+              <h1 className="sr-only">Colecciones clubvtg</h1>
+              <CategoryBanner
+                initialProducts={initialProducts}
+                onCategoryChange={(cat: Category) =>
+                  handleCategoryChange(
+                    cat === "all" ? "all" : names.includes(cat) ? `type:${cat}` : `legacy:${cat}`,
+                  )
+                }
+              />
+              <div className="flex justify-center px-[18px] py-[24px]">
+                <button
+                  type="button"
+                  aria-controls="catalog"
+                  onClick={() => handleCategoryChange("all")}
+                  className="min-h-[36px] font-mono text-[13px] underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2"
+                >
+                  Ver todas las prendas
+                </button>
+              </div>
+            </section>
+          )}
+
+          {/* The controlled collection target exists even while its contents are not mounted. */}
           <section
-            id="category-entry"
-            aria-label="Explorar por categoría"
+            id="catalog"
+            aria-label="Catálogo de prendas"
+            hidden={!isCollection}
             tabIndex={-1}
             className="w-full scroll-mt-[156px] focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-midnight-ink"
           >
-            <h1 className="sr-only">Colecciones clubvtg</h1>
-            <CategoryBanner
-              initialProducts={initialProducts}
-              onCategoryChange={(cat: Category) =>
-                handleCategoryChange(
-                  cat === "all" ? "all" : names.includes(cat) ? `type:${cat}` : `legacy:${cat}`,
-                )
-              }
-            />
-            <div className="flex justify-center px-[18px] py-[24px]">
-              <button
-                type="button"
-                aria-controls="catalog"
-                onClick={() => handleCategoryChange("all")}
-                className="min-h-[36px] font-mono text-[13px] underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2"
-              >
-                Ver todas las prendas
-              </button>
-            </div>
-          </section>
-        )}
-
-        {/* The controlled collection target exists even while its contents are not mounted. */}
-        <section
-          id="catalog"
-          aria-label="Catálogo de prendas"
-          hidden={!isCollection}
-          tabIndex={-1}
-          className="w-full scroll-mt-[156px] focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-midnight-ink"
-        >
-          {isCollection && (
-            <>
-              <div className="flex flex-wrap items-center justify-between gap-x-[13px] gap-y-[6px] px-[18px] py-[6px] font-mono text-[13px] md:px-[24px]">
-                <button
-                  type="button"
-                  onClick={() => navigateCollection("home")}
-                  className="flex min-h-[36px] items-center gap-[6px] underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2"
-                >
-                  <ArrowLeft size={14} aria-hidden="true" />
-                  Volver al inicio
-                </button>
-                <div className="flex min-w-0 flex-wrap items-center gap-[13px]">
-                  <label htmlFor="collection-category" className="sr-only">
-                    Categoría
-                  </label>
-                  <select
-                    id="collection-category"
-                    value={selection}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      if (!value.startsWith("legacy:") || value === selection) {
-                        handleCategoryChange(value as CatalogSnapshot);
-                      }
-                    }}
-                    className="min-h-[36px] min-w-0 max-w-full rounded-none border-0 bg-bone-white py-[6px] font-mono text-[13px] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink"
+            {isCollection && (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-x-[13px] gap-y-[6px] px-[18px] py-[6px] font-mono text-[13px] md:px-[24px]">
+                  <button
+                    type="button"
+                    onClick={() => navigateCollection("home")}
+                    className="flex min-h-[36px] items-center gap-[6px] underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink focus-visible:outline-offset-2"
                   >
-                    <option value="all">Todo</option>
-                    {names.map((name) => (
-                      <option key={name} value={`type:${name}`}>
-                        {name}
-                      </option>
-                    ))}
-                    {selection.startsWith("legacy:") && (
-                      <optgroup label="Categoría de inicio">
-                        <option value={selection}>
-                          {CATEGORIES.find((category) => category.id === activeCategory)?.label}
-                        </option>
-                      </optgroup>
-                    )}
-                  </select>
-                  <Sheet>
-                    <SheetTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        <SlidersHorizontal size={14} aria-hidden="true" />
-                        Filtros{activeFilterCount > 0 && ` (${activeFilterCount})`}
-                      </Button>
-                    </SheetTrigger>
-                    <SheetContent
-                      side="right"
-                      aria-describedby={undefined}
-                      className="flex flex-col"
+                    <ArrowLeft size={14} aria-hidden="true" />
+                    Volver al inicio
+                  </button>
+                  <div className="flex min-w-0 flex-wrap items-center gap-[13px]">
+                    <label htmlFor="collection-category" className="sr-only">
+                      Categoría
+                    </label>
+                    <select
+                      id="collection-category"
+                      value={selection}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        if (!value.startsWith("legacy:") || value === selection) {
+                          handleCategoryChange(value as CatalogSnapshot);
+                        }
+                      }}
+                      className="min-h-[36px] min-w-0 max-w-full rounded-none border-0 bg-bone-white py-[6px] font-mono text-[13px] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-midnight-ink"
                     >
-                      <SheetHeader>
-                        <SheetTitle>Filtros</SheetTitle>
-                      </SheetHeader>
-                      <div className="min-h-0 flex-1 overflow-y-auto px-[24px] py-[6px]">
-                        <CatalogFilters
-                          filters={filters}
-                          onFiltersChange={setFilters}
-                          categoryProducts={categoryProducts}
-                        />
-                      </div>
-                      <SheetFooter className="border-t border-midnight-ink pt-[13px]">
-                        {activeFilterCount > 0 && (
-                          <Button variant="outline" onClick={clearFilters} className="w-full">
-                            Limpiar filtros
-                          </Button>
-                        )}
-                        <SheetClose asChild>
-                          <Button className="w-full">
-                            Ver {finalProducts.length}{" "}
-                            {finalProducts.length === 1 ? "prenda" : "prendas"}
-                          </Button>
-                        </SheetClose>
-                      </SheetFooter>
-                    </SheetContent>
-                  </Sheet>
+                      <option value="all">Todo</option>
+                      {names.map((name) => (
+                        <option key={name} value={`type:${name}`}>
+                          {name}
+                        </option>
+                      ))}
+                      {selection.startsWith("legacy:") && (
+                        <optgroup label="Categoría de inicio">
+                          <option value={selection}>
+                            {CATEGORIES.find((category) => category.id === activeCategory)?.label}
+                          </option>
+                        </optgroup>
+                      )}
+                    </select>
+                    <Sheet>
+                      <SheetTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <SlidersHorizontal size={14} aria-hidden="true" />
+                          Filtros{activeFilterCount > 0 && ` (${activeFilterCount})`}
+                        </Button>
+                      </SheetTrigger>
+                      <SheetContent
+                        side="right"
+                        aria-describedby={undefined}
+                        className="flex flex-col"
+                      >
+                        <SheetHeader>
+                          <SheetTitle>Filtros</SheetTitle>
+                        </SheetHeader>
+                        <div className="min-h-0 flex-1 overflow-y-auto px-[24px] py-[6px]">
+                          <CatalogFilters
+                            filters={filters}
+                            onFiltersChange={setFilters}
+                            categoryProducts={categoryProducts}
+                          />
+                        </div>
+                        <SheetFooter className="border-t border-midnight-ink pt-[13px]">
+                          {activeFilterCount > 0 && (
+                            <Button variant="outline" onClick={clearFilters} className="w-full">
+                              Limpiar filtros
+                            </Button>
+                          )}
+                          <SheetClose asChild>
+                            <Button className="w-full">
+                              Ver {finalProducts.length}{" "}
+                              {finalProducts.length === 1 ? "prenda" : "prendas"}
+                            </Button>
+                          </SheetClose>
+                        </SheetFooter>
+                      </SheetContent>
+                    </Sheet>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-[13px]">
+                    <span role="status">
+                      {finalProducts.length}{" "}
+                      {finalProducts.length === 1 ? "prenda encontrada" : "prendas encontradas"}
+                      {query && <> para “{query}”</>}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-[13px]">
-                  <span role="status">
-                    {finalProducts.length}{" "}
-                    {finalProducts.length === 1 ? "prenda encontrada" : "prendas encontradas"}
-                    {query && <> para “{query}”</>}
-                  </span>
-                </div>
-              </div>
-              {typesLoadError ? (
-                <p role="status">No pudimos cargar las categorías. Intentá de nuevo más tarde.</p>
-              ) : (
-                names.length === 0 && <p role="status">No hay categorías creadas disponibles.</p>
-              )}
-              {finalProducts.length > 0 ? (
-                <CollectionEditorial
-                  products={finalProducts}
-                  categoryName={
-                    selection === "all"
-                      ? "Todas las prendas"
-                      : selection.startsWith("legacy:")
-                        ? (CATEGORIES.find((category) => category.id === activeCategory)?.label ??
-                          activeCategory)
-                        : activeCategory
-                  }
-                  query={query}
-                />
-              ) : (
-                <div className="flex flex-col items-center justify-center gap-[13px] px-[18px] py-[42px] font-mono text-[13px]">
-                  <h1 className="font-sans text-[30px] leading-[1.1] font-normal">
-                    {query ? `Búsqueda: “${query}”` : "Catálogo de prendas"}
-                  </h1>
-                  <p>
-                    {query
-                      ? "No encontramos prendas para esta búsqueda con la categoría y los filtros actuales."
-                      : "No encontramos prendas con estos filtros."}
-                  </p>
-                </div>
-              )}
-            </>
-          )}
-        </section>
-      </main>
+                {typesLoadError ? (
+                  <p role="status">No pudimos cargar las categorías. Intentá de nuevo más tarde.</p>
+                ) : (
+                  names.length === 0 && <p role="status">No hay categorías creadas disponibles.</p>
+                )}
+                {finalProducts.length > 0 ? (
+                  <CollectionEditorial
+                    products={finalProducts}
+                    categoryName={
+                      selection === "all"
+                        ? "Todas las prendas"
+                        : selection.startsWith("legacy:")
+                          ? (CATEGORIES.find((category) => category.id === activeCategory)?.label ??
+                            activeCategory)
+                          : activeCategory
+                    }
+                    query={query}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-[13px] px-[18px] py-[42px] font-mono text-[13px]">
+                    <h1 className="font-sans text-[30px] leading-[1.1] font-normal">
+                      {query ? `Búsqueda: “${query}”` : "Catálogo de prendas"}
+                    </h1>
+                    <p>
+                      {query
+                        ? "No encontramos prendas para esta búsqueda con la categoría y los filtros actuales."
+                        : "No encontramos prendas con estos filtros."}
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+        </main>
+      </StorefrontContentTransition>
       <SiteFooter />
     </div>
   );

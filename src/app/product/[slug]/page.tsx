@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ProductDetailContent } from "@/components/product-detail-content";
+import { StorefrontTransition } from "@/components/storefront-transition";
 import { releaseExpiredReservations } from "@/lib/supabase/release-reservations";
 import { createClient } from "@/lib/supabase/server";
 
@@ -11,7 +12,11 @@ async function getProduct(slug: string) {
   await releaseExpiredReservations();
 
   const supabase = await createClient();
-  const { data, error } = await supabase.from("catalog_product_prices").select("*").eq("slug", slug).single();
+  const { data, error } = await supabase
+    .from("catalog_product_prices")
+    .select("*")
+    .eq("slug", slug)
+    .single();
 
   if (error || !data) return null;
   return data;
@@ -59,5 +64,9 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     .neq("id", product.id)
     .limit(4);
 
-  return <ProductDetailContent product={product} relatedProducts={relatedProducts || []} />;
+  return (
+    <StorefrontTransition>
+      <ProductDetailContent product={product} relatedProducts={relatedProducts || []} />
+    </StorefrontTransition>
+  );
 }

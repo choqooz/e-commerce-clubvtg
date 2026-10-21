@@ -1,4 +1,5 @@
 import { CatalogContent } from "@/components/catalog-content";
+import { StorefrontTransition } from "@/components/storefront-transition";
 import { releaseExpiredReservations } from "@/lib/supabase/release-reservations";
 import { createClient } from "@/lib/supabase/server";
 
@@ -34,10 +35,12 @@ export default async function HomePage() {
   }
 
   return (
-    <CatalogContent
-      initialProducts={products || []}
-      publicTypeNames={publicTypeNames}
-      typesLoadError={typesLoadError}
-    />
+    <StorefrontTransition>
+      <CatalogContent
+        initialProducts={products || []}
+        publicTypeNames={publicTypeNames}
+        typesLoadError={typesLoadError}
+      />
+    </StorefrontTransition>
   );
 }

@@ -1,5 +1,5 @@
 import { ProgressiveImage } from "@/components/progressive-image";
-import Link from "next/link";
+import { StorefrontLink as Link } from "@/components/storefront-transition";
 import { formatPrice } from "@/lib/config";
 import type { Product } from "@/lib/types";
 
