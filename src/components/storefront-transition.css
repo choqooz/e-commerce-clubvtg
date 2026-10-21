@@ -1,0 +1,101 @@
+/* Initial HTML is immediately readable. Only native snapshots fade, never the live page. */
+
+@keyframes storefront-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes storefront-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* No root crossfade: only the page boundary, or the synchronous catalog main, participates. */
+:root[data-storefront-transition],
+:root:not([data-storefront-transition-ready]):has([data-storefront-scope]),
+:root:active-view-transition-type(storefront-navigation),
+:root:active-view-transition-type(storefront-catalog) {
+  view-transition-name: none;
+}
+/* Cold entry can capture root before ownership mounts. Hide that captured surface,
+   not just future root captures, so chrome stays live behind the named MAIN. */
+:root[data-storefront-transition]::view-transition-group(root),
+:root:not([data-storefront-transition-ready]):has([data-storefront-scope])::view-transition-group(
+    root
+  ),
+:root:active-view-transition-type(storefront-navigation)::view-transition-group(root),
+:root:active-view-transition-type(storefront-catalog)::view-transition-group(root),
+:root[data-storefront-transition]::view-transition-image-pair(root),
+:root:not([data-storefront-transition-ready]):has(
+    [data-storefront-scope]
+  )::view-transition-image-pair(root),
+:root:active-view-transition-type(storefront-navigation)::view-transition-image-pair(root),
+:root:active-view-transition-type(storefront-catalog)::view-transition-image-pair(root),
+:root[data-storefront-transition]::view-transition-old(root),
+:root:not([data-storefront-transition-ready]):has([data-storefront-scope])::view-transition-old(
+    root
+  ),
+:root:active-view-transition-type(storefront-navigation)::view-transition-old(root),
+:root:active-view-transition-type(storefront-catalog)::view-transition-old(root),
+:root[data-storefront-transition]::view-transition-new(root),
+:root:not([data-storefront-transition-ready]):has([data-storefront-scope])::view-transition-new(
+    root
+  ),
+:root:active-view-transition-type(storefront-navigation)::view-transition-new(root),
+:root:active-view-transition-type(storefront-catalog)::view-transition-new(root) {
+  animation: none;
+  display: none;
+  mix-blend-mode: normal;
+  opacity: 1;
+  pointer-events: inherit;
+}
+:root:active-view-transition-type(storefront-catalog) [data-storefront-catalog] {
+  view-transition-name: storefront-catalog;
+}
+:root[data-storefront-transition]::view-transition,
+:root:not([data-storefront-transition-ready]):has([data-storefront-scope])::view-transition,
+:root:active-view-transition-type(storefront-navigation)::view-transition,
+:root:active-view-transition-type(storefront-catalog)::view-transition {
+  pointer-events: none;
+}
+::view-transition-group(.storefront-page-fade),
+:root:active-view-transition-type(storefront-catalog)::view-transition-group(storefront-catalog) {
+  animation: none;
+}
+::view-transition-image-pair(.storefront-page-fade),
+:root:active-view-transition-type(storefront-catalog)::view-transition-image-pair(
+    storefront-catalog
+  ) {
+  isolation: isolate;
+}
+::view-transition-old(.storefront-page-fade),
+:root:active-view-transition-type(storefront-catalog)::view-transition-old(storefront-catalog) {
+  animation: 100ms ease-in-out both storefront-fade-out;
+  mix-blend-mode: normal;
+}
+::view-transition-new(.storefront-page-fade),
+:root:active-view-transition-type(storefront-catalog)::view-transition-new(storefront-catalog) {
+  animation: 100ms ease-in-out 100ms both storefront-fade-in;
+  mix-blend-mode: normal;
+}
+
+/* Media queries affect already-running snapshot animations as well as future ones. */
+@media (prefers-reduced-motion: reduce) {
+  .storefront-entry,
+  ::view-transition-group(.storefront-page-fade),
+  ::view-transition-old(.storefront-page-fade),
+  ::view-transition-new(.storefront-page-fade),
+  :root:active-view-transition-type(storefront-catalog)::view-transition-group(storefront-catalog),
+  :root:active-view-transition-type(storefront-catalog)::view-transition-old(storefront-catalog),
+  :root:active-view-transition-type(storefront-catalog)::view-transition-new(storefront-catalog) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}
