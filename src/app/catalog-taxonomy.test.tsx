@@ -24,6 +24,8 @@ const backend = vi.hoisted(() => ({
   rejection: false,
   release: vi.fn(),
   client: vi.fn(),
+  productRead: vi.fn(),
+  typesRead: vi.fn(),
 }));
 vi.mock("@/components/catalog-content", () => ({ CatalogContent: () => null }));
 vi.mock("@/lib/supabase/release-reservations", () => ({
@@ -34,6 +36,8 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: backend.client }));
 beforeEach(() => {
   vi.clearAllMocks();
   Object.assign(backend, { events: [], products: [], types: [], error: null, rejection: false });
+  backend.productRead.mockResolvedValue(undefined);
+  backend.typesRead.mockResolvedValue(undefined);
   vi.stubGlobal(
     "fetch",
     vi.fn(() => {
@@ -57,9 +61,20 @@ beforeEach(() => {
                 eq(column: string, value: string) {
                   backend.events.push(["eq", column, value]);
                   return {
-                    async order(column: string, options: unknown) {
+                    order(column: string, options: unknown) {
                       backend.events.push(["order", column, options]);
-                      return { data: backend.products };
+                      // PostgREST reads start when the builder is awaited, not constructed.
+                      return {
+                        then(
+                          resolve: (value: { data: unknown[] | null }) => unknown,
+                          reject?: (error: unknown) => unknown,
+                        ) {
+                          return backend
+                            .productRead()
+                            .then(() => ({ data: backend.products }))
+                            .then(resolve, reject);
+                        },
+                      };
                     },
                   };
                 },
@@ -68,14 +83,31 @@ beforeEach(() => {
             expect(table).toBe("product_types");
             expect(columns).toBe("name");
             return {
-              async order(column: string) {
+              order(column: string) {
                 backend.events.push(["order", column]);
-                if (backend.rejection) throw new Error("Private transport detail");
-                // Model the actual projection, not a mock returning private columns.
-                const data = backend.types?.map((row) =>
-                  row && typeof row === "object" ? { name: (row as { name?: unknown }).name } : row,
-                );
-                return { data, error: backend.error };
+                return {
+                  then(
+                    resolve: (value: {
+                      data: unknown[] | null | undefined;
+                      error: unknown;
+                    }) => unknown,
+                    reject?: (error: unknown) => unknown,
+                  ) {
+                    return backend
+                      .typesRead()
+                      .then(() => {
+                        if (backend.rejection) throw new Error("Private transport detail");
+                        // Model the actual projection, not a mock returning private columns.
+                        const data = backend.types?.map((row) =>
+                          row && typeof row === "object"
+                            ? { name: (row as { name?: unknown }).name }
+                            : row,
+                        );
+                        return { data, error: backend.error };
+                      })
+                      .then(resolve, reject);
+                  },
+                };
               },
             };
           },
@@ -99,6 +131,143 @@ const expectedChain = [
 ];
 
 describe("Home public taxonomy boundary (fully mocked)", () => {
+  it.each(["products", "types"] as const)(
+    "starts both reads only after cleanup/client resolve, with %s finishing first",
+    async (first) => {
+      let releaseCleanup!: () => void;
+      let releaseClient!: () => void;
+      let releaseProducts!: () => void;
+      let releaseTypes!: () => void;
+      const cleanup = new Promise<void>((resolve) => {
+        releaseCleanup = resolve;
+      });
+      const client = new Promise<void>((resolve) => {
+        releaseClient = resolve;
+      });
+      const products = new Promise<void>((resolve) => {
+        releaseProducts = resolve;
+      });
+      const types = new Promise<void>((resolve) => {
+        releaseTypes = resolve;
+      });
+      const started = vi.fn();
+      const finished = vi.fn();
+      const rendered = vi.fn();
+      backend.products = [{ id: "overlapped-product" }];
+      backend.types = [{ name: "Camisas" }];
+      backend.release.mockImplementationOnce(() => cleanup);
+      const createClient = backend.client.getMockImplementation()!;
+      backend.client.mockImplementationOnce(async () => {
+        await client;
+        return createClient();
+      });
+      backend.productRead.mockImplementationOnce(async () => {
+        started("products");
+        await products;
+        finished("products");
+      });
+      backend.typesRead.mockImplementationOnce(async () => {
+        started("types");
+        await types;
+        finished("types");
+      });
+      const page = catalogPage().then((tree) => {
+        rendered();
+        return tree;
+      });
+
+      try {
+        await Promise.resolve();
+        expect(backend.release).toHaveBeenCalledOnce();
+        expect(backend.client).not.toHaveBeenCalled();
+        expect(started).not.toHaveBeenCalled();
+        expect(backend.events).toEqual([]);
+        releaseCleanup();
+        await vi.waitFor(() => expect(backend.client).toHaveBeenCalledOnce());
+        expect(started).not.toHaveBeenCalled();
+        expect(backend.events).toEqual([]);
+        releaseClient();
+
+        await vi.waitFor(() => {
+          expect(started).toHaveBeenCalledWith("products");
+          expect(started).toHaveBeenCalledWith("types");
+        });
+        expect(finished).not.toHaveBeenCalled();
+        expect(rendered).not.toHaveBeenCalled();
+        (first === "products" ? releaseProducts : releaseTypes)();
+        await vi.waitFor(() => expect(finished).toHaveBeenCalledExactlyOnceWith(first));
+        expect(rendered).not.toHaveBeenCalled();
+        (first === "products" ? releaseTypes : releaseProducts)();
+        expect((await page).props).toEqual({
+          initialProducts: backend.products,
+          publicTypeNames: ["Camisas"],
+          typesLoadError: false,
+        });
+        expect(started).toHaveBeenCalledTimes(2);
+        expect(finished).toHaveBeenCalledTimes(2);
+        expect(fetch).not.toHaveBeenCalled();
+      } finally {
+        releaseCleanup();
+        releaseClient();
+        releaseProducts();
+        releaseTypes();
+        await page;
+      }
+    },
+  );
+
+  it.each([false, true])(
+    "retains pending products when taxonomy fails first (thrown: %s)",
+    async (throws) => {
+      let releaseProducts!: () => void;
+      const products = new Promise<void>((resolve) => {
+        releaseProducts = resolve;
+      });
+      const rendered = vi.fn();
+      backend.products = [{ id: "retained-product" }];
+      backend.types = [{ name: "Do not use partial errored data" }];
+      backend.error = { message: "Private database detail", code: "42501" };
+      backend.rejection = throws;
+      backend.productRead.mockImplementationOnce(() => products);
+      const page = catalogPage().then((tree) => {
+        rendered();
+        return tree;
+      });
+      try {
+        await vi.waitFor(() => {
+          expect(backend.productRead).toHaveBeenCalledOnce();
+          expect(backend.typesRead).toHaveBeenCalledOnce();
+        });
+        expect(rendered).not.toHaveBeenCalled();
+        releaseProducts();
+        expect((await page).props).toEqual({
+          initialProducts: backend.products,
+          publicTypeNames: [],
+          typesLoadError: true,
+        });
+        expect(fetch).not.toHaveBeenCalled();
+      } finally {
+        releaseProducts();
+        await page;
+      }
+    },
+  );
+
+  it.each(["cleanup", "client"] as const)(
+    "does not start reads if %s rejects",
+    async (boundary) => {
+      const error = new Error("Boundary failed");
+      (boundary === "cleanup" ? backend.release : backend.client).mockRejectedValueOnce(error);
+      await expect(HomePage()).rejects.toBe(error);
+      expect(backend.productRead).not.toHaveBeenCalled();
+      expect(backend.typesRead).not.toHaveBeenCalled();
+      expect(backend.events).not.toContainEqual(["from", "catalog_product_prices"]);
+      expect(backend.events).not.toContainEqual(["from", "product_types"]);
+      if (boundary === "cleanup") expect(backend.client).not.toHaveBeenCalled();
+      expect(fetch).not.toHaveBeenCalled();
+    },
+  );
+
   it("preserves reservation/product chain and reads only ordered names with the same anon SSR client", async () => {
     backend.products = [{ id: "priced-fixture", category: "Camisas", current_price: 0 }];
     backend.types = [
@@ -212,8 +381,8 @@ function semantic(node: ts.Node): unknown {
 const parse = (text: string) =>
   ts.createSourceFile("surface.tsx", text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 const identity = (node: ts.Node) => JSON.stringify(semantic(node));
-// Normalize only the approved, prop-free presentation wrapper/import. The original
-// business AST fingerprint and every adversarial query mutation remain unchanged.
+// Normalize only the approved, prop-free presentation wrapper/import. The parent
+// fingerprint below also requires the exact approved parallel-read structure.
 function normalizePresentation(text: string) {
   return text
     .replace('import { StorefrontTransition } from "@/components/storefront-transition";\n', "")
@@ -232,28 +401,36 @@ function serverPreservationHash(text: string) {
     !ts.isFunctionDeclaration(page) ||
     page.name?.text !== "HomePage" ||
     !page.body ||
-    page.body.statements.length !== 7
+    page.body.statements.length !== 4
   )
     return null;
   const additions = parse(`
-    let publicTypeNames: string[] = [];
-    let typesLoadError = false;
-    try {
-      const { data: types, error } = await supabase.from("product_types").select("name").order("name");
-      typesLoadError = Boolean(error);
-      if (!error && Array.isArray(types)) {
-        publicTypeNames = types.flatMap((row) => typeof row?.name === "string" && row.name.trim() ? [row.name] : []);
-      }
-    } catch { typesLoadError = true; }
+    const [{ data: products }, { publicTypeNames, typesLoadError }] = await Promise.all([
+      supabase.from("catalog_product_prices").select("*").eq("status", "available").order("created_at", { ascending: false }),
+      (async () => {
+        let publicTypeNames: string[] = [];
+        let typesLoadError = false;
+        try {
+          const { data: types, error } = await supabase.from("product_types").select("name").order("name");
+          typesLoadError = Boolean(error);
+          if (!error && Array.isArray(types)) {
+            publicTypeNames = types.flatMap((row) => typeof row?.name === "string" && row.name.trim() ? [row.name] : []);
+          }
+        } catch { typesLoadError = true; }
+        return { publicTypeNames, typesLoadError };
+      })(),
+    ]);
     return (<CatalogContent initialProducts={products || []} publicTypeNames={publicTypeNames} typesLoadError={typesLoadError} />);
   `).statements;
   for (let index = 0; index < additions.length; index++)
-    if (identity(page.body.statements[index + 3]) !== identity(additions[index])) return null;
-  // Exact adjacent slots after the existing reservation/client/product statements.
+    if (identity(page.body.statements[index + 2]) !== identity(additions[index])) return null;
+  // Require every parallel-read node above before rebuilding the original parent
+  // product statement. Reservation/client/import/return changes remain hash-guarded.
   text =
-    text.slice(0, page.body.statements[3].getStart(file)) +
-    "return <CatalogContent initialProducts={products || []} />;" +
-    text.slice(page.body.statements[6].getEnd());
+    text.slice(0, page.body.statements[2].getStart(file)) +
+    `const { data: products } = await supabase.from("catalog_product_prices").select("*").eq("status", "available").order("created_at", { ascending: false });
+     return <CatalogContent initialProducts={products || []} />;` +
+    text.slice(page.body.statements[3].getEnd());
   return createHash("sha256")
     .update(identity(parse(text)))
     .digest("hex");
@@ -262,7 +439,7 @@ function serverPreservationHash(text: string) {
 describe("Strict server preservation from actual parent pre-T1 copy", () => {
   // /tmp/taxonomy-breadcrumb-parent-1p_y41rl/files/src/app/page.tsx, not HEAD/current.
   const expected = "3f2758cc9329e370722f0e9b4c3fcc79968a9419e46bd312f37dbd488326bd6a";
-  it("permits only the exact names query/normalization/error/serialized props at fixed slots", () => {
+  it("permits only the exact parallel reads/normalization/error/serialized props at fixed slots", () => {
     expect(serverPreservationHash(source())).toBe(expected);
     expect(serverPreservationHash(source().replace(/\n  /g, "\n    "))).toBe(expected);
   });
@@ -279,6 +456,11 @@ describe("Strict server preservation from actual parent pre-T1 copy", () => {
   });
 
   it.each([
+    ['.from("catalog_product_prices")', '.from("products")'],
+    ['.select("*")', '.select("id")'],
+    ["await createClient();", "createClient();"],
+    ["await Promise.all([", "Promise.all(["],
+    ["Promise.all([", "Promise.allSettled(["],
     ['.select("name")', '.select("*")'],
     ['.order("name")', '.eq("is_active", true).order("name")'],
     ['.from("product_types")', '.from("product_subtypes")'],
@@ -310,7 +492,14 @@ describe("Strict server preservation from actual parent pre-T1 copy", () => {
       expect(serverPreservationHash(text)).toBe(expected);
       const file = parse(text);
       const page = file.statements[4] as ts.FunctionDeclaration;
-      const tryBlock = page.body!.statements[5] as ts.TryStatement;
+      const parallel = page.body!.statements[2] as ts.VariableStatement;
+      const awaited = parallel.declarationList.declarations[0].initializer as ts.AwaitExpression;
+      const all = awaited.expression as ts.CallExpression;
+      const reads = all.arguments[0] as ts.ArrayLiteralExpression;
+      const taxonomy = reads.elements[1] as ts.CallExpression;
+      const loader = (taxonomy.expression as ts.ParenthesizedExpression)
+        .expression as ts.ArrowFunction;
+      const tryBlock = (loader.body as ts.Block).statements[2] as ts.TryStatement;
       expect(ts.isTryStatement(tryBlock)).toBe(true);
       const query = tryBlock.tryBlock.statements[0];
       expect(ts.isVariableStatement(query)).toBe(true);
