@@ -8,8 +8,8 @@ const probe = vi.hoisted(() => ({
   effects: [] as (() => void)[],
   capture: vi.fn(),
 }));
-vi.mock("posthog-js/react", () => ({
-  usePostHog: () => ({ capture: probe.capture }),
+vi.mock("@/contexts/analytics-context", () => ({
+  useAnalytics: () => ({ capture: probe.capture }),
 }));
 vi.mock("react", async (original) => ({
   ...(await original<typeof import("react")>()),

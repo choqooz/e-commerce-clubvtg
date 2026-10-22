@@ -1,6 +1,5 @@
 "use client";
 
-import { usePostHog } from "posthog-js/react";
 import {
   createContext,
   useContext,
@@ -10,6 +9,7 @@ import {
   useMemo,
   useRef,
 } from "react";
+import { useAnalytics } from "@/contexts/analytics-context";
 import { productAddedToCartEvent } from "@/lib/analytics-events";
 import {
   CUSTOMER_COUPON_SOURCES,
@@ -44,7 +44,7 @@ const CartContext = createContext<CartContextValue | null>(null);
 const CartHeaderContext = createContext<CartHeaderContextValue | null>(null);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const posthog = usePostHog();
+  const posthog = useAnalytics();
   const [items, setItems] = useState<CartItem[]>([]);
   const [couponCode, setCouponCodeState] = useState("");
   const [couponSource, setCouponSource] = useState<CustomerCouponSource | null>(null);

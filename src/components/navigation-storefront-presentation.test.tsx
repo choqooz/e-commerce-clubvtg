@@ -120,7 +120,9 @@ vi.mock("@/contexts/cart-context", () => ({
   useCartHeader: () => ({ totalItems: probe.cart.totalItems, setIsOpen: probe.cart.setIsOpen }),
 }));
 vi.mock("@/lib/actions/credits", () => ({ getUserCredits: vi.fn() }));
-vi.mock("posthog-js/react", () => ({ usePostHog: () => ({ capture: probe.capture }) }));
+vi.mock("@/contexts/analytics-context", () => ({
+  useAnalytics: () => ({ capture: probe.capture }),
+}));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/components/ui/sheet", () => {
   const surface = ({ children, className }: { children?: ReactNode; className?: string }) => (
@@ -1273,8 +1275,13 @@ function beforeNaturalSizing(text: string) {
       expect(node.getText(file)).toBe("<ProductGallery key={product.id} product={product} />");
       edits.push({ start: node.getStart(file), end: node.end, replacement: priorGallery });
     }
-    if (ts.isVariableStatement(node) && node.getText(file) === "const posthog = usePostHog();")
-      edits.push({ start: node.end, end: node.end, replacement: `\n${priorSelection}` });
+    // Normalize only the authorized capture-hook migration alongside the gallery extraction.
+    if (ts.isVariableStatement(node) && node.getText(file) === "const posthog = useAnalytics();")
+      edits.push({
+        start: node.getStart(file),
+        end: node.end,
+        replacement: `const posthog = usePostHog();\n${priorSelection}`,
+      });
     ts.forEachChild(node, visit);
   };
   visit(file);

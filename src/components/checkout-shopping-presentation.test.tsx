@@ -73,7 +73,9 @@ vi.mock("@/contexts/cart-context", () => ({ useCart: () => probe.cart }));
 vi.mock("@/lib/actions/checkout", () => ({ createCheckoutPreference: probe.preference }));
 vi.mock("@/lib/actions/coupon-quote", () => ({ quoteCouponCheckout: probe.quote }));
 vi.mock("@/lib/checkout-bfcache", () => ({ registerCheckoutBfcacheReset: probe.bfcache }));
-vi.mock("posthog-js/react", () => ({ usePostHog: () => ({ capture: probe.capture }) }));
+vi.mock("@/contexts/analytics-context", () => ({
+  useAnalytics: () => ({ capture: probe.capture }),
+}));
 vi.mock("sonner", () => ({ toast: { error: probe.toastError, info: probe.toastInfo } }));
 vi.mock("react-hook-form", () => ({
   useForm: (options: unknown) => {
@@ -194,6 +196,16 @@ afterEach(() => {
 const PRETASK_COMMIT = "41679236782abed3b2de9503075195e5e2b90ff3";
 function restorePresentation(text: string, path: string) {
   if (path === paths[4]) {
+    // Restore only the authorized capture-hook boundary; submission logic stays pinned.
+    if (text.includes('import { useAnalytics } from "@/contexts/analytics-context";')) {
+      text = text
+        .replace('import { useAnalytics } from "@/contexts/analytics-context";\n', "")
+        .replace(
+          'import { useEffect, useState } from "react";',
+          'import { usePostHog } from "posthog-js/react";\nimport { useEffect, useState } from "react";',
+        )
+        .replace("const posthog = useAnalytics();", "const posthog = usePostHog();");
+    }
     text = text.replace(/<(\/?)fieldset\b/g, "<$1div").replace(/<(\/?)legend\b/g, "<$1h3");
     for (const field of Object.keys(validData)) {
       for (const attribute of [

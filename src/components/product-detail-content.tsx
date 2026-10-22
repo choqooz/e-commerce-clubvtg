@@ -1,7 +1,6 @@
 "use client";
 
 import { ChevronRight } from "lucide-react";
-import { usePostHog } from "posthog-js/react";
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { CartDrawer } from "@/components/cart-drawer";
@@ -12,6 +11,7 @@ import { SiteHeader } from "@/components/site-header";
 import { StorefrontLink as Link } from "@/components/storefront-transition";
 import { StorefrontContentTransition } from "@/components/storefront-transition";
 import { TryOnSection } from "@/components/try-on-section";
+import { useAnalytics } from "@/contexts/analytics-context";
 import { useCart } from "@/contexts/cart-context";
 import { productViewedEvent } from "@/lib/analytics-events";
 import { formatPrice } from "@/lib/config";
@@ -26,7 +26,7 @@ export function ProductDetailContent({
   relatedProducts: Product[];
 }) {
   const { addItem } = useCart();
-  const posthog = usePostHog();
+  const posthog = useAnalytics();
   useEffect(() => {
     const event = productViewedEvent(product);
     posthog?.capture(event.event, event.properties);

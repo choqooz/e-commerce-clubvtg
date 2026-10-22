@@ -59,6 +59,16 @@ const parse = (text: string) =>
 // No handler, guard, validation message, hidden input or business prop is ignored.
 function originalCheckoutPresentation(text: string, path: string): string {
   if (path === "src/components/checkout-form.tsx") {
+    // Restore only the authorized capture-hook boundary; submission logic stays pinned.
+    if (text.includes('import { useAnalytics } from "@/contexts/analytics-context";')) {
+      text = text
+        .replace('import { useAnalytics } from "@/contexts/analytics-context";\n', "")
+        .replace(
+          'import { useEffect, useState } from "react";',
+          'import { usePostHog } from "posthog-js/react";\nimport { useEffect, useState } from "react";',
+        )
+        .replace("const posthog = useAnalytics();", "const posthog = usePostHog();");
+    }
     text = text.replace(/<(\/?)fieldset\b/g, "<$1div").replace(/<(\/?)legend\b/g, "<$1h3");
     for (const field of [
       "fullName",

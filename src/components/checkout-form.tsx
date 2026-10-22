@@ -2,11 +2,11 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import { usePostHog } from "posthog-js/react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { CouponSelection } from "@/components/coupon-selection";
+import { useAnalytics } from "@/contexts/analytics-context";
 import { useCart } from "@/contexts/cart-context";
 import { createCheckoutPreference } from "@/lib/actions/checkout";
 import { checkoutStartedEvent } from "@/lib/analytics-events";
@@ -16,7 +16,7 @@ import { checkoutSchema, type CheckoutFormValues } from "@/lib/validations/check
 
 export function CheckoutForm() {
   const { couponCode, couponSource, items, totalPrice } = useCart();
-  const posthog = usePostHog();
+  const posthog = useAnalytics();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => registerCheckoutBfcacheReset(window, setIsSubmitting), []);
