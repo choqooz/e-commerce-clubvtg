@@ -28,7 +28,7 @@ vi.mock("react", async (original) => ({
     ];
   },
 }));
-vi.mock("posthog-js/react", () => ({ usePostHog: () => null }));
+vi.mock("@/contexts/analytics-context", () => ({ useAnalytics: () => null }));
 vi.mock("@/contexts/cart-context", () => ({ useCart: () => ({ addItem: vi.fn() }) }));
 vi.mock("@/components/site-header", () => ({ SiteHeader: () => null }));
 vi.mock("@/components/site-footer", () => ({ SiteFooter: () => null }));
