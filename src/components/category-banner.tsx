@@ -19,6 +19,10 @@ const ENTRY_ORDER: EntryCategory[] = [
   "knitwear",
 ];
 
+// Product URLs carry no intrinsic dimensions. Budget for a conservative 4:3
+// source envelope: cover needs max(tileWidth, tileHeight * sourceAspectRatio).
+// Rows are 31.25vw desktop / 62.5vw mobile; tall tiles add the 10px row gap.
+// Round upward, including that gap. Wider panoramas still need visual review.
 const TILE_LAYOUT: Record<EntryCategory, { spans: string; sizes: string; position: string }> = {
   tops: {
     spans: "col-span-2 md:col-start-1 md:row-start-1",
@@ -27,27 +31,27 @@ const TILE_LAYOUT: Record<EntryCategory, { spans: string; sizes: string; positio
   },
   outerwear: {
     spans: "col-span-2 row-span-2 md:col-start-3 md:row-start-1",
-    sizes: "(min-width: 768px) 50vw, 100vw",
+    sizes: "(min-width: 768px) calc(83.3334vw + 14px), calc(166.6667vw + 14px)",
     position: "35% 50%",
   },
   accessories: {
     spans: "md:col-start-1 md:row-start-2",
-    sizes: "(min-width: 768px) 25vw, 50vw",
+    sizes: "(min-width: 768px) 41.6667vw, 83.3334vw",
     position: "50% 25%",
   },
   footwear: {
     spans: "md:col-start-2 md:row-start-2",
-    sizes: "(min-width: 768px) 25vw, 50vw",
+    sizes: "(min-width: 768px) 41.6667vw, 83.3334vw",
     position: "50% 75%",
   },
   bottoms: {
     spans: "col-span-2 row-span-2 md:col-start-1 md:row-start-3",
-    sizes: "(min-width: 768px) 50vw, 100vw",
+    sizes: "(min-width: 768px) calc(83.3334vw + 14px), calc(166.6667vw + 14px)",
     position: "50% 65%",
   },
   knitwear: {
     spans: "col-span-2 row-span-2 md:col-start-3 md:row-start-3",
-    sizes: "(min-width: 768px) 50vw, 100vw",
+    sizes: "(min-width: 768px) calc(83.3334vw + 14px), calc(166.6667vw + 14px)",
     position: "65% 50%",
   },
 };
@@ -104,6 +108,26 @@ function CategoryTile({
   const [failedCover, setFailedCover] = useState<string | null>(null);
   const source = cover !== failedCover ? cover : undefined;
   const layout = TILE_LAYOUT[category];
+  let unoptimized = Boolean(source && !source.startsWith("/"));
+  if (source && unoptimized) {
+    // Narrower than remotePatterns: only public raster originals, never signed
+    // URLs, credentials, transforms or unknown hosts. Next forwards no auth headers.
+    // Keep query/encoded-path cases direct instead of proxying ambiguous resources.
+    try {
+      const url = new URL(source);
+      unoptimized = !(
+        url.protocol === "https:" &&
+        /^[a-z0-9-]+\.supabase\.co$/i.test(url.hostname) &&
+        !url.port &&
+        !url.username &&
+        !url.password &&
+        !/[\\%?#]/.test(source) &&
+        /^\/storage\/v1\/object\/public\/[^/]+\/.+\.(?:jpe?g|png|webp|avif)$/i.test(url.pathname)
+      );
+    } catch {
+      // Invalid or unsupported remote sources must never enter the optimizer.
+    }
+  }
 
   return (
     <button
@@ -119,7 +143,8 @@ function CategoryTile({
           alt=""
           fill
           sizes={layout.sizes}
-          unoptimized={source.startsWith("https://")}
+          quality={unoptimized ? undefined : 90}
+          unoptimized={unoptimized}
           className="object-cover"
           style={{ objectPosition: layout.position }}
           onError={() => setFailedCover(source)}
