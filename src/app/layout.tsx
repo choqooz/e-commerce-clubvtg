@@ -8,7 +8,7 @@ import "./globals.css";
 
 // User-approved substitute for the reference F-Grotesk, not the original typeface.
 const familjenGrotesk = localFont({
-  src: "./fonts/FamiljenGrotesk-VariableFont_wght.ttf",
+  src: "./fonts/FamiljenGrotesk-VariableFont_wght.woff2",
   variable: "--font-familjen-grotesk",
   weight: "400 700",
   style: "normal",

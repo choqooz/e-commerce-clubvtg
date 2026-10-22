@@ -19,7 +19,7 @@ describe("Self-hosted storefront typography", () => {
   it("loads only the supplied normal faces with their real weight metadata", () => {
     expect(fonts.load.mock.calls.map(([options]) => options)).toEqual([
       {
-        src: "./fonts/FamiljenGrotesk-VariableFont_wght.ttf",
+        src: "./fonts/FamiljenGrotesk-VariableFont_wght.woff2",
         variable: "--font-familjen-grotesk",
         weight: "400 700",
         style: "normal",
@@ -47,8 +47,19 @@ describe("Self-hosted storefront typography", () => {
     expect(html.props.children.props.className).toContain("font-sans");
   });
 
-  it("ships exactly two byte-exact font assets and preserves the Familjen OFL", () => {
+  it("retains Next's default preload and metric-adjusted fallback configuration", () => {
+    for (const [options] of fonts.load.mock.calls) {
+      // next/font/local defaults to preload: true and adjustFontFallback: "Arial".
+      for (const override of ["preload", "fallback", "adjustFontFallback", "declarations"]) {
+        expect(options).not.toHaveProperty(override);
+      }
+    }
+  });
+
+  it("ships a verified WOFF2 runtime face while retaining byte-exact originals and OFL", () => {
     const assets = {
+      "FamiljenGrotesk-VariableFont_wght.woff2":
+        "bf73b8a8d6c6336d234c3beafd20cf3e8b2e95eaeb1463e22b117c0087b49fa3",
       "FamiljenGrotesk-VariableFont_wght.ttf":
         "fdd1f37e1aeb0e031a1eb9a921fc970a8f4f0bdf1df647b88ef82d0081a2f5ff",
       "MaisonNeueMono-Regular.woff2":
@@ -65,6 +76,18 @@ describe("Self-hosted storefront typography", () => {
     expect(source("./fonts/FamiljenGrotesk-OFL.txt")).toContain(
       "SIL OPEN FONT LICENSE Version 1.1",
     );
+  });
+
+  it("stores the converted face as actual WOFF2, not a renamed TrueType file", () => {
+    const bytes = readFileSync(
+      new URL("./fonts/FamiljenGrotesk-VariableFont_wght.woff2", import.meta.url),
+    );
+    expect(bytes.length).toBe(33224);
+    expect(bytes.toString("ascii", 0, 4)).toBe("wOF2");
+    expect(bytes.readUInt32BE(4)).toBe(0x00010000); // TrueType outlines inside WOFF2.
+    expect(bytes.readUInt32BE(8)).toBe(bytes.length); // WOFF2 header's declared length.
+    expect(bytes.readUInt16BE(12)).toBeGreaterThan(0); // Font table directory is present.
+    expect(bytes.readUInt16BE(14)).toBe(0); // Reserved header field.
   });
 
   it("maps reference and semantic aliases directly to distinct local variables without cycles", () => {
