@@ -42,6 +42,7 @@ vi.mock("@clerk/nextjs", () => ({
 }));
 vi.mock("@/contexts/cart-context", () => ({
   useCart: () => ({ totalItems: 0, setIsOpen: vi.fn() }),
+  useCartHeader: () => ({ totalItems: 0, setIsOpen: vi.fn() }),
 }));
 vi.mock("@/lib/actions/credits", () => ({ getUserCredits: vi.fn() }));
 vi.mock("@/components/cart-drawer", () => ({ CartDrawer: () => null }));
