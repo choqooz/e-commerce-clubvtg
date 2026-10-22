@@ -7,6 +7,11 @@ import importPlugin from "eslint-plugin-import";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  // Explicit CommonJS files use require; keep the prohibition for TS and ESM.
+  {
+    files: ["**/*.cjs"],
+    rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
   // Enforce consistent import order: builtins → externals → internals (@/) → relatives.
   {
     plugins: { import: importPlugin },
