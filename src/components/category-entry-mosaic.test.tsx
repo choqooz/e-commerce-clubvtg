@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { imageConfigDefault } from "next/dist/shared/lib/image-config";
+import { ImageConfigContext } from "next/dist/shared/lib/image-config-context.shared-runtime";
 import postcss from "postcss";
 import { Children, isValidElement, type ReactElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -207,15 +209,21 @@ describe("Category-photo entry", () => {
       fill: true,
       unoptimized: true,
     });
-    expect(image(bottom)?.props).toMatchObject({ src: "/pants.jpg", unoptimized: false });
+    expect(image(bottom)?.props).toMatchObject({
+      src: "/pants.jpg",
+      unoptimized: false,
+      quality: 90,
+    });
     expect(image(top)?.props.sizes).toBe("(min-width: 768px) 50vw, 100vw");
-    expect(image(bottom)?.props.sizes).toBe("(min-width: 768px) 50vw, 100vw");
+    expect(image(bottom)?.props.sizes).toBe(
+      "(min-width: 768px) calc(83.3334vw + 14px), calc(166.6667vw + 14px)",
+    );
   });
 
-  it("gives allowlisted Supabase category covers a tiny preview while keeping the main URL direct", () => {
+  it("optimizes public Supabase category covers responsively without changing their tiny preview", () => {
     const src = "https://project.supabase.co/storage/v1/object/public/products/category.jpg";
     const tile = renderTile(tiles(entry([product({ image_urls: [src] })]))[0]);
-    expect(image(tile)?.props).toMatchObject({ src, unoptimized: true, fill: true });
+    expect(image(tile)?.props).toMatchObject({ src, unoptimized: false, fill: true });
     // Explicitly project post-hydration pending state; this is markup/URL
     // coverage, not a browser decode, layout or reconciliation test.
     probe.pendingPhotos = true;
@@ -226,8 +234,119 @@ describe("Category-photo entry", () => {
     expect(photos[0]).toContain(encodeURIComponent(src));
     expect(photos[0]).toContain("w=32");
     expect(photos[0]).not.toMatch(/srcSet|sizes=/i);
-    expect(photos[1]).toContain(`src="${src}"`);
-    expect(photos[1]).not.toMatch(/\/_next\/image|srcSet=/i);
+    expect(photos[1]).toContain("/_next/image?");
+    expect(photos[1]).toContain(encodeURIComponent(src));
+    expect(photos[1]).toMatch(/srcSet="[^"]+ 640w,[^"]+ 1080w/i);
+    expect(photos[1]).toContain('sizes="(min-width: 768px) 50vw, 100vw"');
+  });
+
+  it.each(["jpg", "jpeg", "PNG", "webp", "avif"])(
+    "optimizes supported query-free public Supabase %s originals",
+    (extension) => {
+      const src = `https://project.supabase.co/storage/v1/object/public/products/cover.${extension}`;
+      const tile = renderTile(tiles(entry([product({ image_urls: [src] })]))[0]);
+      expect(image(tile)?.props).toMatchObject({ src, unoptimized: false, quality: 90 });
+    },
+  );
+
+  it("allows qualities 75 and 90 in optimizer configuration without replacing the default", () => {
+    // Read the literal configuration without evaluating Sentry setup or env access.
+    const config = readFileSync(new URL("../../next.config.ts", import.meta.url), "utf8");
+    const qualities = config.match(/images:\s*\{[\s\S]*?qualities:\s*\[([\d,\s]+)\]/);
+    expect(qualities, "explicit optimizer quality allowlist").not.toBeNull();
+    expect(qualities![1].split(",").map(Number)).toEqual([75, 90]);
+  });
+
+  it("requests quality 90 only for optimized mosaic mains while tiny previews stay at 75", () => {
+    const src = "https://project.supabase.co/storage/v1/object/public/products/category.jpg";
+    const tile = renderTile(tiles(entry([product({ image_urls: [src] })]))[0]);
+    // Plain Vitest does not load Next's application config. Supply the same
+    // allowlist through Next's context to exercise the real main-image loader.
+    const markup = renderToStaticMarkup(
+      <ImageConfigContext.Provider value={{ ...imageConfigDefault, qualities: [75, 90] }}>
+        {tile}
+      </ImageConfigContext.Provider>,
+    );
+    const photos = [...markup.matchAll(/<img\b[^>]*>/g)].map((match) => match[0]);
+    expect(photos).toHaveLength(2);
+    expect(photos[0]).toContain("data-image-preview");
+    const preview = new URL(
+      photos[0].match(/\bsrc="([^"]+)"/)![1].replaceAll("&amp;", "&"),
+      "https://store.example",
+    );
+    expect(preview.searchParams.get("w")).toBe("32");
+    expect(preview.searchParams.get("q")).toBe("75");
+    expect(preview.searchParams.get("url")).toBe(src);
+    const mainQualities = [...photos[1].matchAll(/(?:&amp;|&)q=(\d+)/g)].map((match) =>
+      Number(match[1]),
+    );
+    expect(mainQualities.length).toBeGreaterThan(1); // src and responsive srcset
+    expect(new Set(mainQualities)).toEqual(new Set([90]));
+  });
+
+  it.each([
+    "https://photos.example.com/cover.jpg",
+    "https://img.clerk.com/cover.jpg",
+    "https://project.supabase.co.evil.example/storage/v1/object/public/products/cover.jpg",
+    "https://notsupabase.co/storage/v1/object/public/products/cover.jpg",
+    "https://project.supabase.co:8443/storage/v1/object/public/products/cover.jpg",
+    "https://user:password@project.supabase.co/storage/v1/object/public/products/cover.jpg",
+    "https://project.supabase.co/storage/v1/object/authenticated/products/cover.jpg",
+    "https://project.supabase.co/storage/v1/object/sign/products/cover.jpg?token=example",
+    "https://project.supabase.co/storage/v1/object/public/products/cover.jpg?token=example",
+    "https://project.supabase.co/storage/v1/object/public/products/cover.jpg?download=1",
+    "https://project.supabase.co/storage/v1/object/public/products/cover.jpg#fragment",
+    "https://project.supabase.co/storage/v1/render/image/public/products/cover.jpg",
+    "https://project.supabase.co/storage/v1/object/public/products/cover",
+    "https://project.supabase.co/storage/v1/object/public/products/cover.svg",
+    "https://project.supabase.co/storage/v1/object/public/products/cover.gif",
+    "https://project.supabase.co/storage/v1/object/public/products/cover.jpg%3Ftoken=example",
+    "https://project.supabase.co/storage/v1/object/public/products/%2e%2e%2fauthenticated/cover.jpg",
+  ])("keeps the main cover direct for unsupported or potentially authenticated URLs: %s", (src) => {
+    const tile = renderTile(tiles(entry([product({ image_urls: [src] })]))[0]);
+    expect(image(tile)?.props).toMatchObject({ src, unoptimized: true });
+    expect(image(tile)?.props.quality).toBeUndefined();
+    const markup = renderToStaticMarkup(tile);
+    const main = [...markup.matchAll(/<img\b[^>]*>/g)]
+      .map((match) => match[0])
+      .find((photo) => photo.includes('data-nimg="fill"'))!;
+    expect(main).toContain(`src="${src}"`);
+    expect(main).not.toMatch(/\/_next\/image|srcSet=/i);
+  });
+
+  it("budgets responsive source widths for cover magnification, not just tile width", () => {
+    const src = "https://project.supabase.co/storage/v1/object/public/products/cover.jpg";
+    const rendered = tiles(entry([product({ image_urls: [src] })])).map(renderTile);
+    const sizes = rendered.map((tile) => image(tile)?.props.sizes);
+    const tall = "(min-width: 768px) calc(83.3334vw + 14px), calc(166.6667vw + 14px)";
+    expect(sizes).toEqual([
+      "(min-width: 768px) 50vw, 100vw",
+      tall,
+      "(min-width: 768px) 41.6667vw, 83.3334vw",
+      "(min-width: 768px) 41.6667vw, 83.3334vw",
+      tall,
+      tall,
+    ]);
+    const markup = renderToStaticMarkup(rendered[1]);
+    const main = [...markup.matchAll(/<img\b[^>]*>/g)]
+      .map((match) => match[0])
+      .find((photo) => photo.includes('data-nimg="fill"'))!;
+    const widths = [...main.matchAll(/ (\d+)w/g)].map((match) => Number(match[1]));
+    const branches = [...(sizes[1] as string).matchAll(/calc\(([\d.]+)vw \+ (\d+)px\)/g)];
+    // Product has URLs, not intrinsic dimensions. A 4:3 envelope protects the
+    // measured 1024x854 crop and local 1280x960 fallback, not arbitrary panoramas.
+    for (const [viewport, tileWidth, tileHeight, candidate] of [
+      [1365, 670, 863, 1200],
+      [390, 390, 497, 750],
+    ]) {
+      const branch = branches[viewport >= 768 ? 0 : 1];
+      const budget = (Number(branch[1]) * viewport) / 100 + Number(branch[2]);
+      const required = Math.max(tileWidth, (tileHeight * 1024) / 854);
+      expect(budget).toBeGreaterThanOrEqual(required);
+      expect(widths.find((width) => width >= budget)).toBe(candidate);
+    }
+    // This checks emitted candidates and sizing math, not browser selection,
+    // image decoding, visual sharpness, DPR behavior or transferred bytes.
   });
 
   it.each([
