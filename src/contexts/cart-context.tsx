@@ -1,7 +1,15 @@
 "use client";
 
 import { usePostHog } from "posthog-js/react";
-import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 import { productAddedToCartEvent } from "@/lib/analytics-events";
 import {
   CUSTOMER_COUPON_SOURCES,
@@ -30,7 +38,10 @@ interface CartContextValue {
   isHydrated: boolean;
 }
 
+type CartHeaderContextValue = Pick<CartContextValue, "totalItems" | "setIsOpen">;
+
 const CartContext = createContext<CartContextValue | null>(null);
+const CartHeaderContext = createContext<CartHeaderContextValue | null>(null);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const posthog = usePostHog();
@@ -154,6 +165,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const totalItems = items.length;
   const totalPrice = items.reduce((sum, item) => sum + item.product.price, 0);
+  const headerValue = useMemo(() => ({ totalItems, setIsOpen }), [totalItems, setIsOpen]);
 
   return (
     <CartContext.Provider
@@ -177,7 +189,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         isHydrated,
       }}
     >
-      {children}
+      <CartHeaderContext.Provider value={headerValue}>{children}</CartHeaderContext.Provider>
     </CartContext.Provider>
   );
 }
@@ -185,5 +197,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 export function useCart() {
   const ctx = useContext(CartContext);
   if (!ctx) throw new Error("useCart must be used inside <CartProvider>");
+  return ctx;
+}
+
+export function useCartHeader() {
+  const ctx = useContext(CartHeaderContext);
+  if (!ctx) throw new Error("useCartHeader must be used inside <CartProvider>");
   return ctx;
 }

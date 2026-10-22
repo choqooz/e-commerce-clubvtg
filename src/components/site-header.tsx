@@ -8,7 +8,7 @@ import { BrandMark } from "@/components/brand-mark";
 import { subscribeToCollection } from "@/components/catalog-url-state";
 import { StorefrontLink as Link } from "@/components/storefront-transition";
 import { Sheet, SheetTrigger, SheetContent, SheetTitle, SheetClose } from "@/components/ui/sheet";
-import { useCart } from "@/contexts/cart-context";
+import { useCartHeader } from "@/contexts/cart-context";
 import { getUserCredits } from "@/lib/actions/credits";
 import {
   catalogSearchHref,
@@ -82,7 +82,7 @@ export function SiteHeader() {
   const menuOpenRef = useRef(false);
   const searchInput = useRef<HTMLInputElement>(null);
   const homeLink = useRef<HTMLAnchorElement>(null);
-  const { totalItems, setIsOpen } = useCart();
+  const { totalItems, setIsOpen } = useCartHeader();
   const { isSignedIn, userId } = useAuth();
   const { openSignIn, openUserProfile, signOut } = useClerk();
   const credits = isSignedIn && balance?.userId === userId ? balance.credits : null;

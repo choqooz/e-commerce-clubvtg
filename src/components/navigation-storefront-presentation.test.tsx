@@ -115,7 +115,10 @@ vi.mock("next/image", () => ({
     sizes?: string;
   }) => <img src={src} alt={alt} className={className} sizes={sizes} />,
 }));
-vi.mock("@/contexts/cart-context", () => ({ useCart: () => probe.cart }));
+vi.mock("@/contexts/cart-context", () => ({
+  useCart: () => probe.cart,
+  useCartHeader: () => ({ totalItems: probe.cart.totalItems, setIsOpen: probe.cart.setIsOpen }),
+}));
 vi.mock("@/lib/actions/credits", () => ({ getUserCredits: vi.fn() }));
 vi.mock("posthog-js/react", () => ({ usePostHog: () => ({ capture: probe.capture }) }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -1398,6 +1401,25 @@ function cartSignatures(text: string) {
   };
 }
 
+// Reverse only the authorized P2 hook import/call.
+// The immutable accepted hash still protects every other byte of the header.
+function beforeHeaderCartSplit(text: string) {
+  for (const [accepted, previous] of [
+    [
+      'import { useCartHeader } from "@/contexts/cart-context";',
+      'import { useCart } from "@/contexts/cart-context";',
+    ],
+    [
+      "  const { totalItems, setIsOpen } = useCartHeader();",
+      "  const { totalItems, setIsOpen } = useCart();",
+    ],
+  ]) {
+    expect(text.split(accepted), "exactly one authorized header delta").toHaveLength(2);
+    text = text.replace(accepted, previous);
+  }
+  return text;
+}
+
 describe("Source-preservation and actual in-memory Tailwind CSS", () => {
   it.each(paths)(
     "preserves %s against its accepted chrome/catalog/Card/detail/cart/admin identity or original nonpresentation baseline",
@@ -1418,7 +1440,9 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
           "site-header.tsx": "e56eaff327dc2adffae8c460f983753382a3dbaf33652d0617133a61317d5c7f",
           "site-footer.tsx": "1e9a96519016d16e1c243e93281e9f3f464ab28336f8ac41990e4c510869f6bb",
         };
-        expect(createHash("sha256").update(source(path)).digest("hex")).toBe(acceptedChrome[path]);
+        const acceptedBytes =
+          path === "site-header.tsx" ? beforeHeaderCartSplit(source(path)) : source(path);
+        expect(createHash("sha256").update(acceptedBytes).digest("hex")).toBe(acceptedChrome[path]);
       } else if (path === "catalog-content.tsx" || path === "product-card.tsx") {
         // T4 authorizes editorial markup, not URL/filter/price logic. Compare the complete
         // non-return function bodies to the immutable accepted collection baseline instead
