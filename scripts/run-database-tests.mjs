@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { readdir } from "node:fs/promises";
 import { resolve } from "node:path";
+import { selectDatabaseSuites } from "./database-test-suite-selection.mjs";
 
 const root = process.cwd();
 const migrationsDir = resolve(root, "supabase/migrations");
@@ -34,7 +35,9 @@ const suites = [
   ["034_seed_apparel_taxonomy", 20260914053236, "apparel_taxonomy"],
   ["035_credit_late_approval_settlement", 20260914232034],
   ["public_catalog_type_names", "_public_catalog_type_names.sql", "public_catalog_type_names"],
+  ["036_expire_product_reservations_concurrency", 20261008174309],
 ];
+const selectedSuites = selectDatabaseSuites(suites, process.argv.slice(2));
 
 function run(command, args, options = {}) {
   return new Promise((resolveRun, rejectRun) => {
@@ -255,7 +258,7 @@ async function main() {
     }))
     .filter(({ number }) => Number.isInteger(number));
   const results = [];
-  for (const suite of suites) {
+  for (const suite of selectedSuites) {
     if (interrupted) break;
     try {
       results.push({ ...(await runSuite(suite, migrationFiles)), passed: true });
@@ -266,7 +269,7 @@ async function main() {
     }
   }
   console.log(
-    `Database suites: ${results.filter(({ passed }) => passed).length}/${suites.length} passed`,
+    `Database suites: ${results.filter(({ passed }) => passed).length}/${selectedSuites.length} passed`,
   );
   if (results.some(({ passed }) => !passed) || interrupted) process.exitCode = 1;
 }
