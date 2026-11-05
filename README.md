@@ -49,7 +49,7 @@ Tienda de ropa vintage argentina con catálogo, compra en pesos argentinos y pro
 
 ## Requisitos y desarrollo local
 
-- Node.js 22 (ver [.nvmrc](.nvmrc)) y npm.
+- Node.js 26 (ver [.nvmrc](.nvmrc)) y npm.
 - Acceso aprobado a Clerk y Supabase. Para los flujos correspondientes: MercadoPago, OpenAI y Resend; Upstash es obligatorio en producción.
 - Docker para las pruebas de base de datos y el entorno desechable de promociones y cupones. Las pruebas de navegador utilizan Playwright con Chrome.
 
