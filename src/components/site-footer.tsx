@@ -66,7 +66,7 @@ export function SiteFooter() {
           <a href="/#catalog" className={linkClassName}>
             Catálogo
           </a>
-          <Link href="/credits" className={linkClassName}>
+          <Link href="/credits" prefetch={false} className={linkClassName}>
             Créditos IA
           </Link>
         </nav>

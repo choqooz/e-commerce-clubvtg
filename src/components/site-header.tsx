@@ -59,6 +59,7 @@ function CreditBadge({ credits }: { credits: number | null }) {
   return (
     <Link
       href="/credits"
+      prefetch={false}
       aria-label={`Créditos IA: ${credits}`}
       className="flex h-[44px] min-w-[32px] max-w-[64px] items-center justify-center gap-[2px] font-mono text-[11px] font-normal text-midnight-ink md:gap-[6px] md:text-[13px] hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
     >
@@ -227,7 +228,12 @@ export function SiteHeader() {
                 <button type="button" className={MENU_ITEM} onClick={() => queueAction("search")}>
                   Buscar
                 </button>
-                <Link href="/credits" className={MENU_ITEM} onClick={() => changeMenuOpen(false)}>
+                <Link
+                  href="/credits"
+                  prefetch={false}
+                  className={MENU_ITEM}
+                  onClick={() => changeMenuOpen(false)}
+                >
                   Créditos IA
                   {credits !== null && (
                     <span className="font-mono text-[13px]" aria-label={`Saldo: ${credits}`}>
@@ -296,6 +302,7 @@ export function SiteHeader() {
             </Link>
             <Link
               href="/credits"
+              prefetch={false}
               className="hidden h-[44px] items-center text-[15px] leading-[18px] uppercase md:flex hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
             >
               Créditos IA
