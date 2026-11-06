@@ -57,15 +57,15 @@ function CreditBadge({ credits }: { credits: number | null }) {
   if (credits === null) return null;
 
   return (
-    <Link
+    // Document navigation allows cross-origin auth redirects without an RSC fetch.
+    <a
       href="/credits"
-      prefetch={false}
       aria-label={`Créditos IA: ${credits}`}
       className="flex h-[44px] min-w-[32px] max-w-[64px] items-center justify-center gap-[2px] font-mono text-[11px] font-normal text-midnight-ink md:gap-[6px] md:text-[13px] hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
     >
       <Sparkles size={14} strokeWidth={1.5} />
       <span className="truncate">{credits}</span>
-    </Link>
+    </a>
   );
 }
 
@@ -228,9 +228,9 @@ export function SiteHeader() {
                 <button type="button" className={MENU_ITEM} onClick={() => queueAction("search")}>
                   Buscar
                 </button>
-                <Link
+                {/* Document navigation allows cross-origin auth redirects without an RSC fetch. */}
+                <a
                   href="/credits"
-                  prefetch={false}
                   className={MENU_ITEM}
                   onClick={() => changeMenuOpen(false)}
                 >
@@ -240,7 +240,7 @@ export function SiteHeader() {
                       {credits}
                     </span>
                   )}
-                </Link>
+                </a>
                 {isSignedIn ? (
                   <>
                     <Link
@@ -300,13 +300,13 @@ export function SiteHeader() {
             >
               <span className="hidden md:inline">Catálogo</span>
             </Link>
-            <Link
+            {/* Document navigation allows cross-origin auth redirects without an RSC fetch. */}
+            <a
               href="/credits"
-              prefetch={false}
               className="hidden h-[44px] items-center text-[15px] leading-[18px] uppercase md:flex hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-midnight-ink"
             >
               Créditos IA
-            </Link>
+            </a>
           </nav>
 
           {/* Exact home href clears collection/query state even on the same pathname. */}

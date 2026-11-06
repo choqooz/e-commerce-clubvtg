@@ -65,15 +65,14 @@ beforeEach(() => {
   probe.links = [];
 });
 
-describe("Credits navigation prefetch policy", () => {
+describe("Credits document navigation", () => {
   it.each([false, true])(
-    "disables only credits prefetch in the header (signed in: %s)",
+    "uses native header credits links without changing other Next links (signed in: %s)",
     (signedIn) => {
       probe.signedIn = signedIn;
       const markup = renderToStaticMarkup(<SiteHeader />);
-      const credits = probe.links.filter(({ href }) => href === "/credits");
-      expect(credits).toHaveLength(signedIn ? 3 : 2);
-      for (const link of credits) expect(link.prefetch).toBe(false);
+      // Native anchors must bypass Next's RSC fetch on click as well as its prefetch.
+      expect(probe.links.filter(({ href }) => href === "/credits")).toEqual([]);
       expect(markup.match(/href="\/credits"/g)).toHaveLength(signedIn ? 3 : 2);
       const otherLinks = probe.links.filter(({ href }) => href !== "/credits");
       expect(otherLinks.length).toBeGreaterThan(0);
@@ -82,11 +81,9 @@ describe("Credits navigation prefetch policy", () => {
     },
   );
 
-  it("disables footer credits prefetch while preserving its destination and label", () => {
+  it("uses a native footer credits link while preserving its destination and label", () => {
     const markup = renderToStaticMarkup(<SiteFooter />);
-    expect(probe.links.filter(({ href }) => href === "/credits")).toEqual([
-      { href: "/credits", prefetch: false },
-    ]);
+    expect(probe.links.filter(({ href }) => href === "/credits")).toEqual([]);
     expect(markup).toContain('href="/credits"');
     expect(markup).toContain("Créditos IA");
     expect(markup).toContain('href="/#catalog"');

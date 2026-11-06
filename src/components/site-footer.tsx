@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { BrandMark } from "@/components/brand-mark";
 
 const stories = [
@@ -66,9 +65,10 @@ export function SiteFooter() {
           <a href="/#catalog" className={linkClassName}>
             Catálogo
           </a>
-          <Link href="/credits" prefetch={false} className={linkClassName}>
+          {/* Document navigation allows cross-origin auth redirects without an RSC fetch. */}
+          <a href="/credits" className={linkClassName}>
             Créditos IA
-          </Link>
+          </a>
         </nav>
         <div className="min-w-0 px-[6px]">
           <p className="mx-auto min-h-[32px] max-w-[240px] pt-[8px]">
