@@ -229,11 +229,7 @@ export function SiteHeader() {
                   Buscar
                 </button>
                 {/* Document navigation allows cross-origin auth redirects without an RSC fetch. */}
-                <a
-                  href="/credits"
-                  className={MENU_ITEM}
-                  onClick={() => changeMenuOpen(false)}
-                >
+                <a href="/credits" className={MENU_ITEM} onClick={() => changeMenuOpen(false)}>
                   Créditos IA
                   {credits !== null && (
                     <span className="font-mono text-[13px]" aria-label={`Saldo: ${credits}`}>
