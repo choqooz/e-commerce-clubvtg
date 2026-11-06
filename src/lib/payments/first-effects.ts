@@ -7,7 +7,13 @@ import { getResendMailer } from "@/lib/resend";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { AppliedCreditSettlement } from "./mercadopago";
 
-interface PaidOrder { customer_email: string; customer_name: string; id: string; purchase_user_id: string; total_amount: number }
+interface PaidOrder {
+  customer_email: string;
+  customer_name: string;
+  id: string;
+  purchase_user_id: string;
+  total_amount: number;
+}
 
 export async function runNewlyAppliedProductPaymentEffects(orderId: string): Promise<void> {
   const { data, error } = await supabaseAdmin
@@ -24,7 +30,7 @@ export async function runNewlyAppliedProductPaymentEffects(orderId: string): Pro
   try {
     if (order.customer_email) {
       const { client, from } = getResendMailer();
-      await client.emails.send({
+      const { error: receiptError } = await client.emails.send({
         from,
         to: order.customer_email,
         subject: `Pago confirmado para la orden #${order.id.slice(0, 8)}`,
@@ -34,9 +40,10 @@ export async function runNewlyAppliedProductPaymentEffects(orderId: string): Pro
           totalAmount: order.total_amount,
         }),
       });
+      if (receiptError) console.error("[payments] receipt delivery failed");
     }
-  } catch (error: unknown) {
-    console.error("[payments] receipt delivery failed:", error);
+  } catch {
+    console.error("[payments] receipt delivery failed");
   }
 
   try {
@@ -57,7 +64,9 @@ export async function runNewlyAppliedProductPaymentEffects(orderId: string): Pro
   revalidatePath("/orders");
 }
 
-export async function runNewlyAppliedCreditPaymentEffects(settlement: AppliedCreditSettlement): Promise<void> {
+export async function runNewlyAppliedCreditPaymentEffects(
+  settlement: AppliedCreditSettlement,
+): Promise<void> {
   try {
     const posthog = getPostHogServer();
     if (posthog) {

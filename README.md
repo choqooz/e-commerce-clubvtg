@@ -127,6 +127,8 @@ La identidad de cupones solo implementa la versión `v1`. No cambiar su clave co
 
 La aplicación no sustituye un remitente ausente o inválido por uno de desarrollo.
 
+Si falla el envío del comprobante de compra, se registra un diagnóstico sin datos privados y continúa el intento de analítica y revalidación. El comprobante no se reenvía automáticamente.
+
 ### Valores configurables de tienda
 
 Los importes son en ARS. Estos son valores predeterminados del código, no precios inmutables.
