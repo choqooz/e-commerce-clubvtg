@@ -1443,9 +1443,11 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
         // including all callbacks, literals and imports; do not discard AST nodes.
         const acceptedChrome = {
           // N3 replaces only scoped catalog/logo anchors and their notification owner.
+          // Accepted credits anchors use document navigation for cross-origin auth.
+          // The exact credits-only delta was verified before refreshing these full-byte pins.
           // Existing menu/cart/auth layout and callbacks remain pinned in full.
-          "site-header.tsx": "e56eaff327dc2adffae8c460f983753382a3dbaf33652d0617133a61317d5c7f",
-          "site-footer.tsx": "1e9a96519016d16e1c243e93281e9f3f464ab28336f8ac41990e4c510869f6bb",
+          "site-header.tsx": "24b1e24fec1246d1da21b74b35d302c5c7887cf158d3f86ec14cf0138073e931",
+          "site-footer.tsx": "f3ac89689f3b18c386c43cf27aebb06f5bc341b3c7eb5715145d775d6607808c",
         };
         const acceptedBytes =
           path === "site-header.tsx" ? beforeHeaderCartSplit(source(path)) : source(path);

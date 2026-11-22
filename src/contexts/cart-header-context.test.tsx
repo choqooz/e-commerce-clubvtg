@@ -28,6 +28,12 @@ function HeaderReadout() {
   return <output>{header.totalItems}</output>;
 }
 
+// Reset the mocked effect queue for each provider invocation, including SSR retries.
+function cartProviderForRender(children: ReactNode) {
+  probe.effects = [];
+  return cart.CartProvider({ children });
+}
+
 // Render-phase retries exercise real hook dependency/identity semantics within one SSR
 // instance. This is NOT a mounted client render/subscription-count or hydration test.
 function sequence(actions: ((value: FullCart) => void)[]) {
@@ -35,8 +41,7 @@ function sequence(actions: ((value: FullCart) => void)[]) {
   const child = <HeaderReadout />;
   function Driver() {
     const [step, setStep] = useState(0);
-    probe.effects = [];
-    const tree = cart.CartProvider({ children: child });
+    const tree = cartProviderForRender(child);
     const values: unknown[] = [];
     let node: ReactNode = tree;
     while (isValidElement<{ value?: unknown; children?: ReactNode }>(node)) {
