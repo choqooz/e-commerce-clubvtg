@@ -1,0 +1,9 @@
+# Final validation and dependency reconciliation
+
+Complete compatible dependency and validation work while preserving checkout, product and try-on contracts. Product prices reject non-finite values. Existing GUID-shaped identifiers, checkout quantity messaging and numeric input typing remain compatible; content-guard tests cover existing behavior without changing its implementation.
+
+This slice uses the remaining public payloads and lock from the original `5eb65f4` integration: Sentry 10.78.0, Zod 4.6.7, shadcn 4.23.0, Next 16.4.5, Sharp 0.35.5, Vitest 4.1.12 and Vite 8.3.6. The intermediate Vite 8.3.8 was incidental. Sentry 11 and the separate AI attempt-control candidate are outside scope; the earlier navigation/cart tests remain unchanged.
+
+On the final graph, the full unit suite passed 1,421 tests with one conditional SQL-related skip; all four numeric/string positive and negative Infinity cases passed. The isolated production build and TypeScript check completed for 28 pages, Sharp's synthetic resize/pixel check passed, and lint had zero errors and 65 warnings. Fresh full and production audits reported 14 and 5 moderate findings respectively, with no high or critical findings. Both npm audits exited 1 for findings; collection succeeded. These are not clean audits or proof of global exploitability.
+
+`docs/dependency-security-triage.md` remains the original historical 83-line report: its candidate counts, acceptance and verification describe an earlier candidate, not this slice. The intermediate unit reported 25 full and 9 production findings, including high and critical findings. Neither historical disposition nor the new counts establishes acceptance for this graph. Independent verification and any applicable native disposition remain separate; no production readiness is implied.

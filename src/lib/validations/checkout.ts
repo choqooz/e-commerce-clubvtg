@@ -19,9 +19,9 @@ export type CheckoutFormValues = z.infer<typeof checkoutSchema>;
 
 const cartItemSchema = z.object({
   product: z.object({
-    id: z.string().uuid("ID de producto inválido"),
+    id: z.guid("ID de producto inválido"),
   }),
-  quantity: z.literal(1, { errorMap: () => ({ message: "Cada producto debe tener cantidad uno" }) }),
+  quantity: z.literal(1, { error: "Cada producto debe tener cantidad uno" }),
 });
 
 export const checkoutItemsSchema = z
@@ -31,7 +31,11 @@ export const checkoutItemsSchema = z
     const ids = new Set<string>();
     for (const [index, item] of items.entries()) {
       if (ids.has(item.product.id)) {
-        context.addIssue({ code: z.ZodIssueCode.custom, message: "Cada producto debe aparecer una vez", path: [index, "product", "id"] });
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Cada producto debe aparecer una vez",
+          path: [index, "product", "id"],
+        });
       }
       ids.add(item.product.id);
     }
