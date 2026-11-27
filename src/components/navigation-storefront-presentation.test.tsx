@@ -699,7 +699,7 @@ describe("Storefront state, data and callback preservation", () => {
     expect(html(tree)).toContain("1 prenda encontrada para “LiNo”");
     expect(elements(tree, CatalogFilters)[0].props.categoryProducts).toEqual([top, otherSize]);
     // Changing only query must not trigger the category's subcategory reset.
-    // The header owns the sole clear control; the collection responds to the shared URL event.
+    // With matching results, the header owns the only search clear control.
     expect(catalogButton(tree, "Limpiar búsqueda")).toBeUndefined();
     navigateCatalogSearch("");
     expect(browser.location.search).toBe("?category=tops&keep=1");
@@ -731,12 +731,14 @@ describe("Storefront state, data and callback preservation", () => {
     expect(html(tree)).toContain(
       "No encontramos prendas para esta búsqueda con la categoría y los filtros actuales.",
     );
-    expect(catalogButton(tree, "Limpiar búsqueda")).toBeUndefined();
-    navigateCatalogSearch("");
+    const clear = catalogButton(tree, "Limpiar búsqueda");
+    expect(clear).toBeDefined();
+    click(clear);
     tree = renderCatalog([product], ["tops"]);
     expect(browser.location.search).toBe("?category=tops");
     expect(elements(tree, ProductCard)[0].props.product).toBe(product);
     expect(html(tree)).toContain("Filtros (1)");
+    expect(catalogButton(tree, "Limpiar búsqueda")).toBeUndefined();
   });
 
   it("retains category narrowing, subcategory-only reset, active count, clear and empty state", () => {
@@ -1427,6 +1429,25 @@ function beforeHeaderCartSplit(text: string) {
   return text;
 }
 
+// Add only the two empty-results declarations to the accepted catalogue preamble.
+// The complete comparison still checks all prior selection, filter and focus logic.
+function withCatalogEmptyRecovery(text: string) {
+  return text
+    .replace(
+      "  const previousCollection = useRef(false);",
+      "  const previousCollection = useRef(false);\n  const catalogSection = useRef<HTMLElement>(null);",
+    )
+    .replace(
+      "  const clearFilters = () => setFilters(EMPTY_FILTERS);",
+      `  const clearFilters = () => setFilters(EMPTY_FILTERS);
+  const clearEmptyState = () => {
+    catalogSection.current?.focus({ preventScroll: true });
+    if (query) navigateCatalogSearch("");
+    else clearFilters();
+  };`,
+    );
+}
+
 describe("Source-preservation and actual in-memory Tailwind CSS", () => {
   it.each(paths)(
     "preserves %s against its accepted chrome/catalog/Card/detail/cart/admin identity or original nonpresentation baseline",
@@ -1461,7 +1482,8 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
           ["show", `4ff56050aee9baf2579c19cde360b77d10b928bb:src/components/${path}`],
           { encoding: "utf8" },
         );
-        expect(signatures(source(path)).preambles).toEqual(signatures(accepted).preambles);
+        const expected = path === "catalog-content.tsx" ? withCatalogEmptyRecovery(accepted) : accepted;
+        expect(signatures(source(path)).preambles).toEqual(signatures(expected).preambles);
         if (path === "product-card.tsx") {
           const previousPresentation = source(path)
             .replace("preload={priority}", "priority={priority}")
@@ -1486,8 +1508,12 @@ describe("Source-preservation and actual in-memory Tailwind CSS", () => {
           const duplicateQueryClear = signatures(
             '<button onClick={() => navigateCatalogSearch("")} />',
           ).attributes[0];
+          const emptyStateClear = signatures('<Button onClick={clearEmptyState} />').attributes[0];
           expect(callbacks(source(path))).toEqual(
-            callbacks(accepted).filter((callback) => callback !== duplicateQueryClear),
+            [
+              ...callbacks(accepted).filter((callback) => callback !== duplicateQueryClear),
+              emptyStateClear,
+            ].sort(),
           );
         }
       } else if (path === "product-detail-content.tsx") {
