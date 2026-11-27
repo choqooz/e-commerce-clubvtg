@@ -34,7 +34,12 @@ import {
   SheetFooter,
   SheetClose,
 } from "@/components/ui/sheet";
-import { catalogSearchSnapshot, emptySearchSnapshot, searchProducts } from "@/lib/catalog-search";
+import {
+  catalogSearchSnapshot,
+  emptySearchSnapshot,
+  navigateCatalogSearch,
+  searchProducts,
+} from "@/lib/catalog-search";
 import { CATEGORIES, type Category } from "@/lib/config";
 import type { Product } from "@/lib/types";
 
@@ -68,6 +73,7 @@ export function CatalogContent({
       ? selection.slice(7)
       : "all";
   const previousCollection = useRef(false);
+  const catalogSection = useRef<HTMLElement>(null);
 
   // Adjust before children render, including URL/history changes, not in a delayed effect.
   if (selection !== previousCategory) {
@@ -110,6 +116,12 @@ export function CatalogContent({
     navigateCollection(cat, names);
   };
   const clearFilters = () => setFilters(EMPTY_FILTERS);
+  const clearEmptyState = () => {
+    // Move focus before the reset button disappears from the results.
+    catalogSection.current?.focus({ preventScroll: true });
+    if (query) navigateCatalogSearch("");
+    else clearFilters();
+  };
 
   return (
     <div className="min-h-screen bg-bone-white font-sans font-normal text-midnight-ink">
@@ -149,6 +161,7 @@ export function CatalogContent({
           {/* The controlled collection target exists even while its contents are not mounted. */}
           <section
             id="catalog"
+            ref={catalogSection}
             aria-label="Catálogo de prendas"
             hidden={!isCollection}
             tabIndex={-1}
@@ -268,6 +281,11 @@ export function CatalogContent({
                         ? "No encontramos prendas para esta búsqueda con la categoría y los filtros actuales."
                         : "No encontramos prendas con estos filtros."}
                     </p>
+                    {(query || activeFilterCount > 0) && (
+                      <Button type="button" variant="outline" onClick={clearEmptyState}>
+                        {query ? "Limpiar búsqueda" : "Limpiar filtros"}
+                      </Button>
+                    )}
                   </div>
                 )}
               </>

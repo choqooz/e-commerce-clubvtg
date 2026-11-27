@@ -1,7 +1,16 @@
 import { Children, isValidElement, type ReactElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { navigateCatalogSearch } from "@/lib/catalog-search";
 import type { Product } from "@/lib/types";
+import { CatalogContent } from "./catalog-content";
+import { CatalogFilters, EMPTY_FILTERS } from "./catalog-filters";
+import { navigateCollection, subscribeToCollection } from "./catalog-url-state";
+import { CollectionEditorial } from "./collection-editorial";
+import { ProductCard } from "./product-card";
+import { SiteHeader } from "./site-header";
+import { Button } from "./ui/button";
+import { SheetFooter } from "./ui/sheet";
 
 // Persistent shallow hooks and real URL subscriptions. No DOM/provider/app is mounted.
 const hooks = vi.hoisted(() => ({
@@ -46,13 +55,6 @@ vi.mock("@/contexts/cart-context", () => ({
 }));
 vi.mock("@/lib/actions/credits", () => ({ getUserCredits: vi.fn() }));
 vi.mock("@/components/cart-drawer", () => ({ CartDrawer: () => null }));
-import { CatalogContent } from "./catalog-content";
-import { CollectionEditorial } from "./collection-editorial";
-import { CatalogFilters, EMPTY_FILTERS } from "./catalog-filters";
-import { navigateCollection, subscribeToCollection } from "./catalog-url-state";
-import { ProductCard } from "./product-card";
-import { SiteHeader } from "./site-header";
-import { navigateCatalogSearch } from "@/lib/catalog-search";
 
 type Element = ReactElement<{ children?: ReactNode; [key: string]: unknown }>;
 const descendants = (tree: ReactNode): Element[] =>
@@ -124,7 +126,10 @@ const products = [
 ];
 const catalog = () =>
   render("catalog", () =>
-    CatalogContent({ initialProducts: products, publicTypeNames: ["tops", "bottoms"] }),
+    CatalogContent({
+      initialProducts: products,
+      publicTypeNames: ["tops", "bottoms", "outerwear"],
+    }),
   );
 const cardIds = (tree: ReactNode) =>
   elements(tree, ProductCard).map((card) => (card.props.product as Product).id);
@@ -167,6 +172,92 @@ beforeEach(() => {
   hooks.refs = {};
 });
 afterEach(() => vi.unstubAllGlobals());
+
+describe("Catalog empty-results recovery", () => {
+  const emptyActions = (tree: ReactNode) => {
+    const emptyState = elements(tree, "div").find((node) =>
+      Children.toArray(node.props.children).some(
+        (child) => isValidElement(child) && child.type === "h1",
+      ),
+    );
+    return elements(emptyState, Button);
+  };
+
+  const observeCatalogFocus = (tree: ReactNode) => {
+    const section = elements(tree, "section").find((node) => node.props.id === "catalog")!;
+    const ref = section.props.ref as { current: { focus: () => void } | null } | undefined;
+    const focus = vi.fn();
+    if (ref) ref.current = { focus };
+    return focus;
+  };
+
+  it("clears only the query and returns focus to the catalog after search recovery", () => {
+    const page = browser("/?category=tops&tag=one&tag=two&q=missing#catalog");
+    const filters = { ...EMPTY_FILTERS, sizes: ["M"] };
+    hooks.states.catalog = ["type:tops", filters];
+    const before = catalog();
+    expect(cardIds(before)).toEqual([]);
+    const actions = emptyActions(before);
+    expect(actions.map((action) => action.props.children)).toEqual(["Limpiar búsqueda"]);
+    expect(actions[0].props.type).toBe("button");
+    const focus = observeCatalogFocus(before);
+    click(actions[0]);
+    expect(focus).toHaveBeenCalledExactlyOnceWith({ preventScroll: true });
+    const after = catalog();
+    expect(cardIds(after)).toEqual(["linen", "cotton"]);
+    expect(elements(after, CatalogFilters)[0].props.filters).toEqual(filters);
+    expect(page.location).toEqual({
+      pathname: "/",
+      search: "?category=tops&tag=one&tag=two",
+      hash: "#catalog",
+    });
+    expect(page.pushState).toHaveBeenCalledOnce();
+    expect(emptyActions(after)).toEqual([]);
+  });
+
+  it("clears only filters when no query is active and returns focus to the catalog", () => {
+    const page = browser("/?category=tops&keep=1#catalog");
+    hooks.states.catalog = ["type:tops", { ...EMPTY_FILTERS, priceBracket: 1, sizes: ["S"] }];
+    const before = catalog();
+    expect(cardIds(before)).toEqual([]);
+    const actions = emptyActions(before);
+    expect(actions.map((action) => action.props.children)).toEqual(["Limpiar filtros"]);
+    expect(actions[0].props.type).toBe("button");
+    const focus = observeCatalogFocus(before);
+    click(actions[0]);
+    expect(focus).toHaveBeenCalledExactlyOnceWith({ preventScroll: true });
+    const after = catalog();
+    expect(cardIds(after)).toEqual(["linen", "cotton", "small"]);
+    expect(elements(after, CatalogFilters)[0].props.filters).toEqual(EMPTY_FILTERS);
+    expect(page.location.search).toBe("?category=tops&keep=1");
+    expect(page.pushState).not.toHaveBeenCalled();
+    expect(emptyActions(after)).toEqual([]);
+  });
+
+  it("offers no reset for an empty category with no search or filters", () => {
+    const page = browser("/?category=outerwear#catalog");
+    const tree = catalog();
+    expect(cardIds(tree)).toEqual([]);
+    expect(elements(tree, "select")[0].props.value).toBe("type:outerwear");
+    expect(emptyActions(tree)).toEqual([]);
+    expect(page.pushState).not.toHaveBeenCalled();
+  });
+
+  it("keeps the existing filter-sheet reset available without clearing the applied search", () => {
+    const page = browser("/?category=tops&q=lino#catalog");
+    hooks.states.catalog = ["type:tops", { ...EMPTY_FILTERS, sizes: ["M"] }];
+    const before = catalog();
+    expect(cardIds(before)).toEqual(["linen"]);
+    const reset = elements(elements(before, SheetFooter)[0], Button).find(
+      (button) => button.props.children === "Limpiar filtros",
+    );
+    expect(reset).toBeDefined();
+    click(reset!);
+    expect(cardIds(catalog())).toEqual(["linen", "small"]);
+    expect(page.location.search).toBe("?category=tops&q=lino");
+    expect(page.pushState).not.toHaveBeenCalled();
+  });
+});
 
 describe("Single in-field search controls", () => {
   it("keeps a named search form, one icon submit and one icon clear inside the field wrapper", () => {
